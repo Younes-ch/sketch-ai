@@ -1,0 +1,17 @@
+<Solution>
+  <Folder Name="/Solution Items/">
+    <File Path=".gitignore" />
+    <File Path="README.md" />
+    <File Path="global.json" />
+    <File Path="Directory.Packages.props" />
+  </Folder>
+  
+  <Folder Name="/src/">
+    <Project Path="src/skribbl-ai.AppHost/skribbl-ai.AppHost.csproj" />
+    <Project Path="src/skribbl-ai.ServiceDefaults/skribbl-ai.ServiceDefaults.csproj" />
+  </Folder>
+  
+  <Folder Name="/tests/">
+    
+  </Folder> 
+</Solution>
