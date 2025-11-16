@@ -7,8 +7,8 @@
   </Folder>
   
   <Folder Name="/src/">
-    <Project Path="src/skribbl-ai.AppHost/skribbl-ai.AppHost.csproj" />
-    <Project Path="src/skribbl-ai.ServiceDefaults/skribbl-ai.ServiceDefaults.csproj" />
+    <Project Path="src/SkribblAI.AppHost/SkribblAI.AppHost.csproj" />
+    <Project Path="src/SkribblAI.ServiceDefaults/SkribblAI.ServiceDefaults.csproj" />
   </Folder>
   
   <Folder Name="/tests/">

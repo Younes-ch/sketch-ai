@@ -1,4 +1,4 @@
-<Project Sdk="Aspire.AppHost.Sdk/13.0.0">
+﻿<Project Sdk="Aspire.AppHost.Sdk/13.0.0">
 
   <PropertyGroup>
     <OutputType>Exe</OutputType>
@@ -7,5 +7,13 @@
     <Nullable>enable</Nullable>
     <UserSecretsId>c717c71a-8b2d-4a29-8c0b-58493da5aaac</UserSecretsId>
   </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="CommunityToolkit.Aspire.Hosting.NodeJS.Extensions" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\SkribblAI.Api\SkribblAI.Api.csproj" />
+  </ItemGroup>
 
 </Project>
