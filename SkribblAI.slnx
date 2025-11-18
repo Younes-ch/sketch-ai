@@ -7,6 +7,7 @@
   </Folder>
   
   <Folder Name="/src/">
+    <Project Path="src/SkribblAI.Api/SkribblAI.Api.csproj" />
     <Project Path="src/SkribblAI.AppHost/SkribblAI.AppHost.csproj" />
     <Project Path="src/SkribblAI.ServiceDefaults/SkribblAI.ServiceDefaults.csproj" />
   </Folder>
