@@ -16,7 +16,9 @@ export default function DrawingCanvas({
   const [isDrawing, setIsDrawing] = useState(false);
   const [currentColor, setCurrentColor] = useState("#000000");
   const [currentWidth, setCurrentWidth] = useState(2);
-  const [currentPoints, setCurrentPoints] = useState<Point[]>([]);
+
+  // Optimization: Use a ref to track the last point without triggering re-renders
+  const lastPointRef = useRef<Point | null>(null);
 
   const {
     connection,
@@ -91,55 +93,50 @@ export default function DrawingCanvas({
       y: e.clientY - rect.top,
     };
 
-    setCurrentPoints([point]);
+    lastPointRef.current = point;
   };
 
   // Mouse move - continue drawing
-  const handleMouseMove = (e: React.MouseEvent<HTMLCanvasElement>) => {
-    if (!isDrawing) return;
+  const handleMouseMove = async (e: React.MouseEvent<HTMLCanvasElement>) => {
+    if (!isDrawing || !lastPointRef.current) return;
 
     const rect = canvasRef.current?.getBoundingClientRect();
     if (!rect) return;
 
-    const point: Point = {
+    const currentPoint: Point = {
       x: e.clientX - rect.left,
       y: e.clientY - rect.top,
     };
 
-    const newPoints = [...currentPoints, point];
-    setCurrentPoints(newPoints);
+    const lastPoint = lastPointRef.current;
 
-    // Draw locally immediately for smooth experience
+    // Create a small segment command
     const command: DrawingCommand = {
       type: "stroke",
-      points: newPoints,
+      points: [lastPoint, currentPoint],
       color: currentColor,
       width: currentWidth,
     };
+
+    // 1. Draw locally (Optimization: only draw the new segment)
     drawCommand(command);
-  };
 
-  // Mouse up - finish drawing and send to server
-  const handleMouseUp = async () => {
-    if (!isDrawing) return;
-    setIsDrawing(false);
-
-    if (currentPoints.length > 1) {
-      const command: DrawingCommand = {
-        type: "stroke",
-        points: currentPoints,
-        color: currentColor,
-        width: currentWidth,
-      };
-
-      try {
-        await sendDrawingCommand(command);
-      } catch (error) {
-        console.error("Failed to send drawing command:", error);
-      }
+    // 2. Send to server immediately (Live Drawing)
+    try {
+      // We don't await this to keep drawing smooth
+      sendDrawingCommand(command);
+    } catch (error) {
+      console.error("Failed to send drawing command:", error);
     }
 
-    setCurrentPoints([]);
+    // Update last point
+    lastPointRef.current = currentPoint;
+  };
+
+  // Mouse up - finish drawing
+  const handleMouseUp = () => {
+    setIsDrawing(false);
+    lastPointRef.current = null;
   };
 
   // Handle clear button
