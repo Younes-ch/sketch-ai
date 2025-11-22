@@ -1,7 +1,7 @@
 var builder = DistributedApplication.CreateBuilder(args);
 
-var api = builder
-    .AddProject<Projects.SkribblAI_Api>("api")
+var apiService = builder
+    .AddProject<Projects.SkribblAI_Api>("apiservice")
     .WithUrls(context =>
     {
         foreach (var url in context.Urls)
@@ -17,15 +17,15 @@ var api = builder
         });
     });
 
-var frontend = builder
-    .AddPnpmApp("frontend", "../SkribblAI.Web", "dev")
+var webfrontend = builder
+    .AddViteApp("webfrontend", "../SkribblAI.Web", "pnpm")
     .WithPnpmPackageInstallation()
-    .WithReference(api)
+    .WithEndpoint("http", e => e.Port = 9081)
     .WithEnvironment("BROWSER", "none")
-    .WithHttpEndpoint(env: "VITE_PORT")
-    .WithExternalHttpEndpoints()
+    .WithUrl("", "Skribbl UI")
+    .WithReference(apiService)
     .PublishAsDockerFile();
 
-api.WithReference(frontend);
+apiService.WithReference(webfrontend);
 
 builder.Build().Run();

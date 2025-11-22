@@ -17,9 +17,11 @@ builder.Services.AddCors(options =>
 {
     options.AddPolicy("DevCorsPolicy", policy =>
     {
-        var frontendUrl = builder.Configuration["services:frontend:http:0"] ?? "http://localhost:5173";
+        var webfrontendUrl = builder.Configuration["services:webfrontend:https:0"] ?? 
+                          builder.Configuration["services:webfrontend:http:0"] ??
+                          "http://localhost:5173";
 
-        policy.WithOrigins(frontendUrl)
+        policy.WithOrigins(webfrontendUrl)
             .AllowAnyHeader()
             .AllowAnyMethod()
             .AllowCredentials(); // Required for SignalR

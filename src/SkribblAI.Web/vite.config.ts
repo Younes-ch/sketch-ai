@@ -13,11 +13,11 @@ export default defineConfig(({ mode }) => {
             }
         },
         server: {
-            port: parseInt(env.VITE_PORT) || 5173,
+            port: parseInt(env.PORT) || 5173,
             proxy: {
                 '/hubs/drawing': {
-                    target: process.env.services__api__https__0 ||
-                        process.env.services__api__http__0,
+                    target: process.env.services__apiservice__https__0 ||
+                        process.env.services__apiservice__http__0,
                     changeOrigin: true,
                     secure: false,
                     ws: true,
