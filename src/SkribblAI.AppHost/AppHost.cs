@@ -1,5 +1,9 @@
 var builder = DistributedApplication.CreateBuilder(args);
 
+var redis = builder
+    .AddRedis("redis")
+    .WithRedisInsight();
+
 var apiService = builder
     .AddProject<Projects.SkribblAI_Api>("apiservice")
     .WithUrls(context =>
@@ -26,6 +30,8 @@ var webfrontend = builder
     .WithReference(apiService)
     .PublishAsDockerFile();
 
-apiService.WithReference(webfrontend);
+apiService
+    .WithReference(webfrontend)
+    .WithReference(redis);
 
 builder.Build().Run();
