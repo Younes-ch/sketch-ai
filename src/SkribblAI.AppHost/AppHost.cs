@@ -34,4 +34,9 @@ apiService
     .WithReference(webfrontend)
     .WithReference(redis);
 
+var publicDevTunnel = builder
+    .AddDevTunnel("public-webfrontend")
+    .WithAnonymousAccess()
+    .WithReference(webfrontend);
+
 builder.Build().Run();

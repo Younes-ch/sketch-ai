@@ -10,6 +10,7 @@
   <ItemGroup Label="For AppHost">
     <PackageVersion Include="CommunityToolkit.Aspire.Hosting.NodeJS.Extensions" Version="9.9.0" />
     <PackageVersion Include="Aspire.Hosting.Redis" Version="13.0.0" />
+    <PackageVersion Include="Aspire.Hosting.DevTunnels" Version="13.0.1-preview.1.25575.3" />
   </ItemGroup>
   <ItemGroup Label="For Service Defaults">
     <PackageVersion Include="Microsoft.Extensions.Http.Resilience" Version="10.0.0" />
