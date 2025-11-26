@@ -7,6 +7,8 @@ builder.AddRedisClient(connectionName: "redis");
 // Learn more about configuring OpenAPI at https://aka.ms/aspnet/openapi
 builder.Services.AddControllers();
 builder.Services.AddOpenApi();
+builder.Services.AddSingleton<IRoomService, RoomService>();
+builder.Services.AddSingleton<ICanvasService, CanvasService>();
 
 // SignalR
 builder.Services.AddSignalR();
