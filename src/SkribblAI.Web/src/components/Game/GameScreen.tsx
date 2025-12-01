@@ -1,5 +1,6 @@
 import { useState } from "react";
 import DrawingCanvas from "@/components/Canvas/DrawingCanvas";
+import ConnectionStatus from "@/components/Common/ConnectionStatus";
 import { useSignalR } from "@/hooks/useSignalR";
 
 type MobileTab = "canvas" | "players" | "chat";
@@ -39,6 +40,7 @@ export default function GameScreen() {
               <span className="text-[#FFC71E]">skribbl</span>
               <span className="text-white">.ai</span>
             </h1>
+            <ConnectionStatus />
           </div>
 
           {/* Room Info & Actions */}

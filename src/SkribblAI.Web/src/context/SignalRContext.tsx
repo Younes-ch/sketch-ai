@@ -19,8 +19,11 @@ type PlayerLeftCallback = (username: string) => void;
 type HostChangedCallback = (newHostUsername: string) => void;
 type ErrorCallback = (message: string) => void;
 
+export type ConnectionState = "Connected" | "Reconnecting" | "Disconnected";
+
 interface SignalRContextType {
   connection: signalR.HubConnection | null;
+  connectionState: ConnectionState;
   roomCode: string | null;
   username: string | null;
   isHost: boolean;
@@ -48,6 +51,8 @@ export const SignalRProvider = ({ children }: { children: ReactNode }) => {
   const [connection, setConnection] = useState<signalR.HubConnection | null>(
     null
   );
+  const [connectionState, setConnectionState] =
+    useState<ConnectionState>("Disconnected");
   const [roomCode, setRoomCode] = useState<string | null>(null);
   const [username, setUsername] = useState<string | null>(null);
   const [isHost, setIsHost] = useState<boolean>(false);
@@ -146,13 +151,33 @@ export const SignalRProvider = ({ children }: { children: ReactNode }) => {
       .configureLogging(signalR.LogLevel.Information)
       .build();
 
+    // Connection state listeners
+    newConnection.onreconnecting(() => {
+      console.log("SignalR Reconnecting...");
+      setConnectionState("Reconnecting");
+    });
+
+    newConnection.onreconnected(() => {
+      console.log("SignalR Reconnected");
+      setConnectionState("Connected");
+    });
+
+    newConnection.onclose(() => {
+      console.log("SignalR Disconnected");
+      setConnectionState("Disconnected");
+    });
+
     newConnection
       .start()
       .then(() => {
         console.log("SignalR Connected");
+        setConnectionState("Connected");
         setConnection(newConnection);
       })
-      .catch((err) => console.error("SignalR Connection Error: ", err));
+      .catch((err) => {
+        console.error("SignalR Connection Error: ", err);
+        setConnectionState("Disconnected");
+      });
 
     return () => {
       newConnection.stop();
@@ -286,6 +311,7 @@ export const SignalRProvider = ({ children }: { children: ReactNode }) => {
     <SignalRContext.Provider
       value={{
         connection,
+        connectionState,
         roomCode,
         username,
         isHost,
