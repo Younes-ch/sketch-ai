@@ -324,11 +324,10 @@ export default function DrawingCanvas() {
         onTouchMove={handleTouchMove}
         onTouchEnd={handleTouchEnd}
         onTouchCancel={handleTouchEnd}
-        className="bg-white rounded-lg shadow-inner shrink-0 touch-none"
+        className="bg-white rounded-lg shadow-inner shrink-0 touch-none border-4 border-card-border"
         style={{
           width: displaySize.width,
           height: displaySize.height,
-          border: "4px solid #2A3F54",
           cursor: getCursor(),
         }}
       />

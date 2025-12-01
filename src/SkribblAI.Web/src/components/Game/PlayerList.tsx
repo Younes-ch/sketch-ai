@@ -17,7 +17,7 @@ export default function PlayerList({
 
   return (
     <div
-      className={`bg-[#1B2838] rounded-2xl p-4 border-4 border-[#2A3F54] flex flex-col ${
+      className={`bg-card rounded-2xl p-4 border-4 border-card-border flex flex-col ${
         isDesktop ? "shadow-none" : "shadow-lg h-full"
       }`}
     >
@@ -33,7 +33,7 @@ export default function PlayerList({
           <div
             key={player.username}
             className={`${
-              player.isHost ? "bg-[#4CAF50]" : "bg-[#2A3F54]"
+              player.isHost ? "bg-success" : "bg-card-border"
             } rounded-xl p-3 flex items-center ${
               isDesktop ? "gap-2" : "gap-3"
             }`}
@@ -83,7 +83,7 @@ export default function PlayerList({
               <>
                 <br />
                 Share the room code:{" "}
-                <span className="text-[#FFC71E] font-bold">{roomCode}</span>
+                <span className="text-accent font-bold">{roomCode}</span>
               </>
             )}
           </p>

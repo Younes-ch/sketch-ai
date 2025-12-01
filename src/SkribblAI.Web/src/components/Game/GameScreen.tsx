@@ -32,7 +32,7 @@ export default function GameScreen() {
   };
 
   return (
-    <div className="h-screen bg-[#0D1B2A] p-2 sm:p-3 flex flex-col overflow-hidden">
+    <div className="h-screen bg-background p-2 sm:p-3 flex flex-col overflow-hidden">
       <div className="w-full flex-1 flex flex-col min-h-0">
         {/* Header Bar */}
         <GameHeader
@@ -66,7 +66,7 @@ export default function GameScreen() {
                 mobileTab !== "canvas" ? "hidden lg:flex" : "flex"
               } flex-col`}
             >
-              <div className="bg-[#1B2838] rounded-2xl p-2 sm:p-4 border-4 border-[#2A3F54] shadow-lg h-full flex flex-col overflow-hidden">
+              <div className="bg-card rounded-2xl p-2 sm:p-4 border-4 border-card-border shadow-lg h-full flex flex-col overflow-hidden">
                 <WordHint />
                 <div className="flex-1 min-h-0 flex items-center justify-center">
                   <DrawingCanvas />

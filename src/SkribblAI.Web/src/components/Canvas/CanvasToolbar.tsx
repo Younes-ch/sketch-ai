@@ -1,5 +1,6 @@
 import ColorPalette from "./ColorPalette";
 import BrushSizeSelector from "./BrushSizeSelector";
+import { cn } from "@/lib/utils";
 
 export type ToolType = "brush" | "eraser";
 
@@ -32,7 +33,7 @@ export default function CanvasToolbar({
   };
 
   return (
-    <div className="mt-4 bg-[#0D1B2A] rounded-2xl p-3 border-4 border-[#2A3F54] w-full shrink-0">
+    <div className="mt-4 bg-background rounded-2xl p-3 border-4 border-card-border w-full shrink-0">
       {/* Color Palette */}
       <ColorPalette
         currentColor={currentColor}
@@ -43,28 +44,26 @@ export default function CanvasToolbar({
       {/* Tools Row */}
       <div className="flex items-center justify-center gap-3 flex-wrap">
         {/* Tool Buttons */}
-        <div className="flex items-center gap-1 bg-[#1B2838] rounded-xl p-2 border-2 border-[#2A3F54]">
+        <div className="flex items-center gap-1 bg-card rounded-xl p-2 border-2 border-card-border">
           <button
             onClick={() => onToolChange("brush")}
-            className="px-3 py-2 rounded-lg font-bold text-sm transition-all duration-150 flex items-center gap-1"
-            style={{
-              backgroundColor:
-                currentTool === "brush" ? "#4CAF50" : "transparent",
-              color:
-                currentTool === "brush" ? "white" : "rgba(255,255,255,0.6)",
-            }}
+            className={cn(
+              "px-3 py-2 rounded-lg font-bold text-sm transition-all duration-150 flex items-center gap-1",
+              currentTool === "brush"
+                ? "bg-success text-white"
+                : "bg-transparent text-white/60"
+            )}
           >
             <span>🖌️</span> Brush
           </button>
           <button
             onClick={() => onToolChange("eraser")}
-            className="px-3 py-2 rounded-lg font-bold text-sm transition-all duration-150 flex items-center gap-1"
-            style={{
-              backgroundColor:
-                currentTool === "eraser" ? "#FF9800" : "transparent",
-              color:
-                currentTool === "eraser" ? "white" : "rgba(255,255,255,0.6)",
-            }}
+            className={cn(
+              "px-3 py-2 rounded-lg font-bold text-sm transition-all duration-150 flex items-center gap-1",
+              currentTool === "eraser"
+                ? "bg-warning text-white"
+                : "bg-transparent text-white/60"
+            )}
           >
             <span>🧽</span> Eraser
           </button>
@@ -80,27 +79,20 @@ export default function CanvasToolbar({
         />
 
         {/* Custom Color Picker */}
-        <div className="flex items-center gap-2 bg-[#1B2838] rounded-xl p-2 border-2 border-[#2A3F54]">
+        <div className="flex items-center gap-2 bg-card rounded-xl p-2 border-2 border-card-border">
           <span className="text-white/60 text-xs font-bold">CUSTOM</span>
           <input
             type="color"
             value={currentColor}
             onChange={(e) => handleColorSelect(e.target.value)}
-            className="w-8 h-8 rounded-md cursor-pointer border-2 border-[#2A3F54]"
+            className="w-8 h-8 rounded-md cursor-pointer border-2 border-card-border"
           />
         </div>
 
         {/* Clear Button */}
         <button
           onClick={onClear}
-          className="px-4 py-2.5 text-white rounded-xl font-bold cursor-pointer hover:-translate-y-0.5 transition-all duration-200 flex items-center gap-2"
-          style={{ backgroundColor: "#F44336", border: "4px solid #D32F2F" }}
-          onMouseEnter={(e) =>
-            (e.currentTarget.style.backgroundColor = "#E53935")
-          }
-          onMouseLeave={(e) =>
-            (e.currentTarget.style.backgroundColor = "#F44336")
-          }
+          className="px-4 py-2.5 text-white rounded-xl font-bold cursor-pointer hover:-translate-y-0.5 transition-all duration-200 flex items-center gap-2 bg-danger border-4 border-danger-dark hover:bg-danger-hover"
         >
           <span>🗑️</span> Clear
         </button>
