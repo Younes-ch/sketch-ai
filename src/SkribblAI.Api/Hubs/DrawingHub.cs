@@ -82,6 +82,7 @@ public class DrawingHub : Hub
 
         await Groups.AddToGroupAsync(Context.ConnectionId, roomCode);
 
+        room.Players.Add(player);
         var players = room!.Players.Select(ToPlayerDto).ToList();
 
         await Clients.Caller.SendAsync("RoomJoined", roomCode, players);
