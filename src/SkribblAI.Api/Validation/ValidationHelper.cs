@@ -105,7 +105,7 @@ public static partial class ValidationHelper
     [GeneratedRegex("^[A-Z0-9]{6}$")]
     private static partial Regex RoomCodeRegex();
 
-    [GeneratedRegex("^[a-zA-Z0-9 ]+$")]
+    [GeneratedRegex("^[a-zA-Z0-9 _-]+$")]
     private static partial Regex UsernameRegex();
 
     [GeneratedRegex("^#([A-Fa-f0-9]{6}|[A-Fa-f0-9]{3})$")]
