@@ -1,7 +1,11 @@
 import { useState } from "react";
 
 interface JoinScreenProps {
-  onJoinGame: (username: string, roomCode: string, isCreating: boolean) => void;
+  onJoinGame: (
+    username: string,
+    roomCode: string,
+    isCreating: boolean
+  ) => Promise<void>;
   initialRoomCode?: string | null;
 }
 
@@ -25,6 +29,8 @@ export default function JoinScreen({
   // Initialize roomCode and isCreatingRoom based on whether we have an invite link
   const [roomCode, setRoomCode] = useState(initialRoomCode ?? "");
   const [isCreatingRoom, setIsCreatingRoom] = useState(!initialRoomCode);
+  const [isJoining, setIsJoining] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   const generateRoomCode = () => {
     const characters = "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789";
@@ -37,18 +43,32 @@ export default function JoinScreen({
     return result;
   };
 
-  const handleJoinRoom = (e: React.FormEvent) => {
+  const handleJoinRoom = async (e: React.FormEvent) => {
     e.preventDefault();
     if (username.trim() && roomCode.trim()) {
-      onJoinGame(username.trim(), roomCode.trim().toUpperCase(), false);
+      setIsJoining(true);
+      setError(null);
+      try {
+        await onJoinGame(username.trim(), roomCode.trim().toUpperCase(), false);
+      } catch (err) {
+        setError(err instanceof Error ? err.message : "Failed to join room");
+        setIsJoining(false);
+      }
     }
   };
 
-  const handleCreateRoom = (e: React.FormEvent) => {
+  const handleCreateRoom = async (e: React.FormEvent) => {
     e.preventDefault();
     if (username.trim()) {
-      const newRoomCode = generateRoomCode();
-      onJoinGame(username.trim(), newRoomCode, true);
+      setIsJoining(true);
+      setError(null);
+      try {
+        const newRoomCode = generateRoomCode();
+        await onJoinGame(username.trim(), newRoomCode, true);
+      } catch (err) {
+        setError(err instanceof Error ? err.message : "Failed to create room");
+        setIsJoining(false);
+      }
     }
   };
 
@@ -173,15 +193,30 @@ export default function JoinScreen({
               </div>
             )}
 
+            {error && (
+              <div className="bg-red-500/20 border-2 border-red-500 rounded-xl p-3 text-red-400 text-sm">
+                {error}
+              </div>
+            )}
+
             <button
               type="submit"
-              className={`py-4 mt-2 text-white border-4 rounded-2xl text-xl font-black cursor-pointer transition-all duration-200 hover:-translate-y-1 hover:shadow-xl active:translate-y-0 active:shadow-md ${
+              disabled={isJoining}
+              className={`py-4 mt-2 text-white border-4 rounded-2xl text-xl font-black transition-all duration-200 ${
+                isJoining
+                  ? "opacity-70 cursor-not-allowed"
+                  : "cursor-pointer hover:-translate-y-1 hover:shadow-xl active:translate-y-0 active:shadow-md"
+              } ${
                 isCreatingRoom
                   ? "bg-[#2196F3] border-[#1976D2] hover:bg-[#1E88E5]"
                   : "bg-[#4CAF50] border-[#45a049] hover:bg-[#43A047]"
               }`}
             >
-              {isCreatingRoom ? "🎮 CREATE & PLAY!" : "🚀 JOIN GAME!"}
+              {isJoining
+                ? "⏳ Connecting..."
+                : isCreatingRoom
+                ? "🎮 CREATE & PLAY!"
+                : "🚀 JOIN GAME!"}
             </button>
           </form>
         </div>
