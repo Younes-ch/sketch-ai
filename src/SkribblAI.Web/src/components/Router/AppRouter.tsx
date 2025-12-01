@@ -52,10 +52,11 @@ export default function AppRouter() {
   const handleJoinGame = async (
     name: string,
     room: string,
-    isCreating: boolean
+    isCreating: boolean,
+    isPublic: boolean = false
   ) => {
     if (isCreating) {
-      await createRoom(name, room);
+      await createRoom(name, room, isPublic);
     } else {
       await joinRoom(name, room);
     }

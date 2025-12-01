@@ -16,7 +16,7 @@ public class RoomService : IRoomService
         _db = redis.GetDatabase();
     }
 
-    public async Task<Room> CreateRoomAsync(string roomCode, string hostConnectionId, string hostUsername)
+    public async Task<Room> CreateRoomAsync(string roomCode, bool isPublic, string hostConnectionId, string hostUsername)
     {
         var host = new Player
         {
@@ -31,6 +31,7 @@ public class RoomService : IRoomService
         {
             Id = roomCode,
             HostConnectionId = hostConnectionId,
+            IsPublic = isPublic,
             Players = [host],
             CreatedAt = DateTime.UtcNow,
             LastActivityAt = DateTime.UtcNow
@@ -43,6 +44,11 @@ public class RoomService : IRoomService
 
         await _db.StringSetAsync(roomKey, roomJson, RedisKeys.RoomExpiry);
         await _db.StringSetAsync(connectionKey, roomCode, RedisKeys.RoomExpiry);
+
+        if (isPublic)
+        {
+            await _db.SetAddAsync(RedisKeys.PublicRooms, roomCode);
+        }
 
         _logger.LogInformation("Room {roomCode} created by {Username} ({ConnectionId})",
             roomCode, hostUsername, hostConnectionId);
@@ -65,6 +71,34 @@ public class RoomService : IRoomService
         return room;
     }
 
+    public async Task<List<Room>> GetPublicRoomsAsync()
+    {
+        var publicRoomCodes = await _db.SetMembersAsync(RedisKeys.PublicRooms);
+        List<Room> rooms = [];
+
+        foreach (var roomCode in publicRoomCodes)
+        {
+            var room = await GetRoomAsync(roomCode);
+            if (room is not null && room.Players.Count < room.MaxPlayers)
+            {
+                rooms.Add(room);
+            }
+            else if (room is null)
+            {
+                await _db.SetRemoveAsync(RedisKeys.PublicRooms, roomCode);
+            }
+        }
+
+        return rooms;
+    }
+
+    public async Task<bool> IsRoomFullAsync(string roomCode)
+    {
+        var room = await GetRoomAsync(roomCode);
+
+        return room is null || room.Players.Count >= room.MaxPlayers;
+    }
+
     public async Task<bool> RoomExistsAsync(string roomCode)
     {
         var roomKey = RedisKeys.Room(roomCode);
@@ -80,8 +114,12 @@ public class RoomService : IRoomService
 
         // Check if player already exists (reconnection)
         var existingPlayer = room.Players.FirstOrDefault(p => p.Username == username);
+        if (existingPlayer is null && room.Players.Count >= room.MaxPlayers)
+        {
+            return null;
+        }
 
-        if (existingPlayer != null)
+        if (existingPlayer is not null)
         {
             // Clean up old connection key
             await _db.KeyDeleteAsync(RedisKeys.ConnectionToRoom(existingPlayer.ConnectionId));
@@ -154,6 +192,8 @@ public class RoomService : IRoomService
     {
         var room = await GetRoomAsync(roomCode);
         if (room is null) return false;
+
+        await _db.SetRemoveAsync(RedisKeys.PublicRooms, RedisKeys.Room(roomCode));
 
         // Clean up all connection keys for players in this room
         var keysToDelete = room.Players

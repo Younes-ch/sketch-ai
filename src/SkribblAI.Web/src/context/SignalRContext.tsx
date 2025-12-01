@@ -1,5 +1,6 @@
 import type { DrawingCommand } from "@/models/drawingCommand";
 import type { Player } from "@/models/player";
+import type { PublicRoom } from "@/models/publicRoom";
 import { logger } from "@/lib/logger";
 import * as signalR from "@microsoft/signalr";
 import {
@@ -27,6 +28,7 @@ type PlayerEventCallback = (player: Player) => void;
 type PlayerLeftCallback = (username: string) => void;
 type HostChangedCallback = (newHostUsername: string) => void;
 type ErrorCallback = (message: string) => void;
+type PublicRoomsCallback = (rooms: PublicRoom[]) => void;
 
 export type ConnectionState = "Connected" | "Reconnecting" | "Disconnected";
 
@@ -64,10 +66,15 @@ interface SignalRContextType {
   isReconnecting: boolean;
   pendingCanvasHistory: DrawingCommand[] | null;
   clearPendingCanvasHistory: () => void;
-  createRoom: (username: string, roomCode: string) => Promise<void>;
+  createRoom: (
+    username: string,
+    roomCode: string,
+    isPublic?: boolean
+  ) => Promise<void>;
   joinRoom: (username: string, roomCode: string) => Promise<void>;
   leaveRoom: () => Promise<void>;
   attemptReconnect: () => Promise<boolean>;
+  getPublicRooms: () => Promise<void>;
   sendDrawingCommand: (command: DrawingCommand) => Promise<void>;
   clearCanvas: () => Promise<void>;
   // Event subscription methods
@@ -78,6 +85,7 @@ interface SignalRContextType {
   onPlayerLeft: (callback: PlayerLeftCallback) => () => void;
   onHostChanged: (callback: HostChangedCallback) => () => void;
   onError: (callback: ErrorCallback) => () => void;
+  onReceivePublicRooms: (callback: PublicRoomsCallback) => () => void;
 }
 
 export const SignalRContext = createContext<SignalRContextType | null>(null);
@@ -220,10 +228,14 @@ export const SignalRProvider = ({ children }: { children: ReactNode }) => {
     };
   }, []);
 
-  const createRoom = async (newUsername: string, newRoomCode: string) => {
+  const createRoom = async (
+    newUsername: string,
+    newRoomCode: string,
+    isPublic: boolean = false
+  ) => {
     if (connection?.state === signalR.HubConnectionState.Connected) {
       setUsername(newUsername); // Set username before invoke so handlers can use it
-      await connection.invoke("CreateRoom", newUsername, newRoomCode);
+      await connection.invoke("CreateRoom", newUsername, newRoomCode, isPublic);
       saveSession(newRoomCode, newUsername);
     }
   };
@@ -289,6 +301,12 @@ export const SignalRProvider = ({ children }: { children: ReactNode }) => {
       roomCode
     ) {
       await connection.invoke("ClearCanvas", roomCode);
+    }
+  };
+
+  const getPublicRooms = async () => {
+    if (connection?.state === signalR.HubConnectionState.Connected) {
+      await connection.invoke("GetPublicRooms");
     }
   };
 
@@ -370,6 +388,17 @@ export const SignalRProvider = ({ children }: { children: ReactNode }) => {
     [connection]
   );
 
+  const onReceivePublicRooms = useCallback(
+    (callback: PublicRoomsCallback) => {
+      if (connection) {
+        connection.on("ReceivePublicRooms", callback);
+        return () => connection.off("ReceivePublicRooms", callback);
+      }
+      return () => {};
+    },
+    [connection]
+  );
+
   return (
     <SignalRContext.Provider
       value={{
@@ -386,6 +415,7 @@ export const SignalRProvider = ({ children }: { children: ReactNode }) => {
         joinRoom,
         leaveRoom,
         attemptReconnect,
+        getPublicRooms,
         sendDrawingCommand,
         clearCanvas,
         onReceiveDrawingCommand,
@@ -395,6 +425,7 @@ export const SignalRProvider = ({ children }: { children: ReactNode }) => {
         onPlayerLeft,
         onHostChanged,
         onError,
+        onReceivePublicRooms,
       }}
     >
       {children}

@@ -20,7 +20,7 @@ public class DrawingHub : Hub
     /// <summary>
     /// Creates a new room and joins the creator as host.
     /// </summary>
-    public async Task CreateRoom(string username, string roomCode)
+    public async Task CreateRoom(string username, string roomCode, bool isPublic = true)
     {
         if (!ValidationHelper.IsValidUsername(username))
         {
@@ -38,7 +38,7 @@ public class DrawingHub : Hub
             throw new HubException("Room already exists. Try a different code.");
         }
 
-        var room = await _roomService.CreateRoomAsync(roomCode, Context.ConnectionId, username);
+        var room = await _roomService.CreateRoomAsync(roomCode, isPublic, Context.ConnectionId, username);
 
         await Groups.AddToGroupAsync(Context.ConnectionId, roomCode);
 
@@ -61,11 +61,17 @@ public class DrawingHub : Hub
             throw new HubException("Invalid room code. Must be 6 alphanumeric characters.");
         }
 
-        var roomExists = await _roomService.RoomExistsAsync(roomCode);
-        if (!roomExists)
+        var room = await _roomService.GetRoomAsync(roomCode);
+        if (room is null)
         {
             _logger.LogWarning("Player {Username} tried to join non-existent room {RoomCode}", username, roomCode);
             throw new HubException("Room not found");
+        }
+
+        var existingPlayer = room.Players.FirstOrDefault(p => p.Username == username);
+        if (existingPlayer == null && room.Players.Count >= room.MaxPlayers)
+        {
+            throw new HubException("Room is full");
         }
 
         var player = await _roomService.AddPlayerToRoomAsync(roomCode, Context.ConnectionId, username);
@@ -76,7 +82,6 @@ public class DrawingHub : Hub
 
         await Groups.AddToGroupAsync(Context.ConnectionId, roomCode);
 
-        var room = await _roomService.GetRoomAsync(roomCode);
         var players = room!.Players.Select(ToPlayerDto).ToList();
 
         await Clients.Caller.SendAsync("RoomJoined", roomCode, players);
@@ -147,6 +152,24 @@ public class DrawingHub : Hub
         await Clients.OthersInGroup(roomCode).SendAsync("CanvasCleared");
 
         _logger.LogInformation("Canvas cleared in room {RoomCode} by {ConnectionId}", roomCode, Context.ConnectionId);
+    }
+
+    /// <summary>
+    /// Gets a list of available public rooms.
+    /// </summary>
+    public async Task GetPublicRooms()
+    {
+        var rooms = await _roomService.GetPublicRoomsAsync();
+
+        var publicRoomDtos = rooms.Select(r => new
+        {
+            RoomCode = r.Id,
+            PlayerCount = r.Players.Count,
+            r.MaxPlayers,
+            HostUsername = r.Players.FirstOrDefault(p => p.IsHost)?.Username
+        }).ToList();
+
+        await Clients.Caller.SendAsync("ReceivePublicRooms", publicRoomDtos);
     }
 
     /// <summary>
