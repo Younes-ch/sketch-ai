@@ -23,14 +23,15 @@ builder.Services.AddCors(options =>
 {
     options.AddPolicy("DevCorsPolicy", policy =>
     {
-        var webfrontendUrl = builder.Configuration["services:webfrontend:https:0"] ?? 
-                          builder.Configuration["services:webfrontend:http:0"] ??
-                          "http://localhost:5173";
-
-        policy.WithOrigins(webfrontendUrl)
+        policy.SetIsOriginAllowed(origin =>
+            {
+                var uri = new Uri(origin);
+                return uri.Host.EndsWith(".devtunnels.ms") ||
+                       uri.Host == "localhost";
+            })
             .AllowAnyHeader()
             .AllowAnyMethod()
-            .AllowCredentials(); // Required for SignalR
+            .AllowCredentials();
     });
 });
 
