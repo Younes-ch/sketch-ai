@@ -75,6 +75,7 @@ public class RoomService : IRoomService
     {
         var publicRoomCodes = await _db.SetMembersAsync(RedisKeys.PublicRooms);
         List<Room> rooms = [];
+        var staleRoomsRemoved = 0;
 
         foreach (var roomCode in publicRoomCodes)
         {
@@ -86,9 +87,16 @@ public class RoomService : IRoomService
             else if (room is null)
             {
                 await _db.SetRemoveAsync(RedisKeys.PublicRooms, roomCode);
+                staleRoomsRemoved++;
             }
         }
 
+        if (staleRoomsRemoved > 0)
+        {
+            _logger.LogInformation("Cleaned up {StaleCount} stale public room entries", staleRoomsRemoved);
+        }
+
+        _logger.LogDebug("Found {Count} available public rooms", rooms.Count);
         return rooms;
     }
 
@@ -110,17 +118,27 @@ public class RoomService : IRoomService
     public async Task<Player?> AddPlayerToRoomAsync(string roomCode, string connectionId, string username)
     {
         var room = await GetRoomAsync(roomCode);
-        if (room is null) return null;
+        if (room is null)
+        {
+            _logger.LogWarning("Failed to add player {Username} - room {RoomCode} not found",
+                username, roomCode);
+            return null;
+        }
 
         // Check if player already exists (reconnection)
         var existingPlayer = room.Players.FirstOrDefault(p => p.Username == username);
         if (existingPlayer is null && room.Players.Count >= room.MaxPlayers)
         {
+            _logger.LogWarning("Failed to add player {Username} - room {RoomCode} is full ({PlayerCount}/{MaxPlayers})",
+                username, roomCode, room.Players.Count, room.MaxPlayers);
             return null;
         }
 
         if (existingPlayer is not null)
         {
+            _logger.LogInformation("Player {Username} reconnecting to room {RoomCode}",
+                username, roomCode);
+
             // Clean up old connection key
             await _db.KeyDeleteAsync(RedisKeys.ConnectionToRoom(existingPlayer.ConnectionId));
 
@@ -138,6 +156,9 @@ public class RoomService : IRoomService
                 IsConnected = true
             };
             room.Players.Add(newPlayer);
+
+            _logger.LogInformation("Player {Username} joined room {RoomCode}. Players: {PlayerCount}/{MaxPlayers}",
+                username, roomCode, room.Players.Count, room.MaxPlayers);
         }
 
         room.LastActivityAt = DateTime.UtcNow;
@@ -155,12 +176,23 @@ public class RoomService : IRoomService
     public async Task<bool> RemovePlayerFromRoomAsync(string roomCode, string connectionId)
     {
         var room = await GetRoomAsync(roomCode);
-        if (room is null) return false;
+        if (room is null)
+        {
+            _logger.LogDebug("Cannot remove player - room {RoomCode} not found", roomCode);
+            return false;
+        }
 
         var player = room.Players.FirstOrDefault(p => p.ConnectionId == connectionId);
-        if (player is null) return false;
+        if (player is null)
+        {
+            _logger.LogDebug("Cannot remove player - connection {ConnectionId} not found in room {RoomCode}",
+                connectionId[..8], roomCode); // Only log first 8 chars of connection ID
+            return false;
+        }
 
         room.Players.Remove(player);
+        _logger.LogInformation("Player {Username} removed from room {RoomCode}. Remaining: {PlayerCount}",
+            player.Username, roomCode, room.Players.Count);
 
         await _db.KeyDeleteAsync(RedisKeys.ConnectionToRoom(connectionId));
 
@@ -191,7 +223,14 @@ public class RoomService : IRoomService
     public async Task<bool> DeleteRoomAsync(string roomCode)
     {
         var room = await GetRoomAsync(roomCode);
-        if (room is null) return false;
+        if (room is null)
+        {
+            _logger.LogDebug("Cannot delete room {RoomCode} - not found", roomCode);
+            return false;
+        }
+
+        _logger.LogInformation("Deleting room {RoomCode} with {PlayerCount} players",
+            roomCode, room.Players.Count);
 
         await _db.SetRemoveAsync(RedisKeys.PublicRooms, RedisKeys.Room(roomCode));
 

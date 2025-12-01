@@ -21,9 +21,16 @@ public class CanvasService : ICanvasService
         var key = RedisKeys.CanvasHistory(roomCode);
         var serializedCommand = JsonSerializer.Serialize(command, JsonOptions);
 
-        await _db.ListRightPushAsync(key, serializedCommand);
+        var newLength = await _db.ListRightPushAsync(key, serializedCommand);
 
         await _db.KeyExpireAsync(key, RedisKeys.CanvasExpiry);
+
+        // Log periodically to avoid log spam (every 100 commands)
+        if (newLength % 100 == 0)
+        {
+            _logger.LogDebug("Canvas history for room {RoomCode} reached {Count} commands",
+                roomCode, newLength);
+        }
     }
 
     public async Task<List<DrawingCommandDto>> GetCanvasHistoryAsync(string roomCode)
