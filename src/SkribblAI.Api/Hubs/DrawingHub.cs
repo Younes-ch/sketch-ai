@@ -24,21 +24,18 @@ public class DrawingHub : Hub
     {
         if (!ValidationHelper.IsValidUsername(username))
         {
-            await Clients.Caller.SendAsync("Error", "Invalid username. Use 1-20 alphanumeric characters.");
-            return;
+            throw new HubException("Invalid username. Use 1-20 alphanumeric characters, spaces, or underscores.");
         }
 
         if (!ValidationHelper.IsValidRoomCode(roomCode))
         {
-            await Clients.Caller.SendAsync("Error", "Invalid room code. Must be 6 alphanumeric characters.");
-            return;
+            throw new HubException("Invalid room code. Must be 6 alphanumeric characters.");
         }
 
         // Check if room already exists
         if (await _roomService.RoomExistsAsync(roomCode))
         {
-            await Clients.Caller.SendAsync("Error", "Room already exists. Try a different code.");
-            return;
+            throw new HubException("Room already exists. Try a different code.");
         }
 
         var room = await _roomService.CreateRoomAsync(roomCode, Context.ConnectionId, username);
@@ -56,29 +53,25 @@ public class DrawingHub : Hub
     {
         if (!ValidationHelper.IsValidUsername(username))
         {
-            await Clients.Caller.SendAsync("Error", "Invalid username. Use 1-20 alphanumeric characters.");
-            return;
+            throw new HubException("Invalid username. Use 1-20 alphanumeric characters, spaces, or underscores.");
         }
 
         if (!ValidationHelper.IsValidRoomCode(roomCode))
         {
-            await Clients.Caller.SendAsync("Error", "Invalid room code. Must be 6 alphanumeric characters.");
-            return;
+            throw new HubException("Invalid room code. Must be 6 alphanumeric characters.");
         }
 
         var roomExists = await _roomService.RoomExistsAsync(roomCode);
         if (!roomExists)
         {
-            await Clients.Caller.SendAsync("Error", "Room not found");
             _logger.LogWarning("Player {Username} tried to join non-existent room {RoomCode}", username, roomCode);
-            return;
+            throw new HubException("Room not found");
         }
 
         var player = await _roomService.AddPlayerToRoomAsync(roomCode, Context.ConnectionId, username);
         if (player is null)
         {
-            await Clients.Caller.SendAsync("Error", "Failed to join room");
-            return;
+            throw new HubException("Failed to join room");
         }
 
         await Groups.AddToGroupAsync(Context.ConnectionId, roomCode);
