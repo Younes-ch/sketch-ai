@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { parseHubError } from "@/lib/utils";
 
 interface JoinScreenProps {
   onJoinGame: (
@@ -51,7 +52,7 @@ export default function JoinScreen({
       try {
         await onJoinGame(username.trim(), roomCode.trim().toUpperCase(), false);
       } catch (err) {
-        setError(err instanceof Error ? err.message : "Failed to join room");
+        setError(parseHubError(err));
         setIsJoining(false);
       }
     }
@@ -66,7 +67,7 @@ export default function JoinScreen({
         const newRoomCode = generateRoomCode();
         await onJoinGame(username.trim(), newRoomCode, true);
       } catch (err) {
-        setError(err instanceof Error ? err.message : "Failed to create room");
+        setError(parseHubError(err));
         setIsJoining(false);
       }
     }
