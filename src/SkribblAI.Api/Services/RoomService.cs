@@ -79,7 +79,10 @@ public class RoomService : IRoomService
 
         foreach (var roomCode in publicRoomCodes)
         {
-            var room = await GetRoomAsync(roomCode);
+            if (roomCode.IsNullOrEmpty) continue;
+
+            var roomCodeStr = roomCode.ToString();
+            var room = await GetRoomAsync(roomCodeStr);
             if (room is not null && room.Players.Count < room.MaxPlayers)
             {
                 rooms.Add(room);
