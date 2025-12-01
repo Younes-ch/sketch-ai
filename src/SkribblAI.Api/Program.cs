@@ -1,3 +1,5 @@
+using SkribblAI.Api.Hubs.Filters;
+
 var builder = WebApplication.CreateBuilder(args);
 
 builder.AddServiceDefaults();
@@ -11,7 +13,10 @@ builder.Services.AddSingleton<IRoomService, RoomService>();
 builder.Services.AddSingleton<ICanvasService, CanvasService>();
 
 // SignalR
-builder.Services.AddSignalR();
+builder.Services.AddSignalR(config =>
+{
+    config.AddFilter<HubExceptionFilter>();
+});
 
 // Add CORS
 builder.Services.AddCors(options =>

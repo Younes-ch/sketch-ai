@@ -160,9 +160,7 @@ public class DrawingHub : Hub
         }
 
         var room = await _roomService.GetRoomAsync(roomCode);
-        if (room == null) return [];
-
-        return room.Players.Select(ToPlayerDto).ToList();
+        return room is null ? [] : room.Players.Select(ToPlayerDto).ToList();
     }
 
     public override async Task OnConnectedAsync()
