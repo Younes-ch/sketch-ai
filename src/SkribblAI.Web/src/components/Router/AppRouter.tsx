@@ -1,4 +1,4 @@
-import { useMemo } from "react";
+import { useEffect, useMemo, useState } from "react";
 import JoinScreen from "@/components/Lobby/JoinScreen";
 import GameScreen from "@/components/Game/GameScreen";
 import { useSignalR } from "@/hooks/useSignalR";
@@ -16,10 +16,38 @@ function getInitialRoomCode(): string | null {
 }
 
 export default function AppRouter() {
-  const { roomCode, createRoom, joinRoom } = useSignalR();
+  const {
+    roomCode,
+    connectionState,
+    isReconnecting,
+    createRoom,
+    joinRoom,
+    attemptReconnect,
+  } = useSignalR();
+  const [hasAttemptedReconnect, setHasAttemptedReconnect] = useState(false);
 
   // Only compute once on mount
   const inviteRoomCode = useMemo(() => getInitialRoomCode(), []);
+
+  // Attempt to reconnect to previous session on mount
+  useEffect(() => {
+    // Only attempt once, when connected, and if no invite link is present
+    if (
+      hasAttemptedReconnect ||
+      connectionState !== "Connected" ||
+      inviteRoomCode
+    ) {
+      return;
+    }
+
+    setHasAttemptedReconnect(true);
+    attemptReconnect();
+  }, [
+    connectionState,
+    hasAttemptedReconnect,
+    inviteRoomCode,
+    attemptReconnect,
+  ]);
 
   const handleJoinGame = async (
     name: string,
@@ -32,6 +60,21 @@ export default function AppRouter() {
       await joinRoom(name, room);
     }
   };
+
+  // Show reconnecting state
+  if (isReconnecting) {
+    return (
+      <div className="min-h-screen flex flex-col items-center justify-center bg-background p-4">
+        <div className="bg-card rounded-3xl p-8 shadow-2xl border-4 border-card-border text-center">
+          <div className="text-6xl mb-4 animate-bounce">🔄</div>
+          <h1 className="text-2xl font-bold text-white mb-2">
+            Reconnecting...
+          </h1>
+          <p className="text-white/60">Getting you back into the game!</p>
+        </div>
+      </div>
+    );
+  }
 
   if (!roomCode) {
     return (

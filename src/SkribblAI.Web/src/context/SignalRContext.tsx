@@ -10,6 +10,14 @@ import {
   useState,
 } from "react";
 
+// Session storage key and type
+const SESSION_STORAGE_KEY = "skribbl-session";
+
+interface StoredSession {
+  roomCode: string;
+  username: string;
+}
+
 // Event callback types
 type DrawingCommandCallback = (command: DrawingCommand) => void;
 type CanvasHistoryCallback = (history: DrawingCommand[]) => void;
@@ -21,6 +29,30 @@ type ErrorCallback = (message: string) => void;
 
 export type ConnectionState = "Connected" | "Reconnecting" | "Disconnected";
 
+// Session storage helpers
+function getStoredSession(): StoredSession | null {
+  try {
+    const stored = localStorage.getItem(SESSION_STORAGE_KEY);
+    if (stored) {
+      return JSON.parse(stored) as StoredSession;
+    }
+  } catch {
+    // Ignore parse errors
+  }
+  return null;
+}
+
+function saveSession(roomCode: string, username: string): void {
+  localStorage.setItem(
+    SESSION_STORAGE_KEY,
+    JSON.stringify({ roomCode, username })
+  );
+}
+
+function clearStoredSession(): void {
+  localStorage.removeItem(SESSION_STORAGE_KEY);
+}
+
 interface SignalRContextType {
   connection: signalR.HubConnection | null;
   connectionState: ConnectionState;
@@ -28,11 +60,13 @@ interface SignalRContextType {
   username: string | null;
   isHost: boolean;
   players: Player[];
+  isReconnecting: boolean;
   pendingCanvasHistory: DrawingCommand[] | null;
   clearPendingCanvasHistory: () => void;
   createRoom: (username: string, roomCode: string) => Promise<void>;
   joinRoom: (username: string, roomCode: string) => Promise<void>;
   leaveRoom: () => Promise<void>;
+  attemptReconnect: () => Promise<boolean>;
   sendDrawingCommand: (command: DrawingCommand) => Promise<void>;
   clearCanvas: () => Promise<void>;
   // Event subscription methods
@@ -60,6 +94,7 @@ export const SignalRProvider = ({ children }: { children: ReactNode }) => {
   const [pendingCanvasHistory, setPendingCanvasHistory] = useState<
     DrawingCommand[] | null
   >(null);
+  const [isReconnecting, setIsReconnecting] = useState(false);
 
   // Use ref to track if ReceiveCanvasHistory listener is registered
   const historyListenerRef = useRef<CanvasHistoryCallback | null>(null);
@@ -188,6 +223,7 @@ export const SignalRProvider = ({ children }: { children: ReactNode }) => {
     if (connection?.state === signalR.HubConnectionState.Connected) {
       setUsername(newUsername); // Set username before invoke so handlers can use it
       await connection.invoke("CreateRoom", newUsername, newRoomCode);
+      saveSession(newRoomCode, newUsername);
     }
   };
 
@@ -195,6 +231,7 @@ export const SignalRProvider = ({ children }: { children: ReactNode }) => {
     if (connection?.state === signalR.HubConnectionState.Connected) {
       setUsername(newUsername); // Set username before invoke so handlers can use it
       await connection.invoke("JoinRoom", newUsername, newRoomCode);
+      saveSession(newRoomCode, newUsername);
     }
   };
 
@@ -204,12 +241,37 @@ export const SignalRProvider = ({ children }: { children: ReactNode }) => {
       roomCode
     ) {
       await connection.invoke("LeaveRoom");
+      clearStoredSession();
       setUsername(null);
       setRoomCode(null);
       setIsHost(false);
       setPlayers([]);
     }
   };
+
+  const attemptReconnect = useCallback(async (): Promise<boolean> => {
+    const session = getStoredSession();
+    if (!session) return false;
+
+    if (connection?.state !== signalR.HubConnectionState.Connected) {
+      return false;
+    }
+
+    setIsReconnecting(true);
+    try {
+      setUsername(session.username);
+      await connection.invoke("JoinRoom", session.username, session.roomCode);
+      // Session is still valid, keep it
+      return true;
+    } catch {
+      // Room doesn't exist or other error - clear the stale session
+      clearStoredSession();
+      setUsername(null);
+      return false;
+    } finally {
+      setIsReconnecting(false);
+    }
+  }, [connection]);
 
   const sendDrawingCommand = async (command: DrawingCommand) => {
     if (
@@ -316,11 +378,13 @@ export const SignalRProvider = ({ children }: { children: ReactNode }) => {
         username,
         isHost,
         players,
+        isReconnecting,
         pendingCanvasHistory,
         clearPendingCanvasHistory,
         createRoom,
         joinRoom,
         leaveRoom,
+        attemptReconnect,
         sendDrawingCommand,
         clearCanvas,
         onReceiveDrawingCommand,
