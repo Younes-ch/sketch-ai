@@ -6,6 +6,7 @@ import ChatPanel from "./ChatPanel";
 import MobileTabNav, { type MobileTab } from "./MobileTabNav";
 import WordHint from "./WordHint";
 import { useSignalR } from "@/hooks/useSignalR";
+import { logger } from "@/lib/logger";
 
 export default function GameScreen() {
   const { roomCode, username, isHost, players, leaveRoom } = useSignalR();
@@ -16,7 +17,7 @@ export default function GameScreen() {
     try {
       await leaveRoom();
     } catch (error) {
-      console.error("Failed to leave room:", error);
+      logger.error("Failed to leave room", error);
     }
   };
 
@@ -27,7 +28,7 @@ export default function GameScreen() {
       setShowCopied(true);
       setTimeout(() => setShowCopied(false), 2000);
     } catch (error) {
-      console.error("Failed to copy link:", error);
+      logger.error("Failed to copy link", error);
     }
   };
 

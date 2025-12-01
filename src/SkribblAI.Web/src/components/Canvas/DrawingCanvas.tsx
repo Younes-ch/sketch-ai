@@ -2,6 +2,7 @@ import { useEffect, useRef, useState, useCallback } from "react";
 import type { Point } from "@/models/point";
 import { useSignalR } from "@/hooks/useSignalR";
 import type { DrawingCommand } from "@/models/drawingCommand";
+import { logger } from "@/lib/logger";
 import CanvasToolbar, { type ToolType } from "./CanvasToolbar";
 
 // Fixed canvas resolution - all clients use this for consistent coordinates
@@ -107,7 +108,7 @@ export default function DrawingCanvas() {
   // Handle pending canvas history (for late joiners)
   useEffect(() => {
     if (pendingCanvasHistory && pendingCanvasHistory.length > 0) {
-      console.log(
+      logger.info(
         `Drawing pending canvas history: ${pendingCanvasHistory.length} commands`
       );
       pendingCanvasHistory.forEach((command) => {
@@ -126,7 +127,7 @@ export default function DrawingCanvas() {
 
     // Subscribe to canvas history (sent when late joiner joins)
     const unsubHistory = onReceiveCanvasHistory((history: DrawingCommand[]) => {
-      console.log(`Received canvas history with ${history.length} commands`);
+      logger.info(`Received canvas history with ${history.length} commands`);
       // Replay all commands to reconstruct the canvas
       history.forEach((command) => {
         drawCommand(command);
@@ -207,7 +208,7 @@ export default function DrawingCanvas() {
       // We don't await this to keep drawing smooth
       sendDrawingCommand(command);
     } catch (error) {
-      console.error("Failed to send drawing command:", error);
+      logger.error("Failed to send drawing command", error);
     }
 
     // Update last point
@@ -278,7 +279,7 @@ export default function DrawingCanvas() {
     try {
       sendDrawingCommand(command);
     } catch (error) {
-      console.error("Failed to send touch drawing command:", error);
+      logger.error("Failed to send touch drawing command", error);
     }
     lastPointRef.current = currentPoint;
   };
@@ -295,7 +296,7 @@ export default function DrawingCanvas() {
     try {
       await signalRClearCanvas();
     } catch (error) {
-      console.error("Failed to clear canvas:", error);
+      logger.error("Failed to clear canvas", error);
     }
   };
 

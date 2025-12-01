@@ -1,5 +1,6 @@
 import type { DrawingCommand } from "@/models/drawingCommand";
 import type { Player } from "@/models/player";
+import { logger } from "@/lib/logger";
 import * as signalR from "@microsoft/signalr";
 import {
   createContext,
@@ -105,7 +106,7 @@ export const SignalRProvider = ({ children }: { children: ReactNode }) => {
 
     // Canvas history handler
     const handleCanvasHistory = (history: DrawingCommand[]) => {
-      console.log(`Received canvas history with ${history.length} commands`);
+      logger.info(`Received canvas history with ${history.length} commands`);
       if (historyListenerRef.current) {
         historyListenerRef.current(history);
       } else {
@@ -115,7 +116,7 @@ export const SignalRProvider = ({ children }: { children: ReactNode }) => {
 
     // Room created handler (for host)
     const handleRoomCreated = (code: string, playerList: Player[]) => {
-      console.log(`Room ${code} created with ${playerList.length} players`);
+      logger.info(`Room ${code} created with ${playerList.length} players`);
       setRoomCode(code);
       setPlayers(playerList);
       setIsHost(true);
@@ -123,7 +124,7 @@ export const SignalRProvider = ({ children }: { children: ReactNode }) => {
 
     // Room joined handler (for joining players)
     const handleRoomJoined = (code: string, playerList: Player[]) => {
-      console.log(`Joined room ${code} with ${playerList.length} players`);
+      logger.info(`Joined room ${code} with ${playerList.length} players`);
       setRoomCode(code);
       setPlayers(playerList);
       // Determine if current user is host from the player list
@@ -133,19 +134,19 @@ export const SignalRProvider = ({ children }: { children: ReactNode }) => {
 
     // Player joined handler
     const handlePlayerJoined = (player: Player) => {
-      console.log(`Player ${player.username} joined`);
+      logger.info(`Player ${player.username} joined`);
       setPlayers((prev) => [...prev, player]);
     };
 
     // Player left handler
     const handlePlayerLeft = (leftUsername: string) => {
-      console.log(`Player ${leftUsername} left`);
+      logger.info(`Player ${leftUsername} left`);
       setPlayers((prev) => prev.filter((p) => p.username !== leftUsername));
     };
 
     // Host changed handler
     const handleHostChanged = (newHostUsername: string) => {
-      console.log(`Host changed to ${newHostUsername}`);
+      logger.info(`Host changed to ${newHostUsername}`);
       setPlayers((prev) =>
         prev.map((p) => ({
           ...p,
@@ -188,29 +189,29 @@ export const SignalRProvider = ({ children }: { children: ReactNode }) => {
 
     // Connection state listeners
     newConnection.onreconnecting(() => {
-      console.log("SignalR Reconnecting...");
+      logger.info("SignalR Reconnecting...");
       setConnectionState("Reconnecting");
     });
 
     newConnection.onreconnected(() => {
-      console.log("SignalR Reconnected");
+      logger.info("SignalR Reconnected");
       setConnectionState("Connected");
     });
 
     newConnection.onclose(() => {
-      console.log("SignalR Disconnected");
+      logger.info("SignalR Disconnected");
       setConnectionState("Disconnected");
     });
 
     newConnection
       .start()
       .then(() => {
-        console.log("SignalR Connected");
+        logger.info("SignalR Connected");
         setConnectionState("Connected");
         setConnection(newConnection);
       })
       .catch((err) => {
-        console.error("SignalR Connection Error: ", err);
+        logger.error("SignalR Connection Error", err);
         setConnectionState("Disconnected");
       });
 
