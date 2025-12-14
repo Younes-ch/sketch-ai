@@ -1,4 +1,4 @@
-import type { Player } from "@/models/player";
+import type { Player } from "@/models";
 
 interface PlayerListProps {
   players: Player[];

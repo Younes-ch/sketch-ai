@@ -1,12 +1,14 @@
 import { useState, useEffect } from "react";
 import { parseHubError } from "@/lib/utils";
 import { useSignalR } from "@/hooks/useSignalR";
-import type { PublicRoom } from "@/models/publicRoom";
-import TabButton from "./TabButton";
-import JoinRoomTab from "./JoinRoomTab";
-import CreateRoomTab from "./CreateRoomTab";
-import PublicRoomsTab from "./PublicRoomsTab";
-import HowToPlay from "./HowToPlay";
+import type { PublicRoom } from "@/models";
+import {
+  TabButton,
+  JoinRoomTab,
+  CreateRoomTab,
+  PublicRoomsTab,
+  HowToPlay,
+} from "@/components/Lobby";
 
 interface JoinScreenProps {
   onJoinGame: (

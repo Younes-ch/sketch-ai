@@ -1,5 +1,4 @@
-import ColorPalette from "./ColorPalette";
-import BrushSizeSelector from "./BrushSizeSelector";
+import { ColorPalette, BrushSizeSelector } from "@/components/Canvas";
 import { cn } from "@/lib/utils";
 
 export type ToolType = "brush" | "eraser";

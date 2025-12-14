@@ -1,10 +1,15 @@
 import { useState } from "react";
-import DrawingCanvas from "@/components/Canvas/DrawingCanvas";
-import GameHeader from "./GameHeader";
-import PlayerList from "./PlayerList";
-import ChatPanel from "./ChatPanel";
-import MobileTabNav, { type MobileTab } from "./MobileTabNav";
-import WordHint from "./WordHint";
+import { DrawingCanvas } from "@/components/Canvas";
+import {
+  GameHeader,
+  PlayerList,
+  ChatPanel,
+  MobileTabNav,
+  type MobileTab,
+  WordHint,
+  GamePhaseIndicator,
+  WordSelection,
+} from "@/components/Game";
 import { useSignalR } from "@/hooks/useSignalR";
 import { logger } from "@/lib/logger";
 

@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
-import JoinScreen from "@/components/Lobby/JoinScreen";
-import GameScreen from "@/components/Game/GameScreen";
+import { JoinScreen } from "@/components/Lobby";
+import { GameScreen } from "@/components/Game";
 import { useSignalR } from "@/hooks/useSignalR";
 
 // Get invite room code from URL once (outside component to avoid re-running)

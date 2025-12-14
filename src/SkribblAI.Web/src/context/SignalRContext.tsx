@@ -1,6 +1,11 @@
-import type { DrawingCommand } from "@/models/drawingCommand";
-import type { Player } from "@/models/player";
-import type { PublicRoom } from "@/models/publicRoom";
+import {
+  type Player,
+  type GameState,
+  type ChatMessage,
+  type PublicRoom,
+  type DrawingCommand,
+  initialGameState,
+} from "@/models";
 import { logger } from "@/lib/logger";
 import * as signalR from "@microsoft/signalr";
 import {

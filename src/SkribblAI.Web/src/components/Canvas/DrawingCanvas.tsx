@@ -1,9 +1,8 @@
 import { useEffect, useRef, useState, useCallback } from "react";
-import type { Point } from "@/models/point";
+import type { Point, DrawingCommand } from "@/models";
 import { useSignalR } from "@/hooks/useSignalR";
-import type { DrawingCommand } from "@/models/drawingCommand";
 import { logger } from "@/lib/logger";
-import CanvasToolbar, { type ToolType } from "./CanvasToolbar";
+import { CanvasToolbar, type ToolType } from "@/components/Canvas";
 
 // Fixed canvas resolution - all clients use this for consistent coordinates
 const CANVAS_WIDTH = 800;

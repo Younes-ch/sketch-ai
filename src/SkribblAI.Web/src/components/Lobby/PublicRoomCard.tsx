@@ -1,4 +1,4 @@
-import type { PublicRoom } from "@/models/publicRoom";
+import type { PublicRoom } from "@/models";
 
 interface PublicRoomCardProps {
   room: PublicRoom;

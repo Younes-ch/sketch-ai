@@ -1,5 +1,5 @@
-import type { PublicRoom } from "@/models/publicRoom";
-import PublicRoomCard from "./PublicRoomCard";
+import type { PublicRoom } from "@/models";
+import { PublicRoomCard } from "@/components/Lobby";
 
 interface PublicRoomsTabProps {
   publicRooms: PublicRoom[];
