@@ -267,4 +267,14 @@ public class RoomService : IRoomService
         var roomCode = await _db.StringGetAsync(connectionKey);
         return roomCode.HasValue ? roomCode.ToString() : null;
     }
+
+    public async Task SaveRoomAsync(Room room)
+    {
+        var roomKey = RedisKeys.Room(room.Id);
+        var roomJson = JsonSerializer.Serialize(room, JsonOptions);
+        await _db.StringSetAsync(roomKey, roomJson, RedisKeys.RoomExpiry);
+
+        _logger.LogDebug("Room {RoomCode} state saved (Phase: {Phase}, Players: {PlayerCount})",
+            room.Id, room.Phase, room.Players.Count);
+    }
 }

@@ -87,4 +87,10 @@ public interface IRoomService
     /// <param name="connectionId">The connection ID to look up.</param>
     /// <returns>The room code if found.</returns>
     Task<string?> GetRoomCodeByConnectionIdAsync(string connectionId);
+
+    /// <summary>
+    /// Persists the current room state to Redis.
+    /// <param name="room">The room to save.</param>
+    /// </summary>
+    Task SaveRoomAsync(Room room);
 }
