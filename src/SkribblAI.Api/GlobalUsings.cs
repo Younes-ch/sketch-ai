@@ -9,3 +9,4 @@ global using System.Text.Json;
 global using System.Text.RegularExpressions;
 global using SkribblAI.Api.Services;
 global using SkribblAI.Api.Validation;
+global using SkribblAI.Api.Hubs.Filters;

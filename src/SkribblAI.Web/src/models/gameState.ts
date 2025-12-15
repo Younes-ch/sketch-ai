@@ -1,5 +1,6 @@
- import type { GamePhase } from "./gamePhase"; 
+import type { GamePhase } from "./gamePhase"; 
 import type { Player } from "./player"; 
+
 export interface GameState { 
   phase: GamePhase; 
   currentDrawer: Player | null; 

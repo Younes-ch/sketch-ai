@@ -1,5 +1,3 @@
-using SkribblAI.Api.Hubs.Filters;
-
 var builder = WebApplication.CreateBuilder(args);
 
 builder.AddServiceDefaults();

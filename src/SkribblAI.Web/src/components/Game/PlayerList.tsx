@@ -16,7 +16,7 @@ export default function PlayerList({
   variant = "desktop",
 }: PlayerListProps) {
   const isDesktop = variant === "desktop";
-  const { gameState } = useSignalR();
+  const { gameState, playersWhoGuessed } = useSignalR();
 
   const currentDrawerUsername = gameState.currentDrawer?.username;
   const isDrawingPhase =
@@ -41,6 +41,8 @@ export default function PlayerList({
         {players.map((player) => {
           const isCurrentDrawer =
             player.username === currentDrawerUsername && isDrawingPhase;
+          const hasGuessedCorrectly =
+            playersWhoGuessed.has(player.username) && isDrawingPhase;
 
           return (
             <div
@@ -48,14 +50,18 @@ export default function PlayerList({
               className={cn(
                 "rounded-xl p-3 flex items-center",
                 isDesktop ? "gap-2" : "gap-3",
-                isCurrentDrawer ? "bg-success" : "bg-card-border"
+                isCurrentDrawer
+                  ? "bg-success"
+                  : hasGuessedCorrectly
+                  ? "bg-success/60"
+                  : "bg-card-border"
               )}
             >
               {player.isHost && (
                 <span className={isDesktop ? "text-sm" : "text-lg"}>👑</span>
               )}
               <span className={isDesktop ? "text-xl" : "text-2xl"}>
-                {isCurrentDrawer ? "🎨" : "👤"}
+                {isCurrentDrawer ? "🎨" : hasGuessedCorrectly ? "✓" : "👤"}
               </span>
               <div className="flex-1 min-w-0">
                 <span
@@ -69,6 +75,9 @@ export default function PlayerList({
                 </span>
                 {isCurrentDrawer && (
                   <p className="text-white/70 text-xs">Drawing...</p>
+                )}
+                {hasGuessedCorrectly && !isCurrentDrawer && (
+                  <p className="text-white/70 text-xs">Guessed!</p>
                 )}
               </div>
               <span

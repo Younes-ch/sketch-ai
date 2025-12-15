@@ -72,6 +72,7 @@ interface SignalRContextType {
   pendingCanvasHistory: DrawingCommand[] | null;
   gameState: GameState;
   chatMessages: ChatMessage[];
+  playersWhoGuessed: Set<string>;
   clearPendingCanvasHistory: () => void;
   createRoom: (
     username: string,
@@ -117,6 +118,9 @@ export const SignalRProvider = ({ children }: { children: ReactNode }) => {
   const [isReconnecting, setIsReconnecting] = useState(false);
   const [gameState, setGameState] = useState<GameState>(initialGameState);
   const [chatMessages, setChatMessages] = useState<ChatMessage[]>([]);
+  const [playersWhoGuessed, setPlayersWhoGuessed] = useState<Set<string>>(
+    new Set()
+  );
   const [roundStartedAt, setRoundStartedAt] = useState<Date | null>(null);
   const lastRevealTimeRef = useRef<number | null>(null);
 
@@ -292,6 +296,9 @@ export const SignalRProvider = ({ children }: { children: ReactNode }) => {
       logger.info(`Drawing started, hint: ${gameStateDto.wordHint}`);
       setPlayers(gameStateDto.players);
 
+      // Reset players who guessed for the new round
+      setPlayersWhoGuessed(new Set());
+
       // Set round started time for timer calculation
       if (gameStateDto.roundStartedAt) {
         setRoundStartedAt(new Date(gameStateDto.roundStartedAt));
@@ -327,6 +334,10 @@ export const SignalRProvider = ({ children }: { children: ReactNode }) => {
     // Player guessed correctly handler
     const handlePlayerGuessedCorrectly = (guesserUsername: string) => {
       logger.info(`${guesserUsername} guessed correctly!`);
+
+      // Track who has guessed
+      setPlayersWhoGuessed((prev) => new Set([...prev, guesserUsername]));
+
       const systemMessage: ChatMessage = {
         id: crypto.randomUUID(),
         username: "System",
@@ -689,6 +700,7 @@ export const SignalRProvider = ({ children }: { children: ReactNode }) => {
         pendingCanvasHistory,
         gameState,
         chatMessages,
+        playersWhoGuessed,
         clearPendingCanvasHistory,
         createRoom,
         joinRoom,
