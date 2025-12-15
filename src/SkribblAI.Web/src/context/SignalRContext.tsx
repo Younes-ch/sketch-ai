@@ -70,6 +70,8 @@ interface SignalRContextType {
   players: Player[];
   isReconnecting: boolean;
   pendingCanvasHistory: DrawingCommand[] | null;
+  gameState: GameState;
+  chatMessages: ChatMessage[];
   clearPendingCanvasHistory: () => void;
   createRoom: (
     username: string,
@@ -82,6 +84,10 @@ interface SignalRContextType {
   getPublicRooms: () => Promise<void>;
   sendDrawingCommand: (command: DrawingCommand) => Promise<void>;
   clearCanvas: () => Promise<void>;
+  // Game methods
+  startGame: () => Promise<void>;
+  selectWord: (word: string) => Promise<void>;
+  sendGuess: (message: string) => Promise<void>;
   // Event subscription methods
   onReceiveDrawingCommand: (callback: DrawingCommandCallback) => () => void;
   onReceiveCanvasHistory: (callback: CanvasHistoryCallback) => () => void;
@@ -109,9 +115,72 @@ export const SignalRProvider = ({ children }: { children: ReactNode }) => {
     DrawingCommand[] | null
   >(null);
   const [isReconnecting, setIsReconnecting] = useState(false);
+  const [gameState, setGameState] = useState<GameState>(initialGameState);
+  const [chatMessages, setChatMessages] = useState<ChatMessage[]>([]);
+  const [roundStartedAt, setRoundStartedAt] = useState<Date | null>(null);
+  const lastRevealTimeRef = useRef<number | null>(null);
 
   // Use ref to track if ReceiveCanvasHistory listener is registered
   const historyListenerRef = useRef<CanvasHistoryCallback | null>(null);
+
+  // Timer constants
+  const ROUND_DURATION = 80; // seconds
+
+  // Timer effect for drawing phase
+  useEffect(() => {
+    if (gameState.phase !== "drawing" || !roundStartedAt) {
+      lastRevealTimeRef.current = null;
+      return;
+    }
+
+    const updateTimer = () => {
+      const elapsed = Math.floor(
+        (Date.now() - roundStartedAt.getTime()) / 1000
+      );
+      const remaining = Math.max(0, ROUND_DURATION - elapsed);
+
+      setGameState((prev) => ({
+        ...prev,
+        timeRemaining: remaining,
+      }));
+
+      // Check if we should reveal a letter (at 60s, 40s, 20s remaining)
+      // Only the drawer triggers the reveal to avoid multiple requests
+      if (
+        connection?.state === signalR.HubConnectionState.Connected &&
+        gameState.currentDrawer?.username === username
+      ) {
+        const revealThresholds = [60, 40, 20];
+        for (const threshold of revealThresholds) {
+          if (
+            remaining <= threshold &&
+            (lastRevealTimeRef.current === null ||
+              lastRevealTimeRef.current > threshold)
+          ) {
+            lastRevealTimeRef.current = threshold;
+            connection.invoke("RevealLetter").catch((err) => {
+              logger.error("Failed to reveal letter", err);
+            });
+            break;
+          }
+        }
+      }
+    };
+
+    // Update immediately
+    updateTimer();
+
+    // Then update every second
+    const interval = setInterval(updateTimer, 1000);
+
+    return () => clearInterval(interval);
+  }, [
+    gameState.phase,
+    gameState.currentDrawer?.username,
+    roundStartedAt,
+    connection,
+    username,
+  ]);
 
   // Register server event listeners
   useEffect(() => {
@@ -172,12 +241,184 @@ export const SignalRProvider = ({ children }: { children: ReactNode }) => {
       }
     };
 
+    // Game started handler
+    const handleGameStarted = (gameStateDto: {
+      roomCode: string;
+      phase: string;
+      currentDrawerUsername: string;
+      roundNumber: number;
+      totalRounds: number;
+      players: Player[];
+      wordHint: string | null;
+      roundStartedAt: string | null;
+    }) => {
+      logger.info(`Game started in room ${gameStateDto.roomCode}`);
+      setPlayers(gameStateDto.players);
+      setGameState((prev) => ({
+        ...prev,
+        phase: "wordSelection",
+        currentDrawer:
+          gameStateDto.players.find(
+            (p) => p.username === gameStateDto.currentDrawerUsername
+          ) || null,
+        roundNumber: gameStateDto.roundNumber || 1,
+        totalRounds: gameStateDto.totalRounds,
+        wordHint: "",
+        wordChoices: null,
+        currentWord: null,
+      }));
+    };
+
+    // Word choices handler (drawer only)
+    const handleWordChoices = (words: string[]) => {
+      logger.info(`Received word choices: ${words.length} words`);
+      setGameState((prev) => ({
+        ...prev,
+        wordChoices: words,
+      }));
+    };
+
+    // Drawing started handler
+    const handleDrawingStarted = (gameStateDto: {
+      roomCode: string;
+      phase: string;
+      currentDrawerUsername: string;
+      roundNumber: number;
+      totalRounds: number;
+      players: Player[];
+      wordHint: string | null;
+      roundStartedAt: string | null;
+    }) => {
+      logger.info(`Drawing started, hint: ${gameStateDto.wordHint}`);
+      setPlayers(gameStateDto.players);
+
+      // Set round started time for timer calculation
+      if (gameStateDto.roundStartedAt) {
+        setRoundStartedAt(new Date(gameStateDto.roundStartedAt));
+      } else {
+        setRoundStartedAt(new Date());
+      }
+
+      setGameState((prev) => ({
+        ...prev,
+        phase: "drawing",
+        currentDrawer:
+          gameStateDto.players.find(
+            (p) => p.username === gameStateDto.currentDrawerUsername
+          ) || null,
+        wordHint: gameStateDto.wordHint || "",
+        wordChoices: null,
+        roundNumber: gameStateDto.roundNumber,
+        totalRounds: gameStateDto.totalRounds,
+        timeRemaining: 80,
+      }));
+    };
+
+    // Drawer's word handler
+    const handleYourWord = (word: string) => {
+      logger.info(`You are drawing: ${word}`);
+      setGameState((prev) => ({
+        ...prev,
+        currentWord: word,
+        wordChoices: null,
+      }));
+    };
+
+    // Player guessed correctly handler
+    const handlePlayerGuessedCorrectly = (guesserUsername: string) => {
+      logger.info(`${guesserUsername} guessed correctly!`);
+      const systemMessage: ChatMessage = {
+        id: crypto.randomUUID(),
+        username: "System",
+        message: `${guesserUsername} guessed the word!`,
+        timestamp: new Date(),
+        type: "correct-guess",
+      };
+      setChatMessages((prev) => [...prev, systemMessage]);
+    };
+
+    // Scores updated handler
+    const handleScoresUpdated = (updatedPlayers: Player[]) => {
+      logger.info("Scores updated");
+      setPlayers(updatedPlayers);
+    };
+
+    // Chat message handler
+    const handleChatMessage = (msg: {
+      username: string;
+      message: string;
+      timestamp: string;
+    }) => {
+      const chatMessage: ChatMessage = {
+        id: crypto.randomUUID(),
+        username: msg.username,
+        message: msg.message,
+        timestamp: new Date(msg.timestamp),
+        type: "chat",
+      };
+      setChatMessages((prev) => [...prev, chatMessage]);
+    };
+
+    // Round ended handler
+    const handleRoundEnded = (data: {
+      gameState: {
+        roomCode: string;
+        phase: string;
+        currentDrawerUsername: string;
+        roundNumber: number;
+        totalRounds: number;
+        players: Player[];
+        wordHint: string | null;
+        roundStartedAt: string | null;
+      };
+      word: string;
+    }) => {
+      logger.info(`Round ended, word was: ${data.word}`);
+      setPlayers(data.gameState.players);
+      setRoundStartedAt(null); // Clear timer
+      setGameState((prev) => ({
+        ...prev,
+        phase: "roundEnd",
+        currentWord: data.word, // Reveal word to everyone
+        wordHint: data.word,
+        wordChoices: null,
+        timeRemaining: 0,
+      }));
+      // Add system message revealing the word
+      const systemMessage: ChatMessage = {
+        id: crypto.randomUUID(),
+        username: "System",
+        message: `The word was: ${data.word}`,
+        timestamp: new Date(),
+        type: "system",
+      };
+      setChatMessages((prev) => [...prev, systemMessage]);
+    };
+
+    // Hint updated handler (when a letter is revealed)
+    const handleHintUpdated = (newHint: string) => {
+      logger.info(`Hint updated: ${newHint}`);
+      setGameState((prev) => ({
+        ...prev,
+        wordHint: newHint,
+      }));
+    };
+
     connection.on("ReceiveCanvasHistory", handleCanvasHistory);
     connection.on("RoomCreated", handleRoomCreated);
     connection.on("RoomJoined", handleRoomJoined);
     connection.on("PlayerJoined", handlePlayerJoined);
     connection.on("PlayerLeft", handlePlayerLeft);
     connection.on("HostChanged", handleHostChanged);
+    connection.on("GameStarted", handleGameStarted);
+    connection.on("WordChoices", handleWordChoices);
+    connection.on("DrawingStarted", handleDrawingStarted);
+    connection.on("YourWord", handleYourWord);
+    connection.on("PlayerGuessedCorrectly", handlePlayerGuessedCorrectly);
+    connection.on("ScoresUpdated", handleScoresUpdated);
+    connection.on("ChatMessage", handleChatMessage);
+    connection.on("RoundEnded", handleRoundEnded);
+    connection.on("HintUpdated", handleHintUpdated);
 
     return () => {
       connection.off("ReceiveCanvasHistory", handleCanvasHistory);
@@ -186,6 +427,15 @@ export const SignalRProvider = ({ children }: { children: ReactNode }) => {
       connection.off("PlayerJoined", handlePlayerJoined);
       connection.off("PlayerLeft", handlePlayerLeft);
       connection.off("HostChanged", handleHostChanged);
+      connection.off("GameStarted", handleGameStarted);
+      connection.off("WordChoices", handleWordChoices);
+      connection.off("DrawingStarted", handleDrawingStarted);
+      connection.off("YourWord", handleYourWord);
+      connection.off("PlayerGuessedCorrectly", handlePlayerGuessedCorrectly);
+      connection.off("ScoresUpdated", handleScoresUpdated);
+      connection.off("ChatMessage", handleChatMessage);
+      connection.off("RoundEnded", handleRoundEnded);
+      connection.off("HintUpdated", handleHintUpdated);
     };
   }, [connection, username]);
 
@@ -264,6 +514,10 @@ export const SignalRProvider = ({ children }: { children: ReactNode }) => {
       setRoomCode(null);
       setIsHost(false);
       setPlayers([]);
+      setGameState(initialGameState);
+      setChatMessages([]);
+      setRoundStartedAt(null);
+      setPendingCanvasHistory(null);
     }
   };
 
@@ -312,6 +566,24 @@ export const SignalRProvider = ({ children }: { children: ReactNode }) => {
   const getPublicRooms = async () => {
     if (connection?.state === signalR.HubConnectionState.Connected) {
       await connection.invoke("GetPublicRooms");
+    }
+  };
+
+  const startGame = async () => {
+    if (connection?.state === signalR.HubConnectionState.Connected) {
+      await connection.invoke("StartGame");
+    }
+  };
+
+  const selectWord = async (word: string) => {
+    if (connection?.state === signalR.HubConnectionState.Connected) {
+      await connection.invoke("SelectWord", word);
+    }
+  };
+
+  const sendGuess = async (message: string) => {
+    if (connection?.state === signalR.HubConnectionState.Connected) {
+      await connection.invoke("SendGuess", message);
     }
   };
 
@@ -415,6 +687,8 @@ export const SignalRProvider = ({ children }: { children: ReactNode }) => {
         players,
         isReconnecting,
         pendingCanvasHistory,
+        gameState,
+        chatMessages,
         clearPendingCanvasHistory,
         createRoom,
         joinRoom,
@@ -423,6 +697,9 @@ export const SignalRProvider = ({ children }: { children: ReactNode }) => {
         getPublicRooms,
         sendDrawingCommand,
         clearCanvas,
+        startGame,
+        selectWord,
+        sendGuess,
         onReceiveDrawingCommand,
         onReceiveCanvasHistory,
         onCanvasCleared,

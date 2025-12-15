@@ -8,7 +8,13 @@ import { CanvasToolbar, type ToolType } from "@/components/Canvas";
 const CANVAS_WIDTH = 800;
 const CANVAS_HEIGHT = 500;
 
-export default function DrawingCanvas() {
+interface DrawingCanvasProps {
+  disabled?: boolean;
+}
+
+export default function DrawingCanvas({
+  disabled = false,
+}: DrawingCanvasProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
   const [isDrawing, setIsDrawing] = useState(false);
@@ -153,6 +159,8 @@ export default function DrawingCanvas() {
 
   // Mouse down - start drawing
   const handleMouseDown = (e: React.MouseEvent<HTMLCanvasElement>) => {
+    if (disabled) return;
+
     const canvas = canvasRef.current;
     if (!canvas) return;
 
@@ -173,6 +181,7 @@ export default function DrawingCanvas() {
 
   // Mouse move - continue drawing
   const handleMouseMove = async (e: React.MouseEvent<HTMLCanvasElement>) => {
+    if (disabled) return;
     if (!isDrawing || !lastPointRef.current) return;
 
     const canvas = canvasRef.current;
@@ -191,7 +200,6 @@ export default function DrawingCanvas() {
     const lastPoint = lastPointRef.current;
     const effectiveColor = getEffectiveColor();
 
-    // Create a small segment command
     const command: DrawingCommand = {
       type: "stroke",
       points: [lastPoint, currentPoint],
@@ -223,6 +231,7 @@ export default function DrawingCanvas() {
 
   // Touch handlers for mobile support
   const handleTouchStart = (e: React.TouchEvent<HTMLCanvasElement>) => {
+    if (disabled) return;
     e.preventDefault(); // Prevent scrolling while drawing
     const canvas = canvasRef.current;
     if (!canvas || e.touches.length === 0) return;
@@ -243,6 +252,7 @@ export default function DrawingCanvas() {
   };
 
   const handleTouchMove = (e: React.TouchEvent<HTMLCanvasElement>) => {
+    if (disabled) return;
     e.preventDefault(); // Prevent scrolling while drawing
     if (
       !isDrawingRef.current ||
@@ -299,8 +309,8 @@ export default function DrawingCanvas() {
     }
   };
 
-  // Get cursor style based on tool
   const getCursor = () => {
+    if (disabled) return "not-allowed";
     return "crosshair";
   };
 
@@ -311,7 +321,7 @@ export default function DrawingCanvas() {
       ref={containerRef}
       className="flex flex-col items-center justify-center w-full h-full"
     >
-      {/* Canvas - fixed internal resolution, scaled display */}
+      {/* Canvas*/}
       <canvas
         ref={canvasRef}
         width={CANVAS_WIDTH}
@@ -324,7 +334,9 @@ export default function DrawingCanvas() {
         onTouchMove={handleTouchMove}
         onTouchEnd={handleTouchEnd}
         onTouchCancel={handleTouchEnd}
-        className="bg-white rounded-lg shadow-inner shrink-0 touch-none border-4 border-card-border"
+        className={`bg-white rounded-lg shadow-inner shrink-0 touch-none border-4 border-card-border ${
+          disabled ? "opacity-90" : ""
+        }`}
         style={{
           width: displaySize.width,
           height: displaySize.height,
@@ -332,16 +344,18 @@ export default function DrawingCanvas() {
         }}
       />
 
-      <CanvasToolbar
-        currentColor={currentColor}
-        currentTool={currentTool}
-        currentWidth={currentWidth}
-        brushSizes={brushSizes}
-        onColorChange={setCurrentColor}
-        onToolChange={setCurrentTool}
-        onWidthChange={setCurrentWidth}
-        onClear={handleClear}
-      />
+      {!disabled && (
+        <CanvasToolbar
+          currentColor={currentColor}
+          currentTool={currentTool}
+          currentWidth={currentWidth}
+          brushSizes={brushSizes}
+          onColorChange={setCurrentColor}
+          onToolChange={setCurrentTool}
+          onWidthChange={setCurrentWidth}
+          onClear={handleClear}
+        />
+      )}
     </div>
   );
 }

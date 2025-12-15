@@ -12,11 +12,26 @@ import {
 } from "@/components/Game";
 import { useSignalR } from "@/hooks/useSignalR";
 import { logger } from "@/lib/logger";
+import { cn } from "@/lib/utils";
 
 export default function GameScreen() {
-  const { roomCode, username, isHost, players, leaveRoom } = useSignalR();
+  const {
+    roomCode,
+    username,
+    isHost,
+    players,
+    leaveRoom,
+    gameState,
+    startGame,
+  } = useSignalR();
   const [showCopied, setShowCopied] = useState(false);
   const [mobileTab, setMobileTab] = useState<MobileTab>("canvas");
+  const [isStarting, setIsStarting] = useState(false);
+
+  const isDrawer = gameState.currentDrawer?.username === username;
+  const canDraw = gameState.phase === "drawing" && isDrawer;
+  const showWordSelection =
+    gameState.phase === "wordSelection" && isDrawer && gameState.wordChoices;
 
   const handleLeaveRoom = async () => {
     try {
@@ -37,8 +52,23 @@ export default function GameScreen() {
     }
   };
 
+  const handleStartGame = async () => {
+    if (isStarting) return;
+    setIsStarting(true);
+    try {
+      await startGame();
+    } catch (error) {
+      logger.error("Failed to start game", error);
+    } finally {
+      setIsStarting(false);
+    }
+  };
+
   return (
     <div className="h-screen bg-background p-2 sm:p-3 flex flex-col overflow-hidden">
+      {/* Word Selection Modal */}
+      {showWordSelection && <WordSelection words={gameState.wordChoices!} />}
+
       <div className="w-full flex-1 flex flex-col min-h-0">
         {/* Header Bar */}
         <GameHeader
@@ -49,11 +79,12 @@ export default function GameScreen() {
           onShare={handleShareRoom}
           onLeave={handleLeaveRoom}
         />
+        <GamePhaseIndicator />
 
         {/* Main Game Area */}
         <div className="flex gap-3 flex-1 min-h-0">
           {/* Left Sidebar - Players (Desktop only) */}
-          <div className="w-56 hidden lg:flex flex-col shrink-0">
+          <div className="w-56 hidden lg:flex flex-col shrink-0 h-full">
             <PlayerList
               players={players}
               currentUsername={username ?? ""}
@@ -68,23 +99,111 @@ export default function GameScreen() {
 
             {/* Canvas View (Desktop always, Mobile when tab selected) */}
             <div
-              className={`flex-1 min-h-0 ${
+              className={cn(
+                "flex-1 min-h-0 flex-col",
                 mobileTab !== "canvas" ? "hidden lg:flex" : "flex"
-              } flex-col`}
+              )}
             >
-              <div className="bg-card rounded-2xl p-2 sm:p-4 border-4 border-card-border shadow-lg h-full flex flex-col overflow-hidden">
+              <div className="bg-card rounded-2xl p-2 sm:p-4 border-4 border-card-border shadow-lg h-full flex flex-col overflow-hidden relative">
+                {/* Lobby Overlay */}
+                {gameState.phase === "lobby" && (
+                  <div className="absolute inset-0 bg-background/80 backdrop-blur-sm flex flex-col items-center justify-center z-10 rounded-2xl">
+                    <h2 className="text-2xl font-bold mb-4 text-white">
+                      Waiting for players...
+                    </h2>
+                    <p className="text-white/60 mb-6">
+                      {players.length} player{players.length !== 1 ? "s" : ""}{" "}
+                      in lobby
+                    </p>
+                    {isHost ? (
+                      <button
+                        onClick={handleStartGame}
+                        disabled={isStarting || players.length < 2}
+                        className={cn(
+                          "px-8 py-3 rounded-lg font-semibold text-lg transition-all",
+                          players.length < 2
+                            ? "bg-card-border text-white/40 cursor-not-allowed"
+                            : "bg-success text-white hover:bg-success-hover border-2 border-success-dark"
+                        )}
+                      >
+                        {isStarting
+                          ? "Starting..."
+                          : players.length < 2
+                          ? "Need 2+ players"
+                          : "Start Game"}
+                      </button>
+                    ) : (
+                      <p className="text-white/60">
+                        Waiting for host to start...
+                      </p>
+                    )}
+                  </div>
+                )}
+
+                {/* Word Selection Waiting Overlay (for non-drawers) */}
+                {gameState.phase === "wordSelection" && !isDrawer && (
+                  <div className="absolute inset-0 bg-background/80 backdrop-blur-sm flex flex-col items-center justify-center z-10 rounded-2xl">
+                    <h2 className="text-2xl font-bold mb-4 text-white">
+                      {gameState.currentDrawer?.username} is choosing a word...
+                    </h2>
+                    <div className="animate-pulse text-4xl">🎨</div>
+                  </div>
+                )}
+
+                {/* Round End Overlay */}
+                {gameState.phase === "roundEnd" && (
+                  <div className="absolute inset-0 bg-background/80 backdrop-blur-sm flex flex-col items-center justify-center z-10 rounded-2xl">
+                    <h2 className="text-2xl font-bold mb-2 text-white">
+                      Round Over!
+                    </h2>
+                    <p className="text-xl text-accent mb-4">
+                      The word was:{" "}
+                      <span className="font-bold">{gameState.currentWord}</span>
+                    </p>
+                    <p className="text-white/60">Next round starting soon...</p>
+                  </div>
+                )}
+
+                {/* Game End Overlay */}
+                {gameState.phase === "gameEnd" && (
+                  <div className="absolute inset-0 bg-background/80 backdrop-blur-sm flex flex-col items-center justify-center z-10 rounded-2xl">
+                    <h2 className="text-3xl font-bold mb-4 text-white">
+                      🎉 Game Over! 🎉
+                    </h2>
+                    <p className="text-xl mb-6 text-white">
+                      Winner:{" "}
+                      <span className="text-accent font-bold">
+                        {
+                          [...players].sort((a, b) => b.score - a.score)[0]
+                            ?.username
+                        }
+                      </span>
+                    </p>
+                    {isHost && (
+                      <button
+                        onClick={handleStartGame}
+                        disabled={isStarting}
+                        className="px-8 py-3 rounded-lg font-semibold text-lg bg-primary text-primary-foreground hover:bg-primary/90 transition-all"
+                      >
+                        {isStarting ? "Starting..." : "Play Again"}
+                      </button>
+                    )}
+                  </div>
+                )}
+
                 <WordHint />
                 <div className="flex-1 min-h-0 flex items-center justify-center">
-                  <DrawingCanvas />
+                  <DrawingCanvas disabled={!canDraw} />
                 </div>
               </div>
             </div>
 
             {/* Mobile Players View */}
             <div
-              className={`flex-1 min-h-0 ${
+              className={cn(
+                "flex-1 min-h-0 lg:hidden flex-col",
                 mobileTab !== "players" ? "hidden" : "flex"
-              } lg:hidden flex-col`}
+              )}
             >
               <PlayerList
                 players={players}
@@ -96,16 +215,17 @@ export default function GameScreen() {
 
             {/* Mobile Chat View */}
             <div
-              className={`flex-1 min-h-0 ${
+              className={cn(
+                "flex-1 min-h-0 lg:hidden flex-col",
                 mobileTab !== "chat" ? "hidden" : "flex"
-              } lg:hidden flex-col`}
+              )}
             >
               <ChatPanel variant="mobile" />
             </div>
           </div>
 
           {/* Right Sidebar - Chat (Desktop only) */}
-          <div className="w-72 hidden lg:flex flex-col shrink-0">
+          <div className="w-72 hidden lg:flex flex-col shrink-0 h-full">
             <ChatPanel variant="desktop" />
           </div>
         </div>
