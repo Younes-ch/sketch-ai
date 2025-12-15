@@ -171,9 +171,12 @@ public class GameService : IGameService
 
         player.Score += score;
 
-        // Also give points to the drawer for each correct guess
-        var drawer = room.Players.First(p => p.ConnectionId == room.CurrentDrawerConnectionId);
-        drawer.Score += 50;
+        // Also give points to the drawer for each correct guess (if still in room)
+        var drawer = room.Players.FirstOrDefault(p => p.ConnectionId == room.CurrentDrawerConnectionId);
+        if (drawer is not null)
+        {
+            drawer.Score += 50;
+        }
 
         await _roomService.SaveRoomAsync(room);
 
