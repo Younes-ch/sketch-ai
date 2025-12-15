@@ -11,6 +11,7 @@ builder.Services.AddControllers();
 builder.Services.AddOpenApi();
 builder.Services.AddSingleton<IRoomService, RoomService>();
 builder.Services.AddSingleton<ICanvasService, CanvasService>();
+builder.Services.AddSingleton<IWordService, WordService>();
 
 // SignalR
 builder.Services.AddSignalR(config =>
