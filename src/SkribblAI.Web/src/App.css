@@ -26,4 +26,9 @@
   
   --color-warning: #FF9800;
   --color-warning-dark: #F57C00;
+  
+  /* Decorative colors */
+  --color-purple: #9C27B0;
+  --color-pink: #E91E63;
+  --color-cyan: #00BCD4;
 }

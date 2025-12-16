@@ -1,3 +1,5 @@
+import { cn } from "@/lib/utils";
+
 interface TabButtonProps {
   label: string;
   icon: string;
@@ -21,11 +23,15 @@ export default function TabButton({
 }: TabButtonProps) {
   return (
     <button
-      className={`flex-1 py-2.5 px-3 rounded-2xl font-bold text-base transition-all duration-200 border-4 ${
+      className={cn(
+        "flex-1 py-2.5 px-3 rounded-2xl font-bold text-base transition-all duration-200 border-4",
         isActive
-          ? `${colorStyles[activeColor]} text-white shadow-lg transform scale-105`
+          ? cn(
+              colorStyles[activeColor],
+              "text-white shadow-lg transform scale-105"
+            )
           : "bg-card-border text-white/70 border-card-border-hover hover:bg-card-border-hover"
-      }`}
+      )}
       onClick={onClick}
     >
       {icon} {label}

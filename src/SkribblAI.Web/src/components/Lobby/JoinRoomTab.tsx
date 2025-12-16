@@ -1,3 +1,5 @@
+import { cn } from "@/lib/utils";
+
 interface JoinRoomTabProps {
   roomCode: string;
   onRoomCodeChange: (code: string) => void;
@@ -37,7 +39,7 @@ export default function JoinRoomTab({
       </div>
 
       {error && (
-        <div className="bg-red-500/20 border-2 border-red-500 rounded-xl p-3 text-red-400 text-sm">
+        <div className="bg-danger/20 border-2 border-danger rounded-xl p-3 text-danger text-sm">
           {error}
         </div>
       )}
@@ -45,11 +47,12 @@ export default function JoinRoomTab({
       <button
         type="submit"
         disabled={isJoining || isDisabled}
-        className={`py-4 mt-2 text-white border-4 rounded-2xl text-xl font-black transition-all duration-200 bg-success border-success-dark hover:bg-success-hover ${
+        className={cn(
+          "py-4 mt-2 text-white border-4 rounded-2xl text-xl font-black transition-all duration-200 bg-success border-success-dark hover:bg-success-hover",
           isJoining || isDisabled
             ? "opacity-70 cursor-not-allowed"
             : "cursor-pointer hover:-translate-y-1 hover:shadow-xl active:translate-y-0 active:shadow-md"
-        }`}
+        )}
       >
         {isJoining ? "⏳ Connecting..." : "🚀 JOIN GAME!"}
       </button>

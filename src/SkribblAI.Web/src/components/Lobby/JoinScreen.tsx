@@ -2,6 +2,7 @@ import { useState, useEffect } from "react";
 import { parseHubError } from "@/lib/utils";
 import { useSignalR } from "@/hooks/useSignalR";
 import type { PublicRoom } from "@/models";
+import { DECORATIVE_COLORS } from "@/constants/colors";
 import {
   TabButton,
   JoinRoomTab,
@@ -19,18 +20,6 @@ interface JoinScreenProps {
   ) => Promise<void>;
   initialRoomCode?: string | null;
 }
-
-// Skribbl-style color palette for decorative elements
-const COLORS = [
-  "bg-accent",
-  "bg-success",
-  "bg-info",
-  "bg-danger",
-  "bg-[#9C27B0]",
-  "bg-warning",
-  "bg-[#E91E63]",
-  "bg-[#00BCD4]",
-];
 
 type TabType = "join" | "create" | "public";
 
@@ -168,7 +157,7 @@ export default function JoinScreen({
             <span className="text-white">.ai</span>
           </h1>
           <div className="flex justify-center gap-1 mb-2">
-            {COLORS.map((colorClass, i) => (
+            {DECORATIVE_COLORS.map((colorClass, i) => (
               <div
                 key={i}
                 className={`w-4 h-4 rounded-full transform hover:scale-125 transition-transform cursor-pointer ${colorClass}`}

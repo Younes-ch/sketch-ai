@@ -1,4 +1,9 @@
-import { COLOR_PALETTE } from "@/constants/colors";
+import {
+  COLOR_PALETTE,
+  DRAWING_COLORS,
+  BORDER_COLORS,
+} from "@/constants/colors";
+import { cn } from "@/lib/utils";
 
 interface ColorPaletteProps {
   currentColor: string;
@@ -17,17 +22,18 @@ export default function ColorPalette({
         <button
           key={index}
           onClick={() => onColorSelect(color)}
-          className={`w-7 h-7 rounded-md transition-all duration-150 hover:scale-110 ${
+          className={cn(
+            "w-7 h-7 rounded-md transition-all duration-150 hover:scale-110",
             currentColor === color && currentTool !== "eraser"
               ? "ring-2 ring-accent ring-offset-2 ring-offset-background scale-110"
               : "hover:ring-2 hover:ring-white/50"
-          }`}
+          )}
           style={{
             backgroundColor: color,
             border:
-              color === "#FFFFFF"
-                ? "2px solid #555"
-                : "2px solid rgba(0,0,0,0.3)",
+              color === DRAWING_COLORS.WHITE
+                ? BORDER_COLORS.WHITE_SWATCH
+                : BORDER_COLORS.DEFAULT_SWATCH,
           }}
         />
       ))}

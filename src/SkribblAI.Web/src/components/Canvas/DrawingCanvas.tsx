@@ -1,7 +1,9 @@
-import { useEffect, useRef, useState, useCallback } from "react";
+import { useEffect, useRef, useState, useCallback, useMemo } from "react";
 import type { Point, DrawingCommand } from "@/models";
 import { useSignalR } from "@/hooks/useSignalR";
 import { logger } from "@/lib/logger";
+import { cn } from "@/lib/utils";
+import { DRAWING_COLORS } from "@/constants/colors";
 import { CanvasToolbar, type ToolType } from "@/components/Canvas";
 
 // Fixed canvas resolution - all clients use this for consistent coordinates
@@ -19,7 +21,9 @@ export default function DrawingCanvas({
   const containerRef = useRef<HTMLDivElement>(null);
   const [isDrawing, setIsDrawing] = useState(false);
   const isDrawingRef = useRef(false); // Ref to avoid stale closure in touch events
-  const [currentColor, setCurrentColor] = useState("#000000");
+  const [currentColor, setCurrentColor] = useState<string>(
+    DRAWING_COLORS.DEFAULT
+  );
   const [currentWidth, setCurrentWidth] = useState(8);
   const [currentTool, setCurrentTool] = useState<ToolType>("brush");
   const [displaySize, setDisplaySize] = useState({
@@ -71,7 +75,7 @@ export default function DrawingCanvas({
 
   // Get effective color (white for eraser)
   const getEffectiveColor = useCallback(() => {
-    return currentTool === "eraser" ? "#FFFFFF" : currentColor;
+    return currentTool === "eraser" ? DRAWING_COLORS.ERASER : currentColor;
   }, [currentTool, currentColor]);
 
   // Draw a command on the canvas
@@ -299,22 +303,23 @@ export default function DrawingCanvas({
     lastPointRef.current = null;
   };
 
-  // Handle clear button
-  const handleClear = async () => {
+  const getCursor = () => {
+    if (disabled) return "not-allowed";
+    return "crosshair";
+  };
+
+  // Memoize brush sizes to prevent unnecessary re-renders
+  const brushSizes = useMemo(() => [4, 8, 14, 20, 30], []);
+
+  // Memoize clear handler
+  const handleClearMemo = useCallback(async () => {
     clearCanvas();
     try {
       await signalRClearCanvas();
     } catch (error) {
       logger.error("Failed to clear canvas", error);
     }
-  };
-
-  const getCursor = () => {
-    if (disabled) return "not-allowed";
-    return "crosshair";
-  };
-
-  const brushSizes = [4, 8, 14, 20, 30];
+  }, [clearCanvas, signalRClearCanvas]);
 
   return (
     <div
@@ -334,9 +339,10 @@ export default function DrawingCanvas({
         onTouchMove={handleTouchMove}
         onTouchEnd={handleTouchEnd}
         onTouchCancel={handleTouchEnd}
-        className={`bg-white rounded-lg shadow-inner shrink-0 touch-none border-4 border-card-border ${
-          disabled ? "opacity-90" : ""
-        }`}
+        className={cn(
+          "bg-white rounded-lg shadow-inner shrink-0 touch-none border-4 border-card-border",
+          disabled && "opacity-90"
+        )}
         style={{
           width: displaySize.width,
           height: displaySize.height,
@@ -353,7 +359,7 @@ export default function DrawingCanvas({
           onColorChange={setCurrentColor}
           onToolChange={setCurrentTool}
           onWidthChange={setCurrentWidth}
-          onClear={handleClear}
+          onClear={handleClearMemo}
         />
       )}
     </div>

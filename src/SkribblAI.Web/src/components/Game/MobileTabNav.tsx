@@ -1,3 +1,5 @@
+import { cn } from "@/lib/utils";
+
 export type MobileTab = "canvas" | "players" | "chat";
 
 interface MobileTabNavProps {
@@ -41,11 +43,12 @@ export default function MobileTabNav({
         <button
           key={tab.id}
           onClick={() => onTabChange(tab.id)}
-          className={`flex-1 py-2 px-3 rounded-xl font-bold text-sm transition-all flex items-center justify-center gap-1 ${
+          className={cn(
+            "flex-1 py-2 px-3 rounded-xl font-bold text-sm transition-all flex items-center justify-center gap-1",
             activeTab === tab.id
               ? tab.activeColor
               : "bg-card text-white/60 border-2 border-card-border"
-          }`}
+          )}
         >
           <span>{tab.icon}</span> {tab.label}
         </button>

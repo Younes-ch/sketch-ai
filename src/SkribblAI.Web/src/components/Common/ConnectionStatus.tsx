@@ -1,4 +1,5 @@
 import { useSignalR } from "@/hooks/useSignalR";
+import { cn } from "@/lib/utils";
 
 export default function ConnectionStatus() {
   const { connectionState } = useSignalR();
@@ -9,12 +10,12 @@ export default function ConnectionStatus() {
 
   const config = {
     Reconnecting: {
-      bg: "bg-yellow-500",
+      bg: "bg-warning",
       text: "Reconnecting...",
       icon: "🔄",
     },
     Disconnected: {
-      bg: "bg-red-500",
+      bg: "bg-danger",
       text: "Disconnected",
       icon: "❌",
     },
@@ -24,7 +25,10 @@ export default function ConnectionStatus() {
 
   return (
     <div
-      className={`${bg} px-3 py-1.5 rounded-lg flex items-center gap-2 animate-pulse`}
+      className={cn(
+        bg,
+        "px-3 py-1.5 rounded-lg flex items-center gap-2 animate-pulse"
+      )}
     >
       <span>{icon}</span>
       <span className="text-white font-bold text-sm">{text}</span>

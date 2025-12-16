@@ -1,4 +1,5 @@
 import type { PublicRoom } from "@/models";
+import { cn } from "@/lib/utils";
 
 interface PublicRoomCardProps {
   room: PublicRoom;
@@ -15,9 +16,10 @@ export default function PublicRoomCard({
     <button
       onClick={() => onJoin(room)}
       disabled={isDisabled}
-      className={`w-full bg-background rounded-xl p-4 border-2 border-card-border hover:border-accent hover:bg-background/80 transition-all text-left flex items-center justify-between ${
+      className={cn(
+        "w-full bg-background rounded-xl p-4 border-2 border-card-border hover:border-accent hover:bg-background/80 transition-all text-left flex items-center justify-between",
         isDisabled ? "opacity-50 cursor-not-allowed" : "cursor-pointer"
-      }`}
+      )}
     >
       <div>
         <p className="text-white font-bold flex items-center gap-2">
@@ -27,11 +29,12 @@ export default function PublicRoomCard({
       </div>
       <div className="text-right">
         <p
-          className={`font-bold ${
+          className={cn(
+            "font-bold",
             room.playerCount >= room.maxPlayers - 1
               ? "text-warning"
               : "text-success"
-          }`}
+          )}
         >
           {room.playerCount}/{room.maxPlayers}
         </p>

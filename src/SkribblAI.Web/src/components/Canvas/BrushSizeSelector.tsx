@@ -1,3 +1,6 @@
+import { cn } from "@/lib/utils";
+import { DRAWING_COLORS, BORDER_COLORS } from "@/constants/colors";
+
 interface BrushSizeSelectorProps {
   sizes: number[];
   currentSize: number;
@@ -20,15 +23,16 @@ export default function BrushSizeSelector({
         <button
           key={size}
           onClick={() => onSizeSelect(size)}
-          className={`rounded-full transition-all duration-150 hover:bg-accent ${
-            currentSize === size ? "ring-2 ring-accent" : ""
-          }`}
+          className={cn(
+            "rounded-full transition-all duration-150 hover:bg-accent",
+            currentSize === size && "ring-2 ring-accent"
+          )}
           style={{
             width: Math.min(size + 8, 32),
             height: Math.min(size + 8, 32),
             backgroundColor:
-              currentTool === "eraser" ? "#FFFFFF" : currentColor,
-            border: "2px solid rgba(255,255,255,0.3)",
+              currentTool === "eraser" ? DRAWING_COLORS.ERASER : currentColor,
+            border: BORDER_COLORS.BRUSH_SIZE,
           }}
         />
       ))}
