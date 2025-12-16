@@ -12,7 +12,7 @@ public class Room
     public string? CurrentWord { get; set; }
     public string? CurrentWordHint { get; set; }
     public int LettersRevealed { get; set; } = 0;
-    public int RoundNumber { get; set; } = 0;
+    public int RoundNumber { get; set; } = 1;
     public int TotalRounds { get; set; } = 3;
     public DateTime? RoundStartedAt { get; set; }
     public List<string>? WordChoices { get; set; }

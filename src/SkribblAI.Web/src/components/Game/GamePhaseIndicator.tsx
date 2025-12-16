@@ -38,7 +38,7 @@ export default function GamePhaseIndicator() {
       case "drawing":
         return {
           icon: "🎨",
-          title: `Round ${roundNumber + 1} of ${totalRounds}`,
+          title: `Round ${roundNumber} of ${totalRounds}`,
           subtitle: `${currentDrawer?.username || "Someone"} is drawing`,
           color: "text-success",
           bgColor: "bg-success/20",
