@@ -176,11 +176,25 @@ export function setupRoomEventHandlers() {
   const handlePlayerJoined = (player: Player) => {
     logger.info(`Player ${player.username} joined`);
     useRoomStore.getState().addPlayer(player);
+    useChatStore.getState().addMessage({
+      id: crypto.randomUUID(),
+      username: "System",
+      message: `${player.username} has joined the room.`,
+      timestamp: new Date(),
+      type: "system",
+    })
   };
 
   const handlePlayerLeft = (leftUsername: string) => {
     logger.info(`Player ${leftUsername} left`);
     useRoomStore.getState().removePlayer(leftUsername);
+    useChatStore.getState().addMessage({
+      id: crypto.randomUUID(),
+      username: "System",
+      message: `${leftUsername} has left the room.`,
+      timestamp: new Date(),
+      type: "system",
+    })
   };
 
   const handleHostChanged = (newHostUsername: string) => {
