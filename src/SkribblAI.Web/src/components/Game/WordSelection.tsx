@@ -1,6 +1,7 @@
 import { useSignalR } from "@/hooks/useSignalR";
 import { useState, useEffect, useRef } from "react";
 import { cn } from "@/lib/utils";
+import { logger } from "@/lib/logger";
 
 interface WordSelectionProps {
   words: string[];
@@ -35,7 +36,7 @@ export function WordSelection({ words, timeLimit = 15 }: WordSelectionProps) {
         clearInterval(interval);
         const randomWord = words[Math.floor(Math.random() * words.length)];
         selectWord(randomWord).catch((error) => {
-          console.error("Failed to auto-select word:", error);
+          logger.error("Failed to auto-select word", error);
           hasAutoSelectedRef.current = false;
         });
       }
@@ -56,7 +57,7 @@ export function WordSelection({ words, timeLimit = 15 }: WordSelectionProps) {
     try {
       await selectWord(word);
     } catch (error) {
-      console.error("Failed to select word:", error);
+      logger.error("Failed to select word", error);
       setIsSelecting(false);
     }
   };
