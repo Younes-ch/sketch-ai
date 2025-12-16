@@ -1,10 +1,14 @@
-import { useSignalR } from "@/hooks/useSignalR";
+import { useGameStore } from "@/stores/gameStore";
+import { useRoomStore } from "@/stores/roomStore";
 import { cn } from "@/lib/utils";
 
 export default function GamePhaseIndicator() {
-  const { gameState, players } = useSignalR();
-  const { phase, currentDrawer, roundNumber, totalRounds, timeRemaining } =
-    gameState;
+  const phase = useGameStore((s) => s.phase);
+  const currentDrawer = useGameStore((s) => s.currentDrawer);
+  const roundNumber = useGameStore((s) => s.roundNumber);
+  const totalRounds = useGameStore((s) => s.totalRounds);
+  const timeRemaining = useGameStore((s) => s.timeRemaining);
+  const players = useRoomStore((s) => s.players);
 
   const getPhaseContent = () => {
     switch (phase) {

@@ -1,7 +1,8 @@
 import { useEffect, useMemo, useState } from "react";
 import { JoinScreen } from "@/components/Lobby";
 import { GameScreen } from "@/components/Game";
-import { useSignalR } from "@/hooks/useSignalR";
+import { useConnectionStore } from "@/stores/connectionStore";
+import { useRoomStore } from "@/stores/roomStore";
 
 // Get invite room code from URL once (outside component to avoid re-running)
 function getInitialRoomCode(): string | null {
@@ -16,14 +17,14 @@ function getInitialRoomCode(): string | null {
 }
 
 export default function AppRouter() {
-  const {
-    roomCode,
-    connectionState,
-    isReconnecting,
-    createRoom,
-    joinRoom,
-    attemptReconnect,
-  } = useSignalR();
+  const connectionState = useConnectionStore((s) => s.connectionState);
+  const isReconnecting = useConnectionStore((s) => s.isReconnecting);
+
+  const roomCode = useRoomStore((s) => s.roomCode);
+  const createRoom = useRoomStore((s) => s.createRoom);
+  const joinRoom = useRoomStore((s) => s.joinRoom);
+  const attemptReconnect = useRoomStore((s) => s.attemptReconnect);
+
   const [hasAttemptedReconnect, setHasAttemptedReconnect] = useState(false);
 
   // Only compute once on mount

@@ -1,20 +1,22 @@
-import { useSignalR } from "@/hooks/useSignalR";
+import { useGameStore } from "@/stores/gameStore";
+import { useRoomStore } from "@/stores/roomStore";
 import { cn } from "@/lib/utils";
 
 export default function WordHint() {
-  const { gameState, username } = useSignalR();
+  const phase = useGameStore((s) => s.phase);
+  const currentDrawer = useGameStore((s) => s.currentDrawer);
+  const currentWord = useGameStore((s) => s.currentWord);
+  const wordHint = useGameStore((s) => s.wordHint);
+  const username = useRoomStore((s) => s.username);
 
-  const isDrawer = gameState.currentDrawer?.username === username;
-  const isDrawingPhase = gameState.phase === "drawing";
+  const isDrawer = currentDrawer?.username === username;
+  const isDrawingPhase = phase === "drawing";
 
   // Show the actual word for the drawer, or the hint for guessers
-  const displayText =
-    isDrawer && gameState.currentWord
-      ? gameState.currentWord
-      : gameState.wordHint || "";
+  const displayText = isDrawer && currentWord ? currentWord : wordHint || "";
 
   // Don't show if there's no word/hint to display
-  if (!displayText && gameState.phase !== "drawing") {
+  if (!displayText && phase !== "drawing") {
     return null;
   }
 

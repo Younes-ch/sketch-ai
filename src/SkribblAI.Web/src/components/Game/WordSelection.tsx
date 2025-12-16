@@ -1,4 +1,5 @@
-import { useSignalR } from "@/hooks/useSignalR";
+import { useGameStore } from "@/stores/gameStore";
+import { useRoomStore } from "@/stores/roomStore";
 import { useState, useEffect, useRef } from "react";
 import { cn } from "@/lib/utils";
 import { logger } from "@/lib/logger";
@@ -9,13 +10,16 @@ interface WordSelectionProps {
 }
 
 export function WordSelection({ words, timeLimit = 15 }: WordSelectionProps) {
-  const { selectWord, username, gameState } = useSignalR();
+  const selectWord = useGameStore((s) => s.selectWord);
+  const currentDrawer = useGameStore((s) => s.currentDrawer);
+  const username = useRoomStore((s) => s.username);
+
   const [isSelecting, setIsSelecting] = useState(false);
   const [startTime] = useState(() => Date.now());
   const [elapsed, setElapsed] = useState(0);
   const hasAutoSelectedRef = useRef(false);
 
-  const isDrawer = gameState.currentDrawer?.username === username;
+  const isDrawer = currentDrawer?.username === username;
   const timeRemaining = Math.max(0, timeLimit - Math.floor(elapsed / 1000));
 
   // Countdown timer using elapsed time - also handles auto-select

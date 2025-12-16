@@ -1,5 +1,7 @@
 import { useState, useRef, useEffect } from "react";
-import { useSignalR } from "@/hooks/useSignalR";
+import { useChatStore } from "@/stores/chatStore";
+import { useGameStore } from "@/stores/gameStore";
+import { useRoomStore } from "@/stores/roomStore";
 import { cn } from "@/lib/utils";
 import { logger } from "@/lib/logger";
 
@@ -9,16 +11,20 @@ interface ChatPanelProps {
 
 export default function ChatPanel({ variant = "desktop" }: ChatPanelProps) {
   const isDesktop = variant === "desktop";
-  const { chatMessages, sendGuess, gameState, username, playersWhoGuessed } =
-    useSignalR();
+  const chatMessages = useChatStore((s) => s.messages);
+  const sendGuess = useGameStore((s) => s.sendGuess);
+  const phase = useGameStore((s) => s.phase);
+  const currentDrawer = useGameStore((s) => s.currentDrawer);
+  const playersWhoGuessed = useGameStore((s) => s.playersWhoGuessed);
+  const username = useRoomStore((s) => s.username);
 
   const [inputValue, setInputValue] = useState("");
   const [isSending, setIsSending] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
   // Check if current user is the drawer
-  const isDrawer = gameState.currentDrawer?.username === username;
-  const isDrawingPhase = gameState.phase === "drawing";
+  const isDrawer = currentDrawer?.username === username;
+  const isDrawingPhase = phase === "drawing";
   const hasAlreadyGuessed = username ? playersWhoGuessed.has(username) : false;
   const isInputDisabled =
     isSending || (isDrawingPhase && (isDrawer || hasAlreadyGuessed));
@@ -31,7 +37,7 @@ export default function ChatPanel({ variant = "desktop" }: ChatPanelProps) {
     if (isDrawingPhase && hasAlreadyGuessed) {
       return "You guessed it! 🎉";
     }
-    if (gameState.phase === "lobby") {
+    if (phase === "lobby") {
       return "Type a message...";
     }
     return "Type your guess...";

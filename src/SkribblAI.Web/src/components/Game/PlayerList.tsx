@@ -1,5 +1,5 @@
 import type { Player } from "@/models";
-import { useSignalR } from "@/hooks/useSignalR";
+import { useGameStore } from "@/stores/gameStore";
 import { cn } from "@/lib/utils";
 
 interface PlayerListProps {
@@ -16,11 +16,12 @@ export default function PlayerList({
   variant = "desktop",
 }: PlayerListProps) {
   const isDesktop = variant === "desktop";
-  const { gameState, playersWhoGuessed } = useSignalR();
+  const phase = useGameStore((s) => s.phase);
+  const currentDrawer = useGameStore((s) => s.currentDrawer);
+  const playersWhoGuessed = useGameStore((s) => s.playersWhoGuessed);
 
-  const currentDrawerUsername = gameState.currentDrawer?.username;
-  const isDrawingPhase =
-    gameState.phase === "drawing" || gameState.phase === "wordSelection";
+  const currentDrawerUsername = currentDrawer?.username;
+  const isDrawingPhase = phase === "drawing" || phase === "wordSelection";
 
   return (
     <div

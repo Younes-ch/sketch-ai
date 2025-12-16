@@ -1,8 +1,8 @@
-import { useSignalR } from "@/hooks/useSignalR";
+import { useConnectionStore } from "@/stores/connectionStore";
 import { cn } from "@/lib/utils";
 
 export default function ConnectionStatus() {
-  const { connectionState } = useSignalR();
+  const connectionState = useConnectionStore((s) => s.connectionState);
 
   if (connectionState === "Connected") {
     return null; // Don't show anything when connected

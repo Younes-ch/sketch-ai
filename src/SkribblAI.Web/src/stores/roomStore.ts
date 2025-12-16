@@ -1,5 +1,5 @@
 import { create } from "zustand";
-import type { Player } from "@/models";
+import type { Player, PublicRoom } from "@/models";
 import { logger } from "@/lib/logger";
 import {
   useConnectionStore,
@@ -16,6 +16,8 @@ interface RoomStore {
   username: string | null;
   isHost: boolean;
   players: Player[];
+  publicRooms: PublicRoom[];
+  isLoadingRooms: boolean;
 
   // Actions
   setRoomCode: (code: string | null) => void;
@@ -25,6 +27,8 @@ interface RoomStore {
   addPlayer: (player: Player) => void;
   removePlayer: (username: string) => void;
   updateHostStatus: (newHostUsername: string) => void;
+  setPublicRooms: (rooms: PublicRoom[]) => void;
+  setIsLoadingRooms: (value: boolean) => void;
 
   // SignalR actions
   createRoom: (username: string, roomCode: string, isPublic?: boolean) => Promise<void>;
@@ -42,11 +46,15 @@ export const useRoomStore = create<RoomStore>((set, get) => ({
   username: null,
   isHost: false,
   players: [],
+  publicRooms: [],
+  isLoadingRooms: false,
 
   setRoomCode: (code) => set({ roomCode: code }),
   setUsername: (name) => set({ username: name }),
   setIsHost: (value) => set({ isHost: value }),
   setPlayers: (players) => set({ players }),
+  setPublicRooms: (rooms) => set({ publicRooms: rooms }),
+  setIsLoadingRooms: (value) => set({ isLoadingRooms: value }),
   
   addPlayer: (player) =>
     set((state) => ({ players: [...state.players, player] })),
@@ -126,6 +134,7 @@ export const useRoomStore = create<RoomStore>((set, get) => ({
     const { connection, isConnected } = useConnectionStore.getState();
     if (!isConnected() || !connection) return;
 
+    useRoomStore.getState().setIsLoadingRooms(true);
     await connection.invoke("GetPublicRooms");
   },
 
@@ -135,6 +144,7 @@ export const useRoomStore = create<RoomStore>((set, get) => ({
       username: null,
       isHost: false,
       players: [],
+      publicRooms: [],
     }),
 }));
 
@@ -178,11 +188,18 @@ export function setupRoomEventHandlers() {
     useRoomStore.getState().updateHostStatus(newHostUsername);
   };
 
+  const handleReceivePublicRooms = (rooms: PublicRoom[]) => {
+    logger.info(`Received ${rooms.length} public rooms`);
+    useRoomStore.getState().setPublicRooms(rooms);
+    useRoomStore.getState().setIsLoadingRooms(false);
+  };
+
   connection.on("RoomCreated", handleRoomCreated);
   connection.on("RoomJoined", handleRoomJoined);
   connection.on("PlayerJoined", handlePlayerJoined);
   connection.on("PlayerLeft", handlePlayerLeft);
   connection.on("HostChanged", handleHostChanged);
+  connection.on("ReceivePublicRooms", handleReceivePublicRooms);
 
   return () => {
     connection.off("RoomCreated", handleRoomCreated);
@@ -190,5 +207,6 @@ export function setupRoomEventHandlers() {
     connection.off("PlayerJoined", handlePlayerJoined);
     connection.off("PlayerLeft", handlePlayerLeft);
     connection.off("HostChanged", handleHostChanged);
+    connection.off("ReceivePublicRooms", handleReceivePublicRooms);
   };
 }

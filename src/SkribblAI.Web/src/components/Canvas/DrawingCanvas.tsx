@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState, useCallback, useMemo } from "react";
 import type { Point, DrawingCommand } from "@/models";
-import { useSignalR } from "@/hooks/useSignalR";
+import { useCanvasStore } from "@/stores/canvasStore";
 import { logger } from "@/lib/logger";
 import { cn } from "@/lib/utils";
 import { DRAWING_COLORS } from "@/constants/colors";
@@ -63,15 +63,19 @@ export default function DrawingCanvas({
   // Optimization: Use a ref to track the last point without triggering re-renders
   const lastPointRef = useRef<Point | null>(null);
 
-  const {
-    sendDrawingCommand,
-    clearCanvas: signalRClearCanvas,
-    onReceiveDrawingCommand,
-    onReceiveCanvasHistory,
-    onCanvasCleared,
-    pendingCanvasHistory,
-    clearPendingCanvasHistory,
-  } = useSignalR();
+  const sendDrawingCommand = useCanvasStore((s) => s.sendDrawingCommand);
+  const signalRClearCanvas = useCanvasStore((s) => s.clearCanvas);
+  const onReceiveDrawingCommand = useCanvasStore(
+    (s) => s.onReceiveDrawingCommand
+  );
+  const onReceiveCanvasHistory = useCanvasStore(
+    (s) => s.onReceiveCanvasHistory
+  );
+  const onCanvasCleared = useCanvasStore((s) => s.onCanvasCleared);
+  const pendingCanvasHistory = useCanvasStore((s) => s.pendingCanvasHistory);
+  const clearPendingCanvasHistory = useCanvasStore(
+    (s) => s.clearPendingCanvasHistory
+  );
 
   // Get effective color (white for eraser)
   const getEffectiveColor = useCallback(() => {

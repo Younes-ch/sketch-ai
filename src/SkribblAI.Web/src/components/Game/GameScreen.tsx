@@ -10,28 +10,32 @@ import {
   GamePhaseIndicator,
   WordSelection,
 } from "@/components/Game";
-import { useSignalR } from "@/hooks/useSignalR";
+import { useRoomStore } from "@/stores/roomStore";
+import { useGameStore } from "@/stores/gameStore";
 import { logger } from "@/lib/logger";
 import { cn } from "@/lib/utils";
 
 export default function GameScreen() {
-  const {
-    roomCode,
-    username,
-    isHost,
-    players,
-    leaveRoom,
-    gameState,
-    startGame,
-  } = useSignalR();
+  const roomCode = useRoomStore((s) => s.roomCode);
+  const username = useRoomStore((s) => s.username);
+  const isHost = useRoomStore((s) => s.isHost);
+  const players = useRoomStore((s) => s.players);
+  const leaveRoom = useRoomStore((s) => s.leaveRoom);
+
+  const phase = useGameStore((s) => s.phase);
+  const currentDrawer = useGameStore((s) => s.currentDrawer);
+  const wordChoices = useGameStore((s) => s.wordChoices);
+  const currentWord = useGameStore((s) => s.currentWord);
+  const startGame = useGameStore((s) => s.startGame);
+
   const [showCopied, setShowCopied] = useState(false);
   const [mobileTab, setMobileTab] = useState<MobileTab>("canvas");
   const [isStarting, setIsStarting] = useState(false);
 
-  const isDrawer = gameState.currentDrawer?.username === username;
-  const canDraw = gameState.phase === "drawing" && isDrawer;
+  const isDrawer = currentDrawer?.username === username;
+  const canDraw = phase === "drawing" && isDrawer;
   const showWordSelection =
-    gameState.phase === "wordSelection" && isDrawer && gameState.wordChoices;
+    phase === "wordSelection" && isDrawer && wordChoices;
 
   const handleLeaveRoom = async () => {
     try {
@@ -67,7 +71,7 @@ export default function GameScreen() {
   return (
     <div className="h-screen bg-background p-2 sm:p-3 flex flex-col overflow-hidden">
       {/* Word Selection Modal */}
-      {showWordSelection && <WordSelection words={gameState.wordChoices!} />}
+      {showWordSelection && <WordSelection words={wordChoices!} />}
 
       <div className="w-full flex-1 flex flex-col min-h-0">
         {/* Header Bar */}
@@ -106,7 +110,7 @@ export default function GameScreen() {
             >
               <div className="bg-card rounded-2xl p-2 sm:p-4 border-4 border-card-border shadow-lg h-full flex flex-col overflow-hidden relative">
                 {/* Lobby Overlay */}
-                {gameState.phase === "lobby" && (
+                {phase === "lobby" && (
                   <div className="absolute inset-0 bg-background/80 backdrop-blur-sm flex flex-col items-center justify-center z-10 rounded-2xl">
                     <h2 className="text-2xl font-bold mb-4 text-white">
                       Waiting for players...
@@ -141,31 +145,31 @@ export default function GameScreen() {
                 )}
 
                 {/* Word Selection Waiting Overlay (for non-drawers) */}
-                {gameState.phase === "wordSelection" && !isDrawer && (
+                {phase === "wordSelection" && !isDrawer && (
                   <div className="absolute inset-0 bg-background/80 backdrop-blur-sm flex flex-col items-center justify-center z-10 rounded-2xl">
                     <h2 className="text-2xl font-bold mb-4 text-white">
-                      {gameState.currentDrawer?.username} is choosing a word...
+                      {currentDrawer?.username} is choosing a word...
                     </h2>
                     <div className="animate-pulse text-4xl">🎨</div>
                   </div>
                 )}
 
                 {/* Round End Overlay */}
-                {gameState.phase === "roundEnd" && (
+                {phase === "roundEnd" && (
                   <div className="absolute inset-0 bg-background/80 backdrop-blur-sm flex flex-col items-center justify-center z-10 rounded-2xl">
                     <h2 className="text-2xl font-bold mb-2 text-white">
                       Round Over!
                     </h2>
                     <p className="text-xl text-accent mb-4">
                       The word was:{" "}
-                      <span className="font-bold">{gameState.currentWord}</span>
+                      <span className="font-bold">{currentWord}</span>
                     </p>
                     <p className="text-white/60">Next round starting soon...</p>
                   </div>
                 )}
 
                 {/* Game End Overlay */}
-                {gameState.phase === "gameEnd" && (
+                {phase === "gameEnd" && (
                   <div className="absolute inset-0 bg-background/80 backdrop-blur-sm flex flex-col items-center justify-center z-10 rounded-2xl">
                     <h2 className="text-3xl font-bold mb-4 text-white">
                       🎉 Game Over! 🎉

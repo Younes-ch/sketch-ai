@@ -1,15 +1,16 @@
-import { useState, useEffect } from "react";
-import { parseHubError } from "@/lib/utils";
-import { useSignalR } from "@/hooks/useSignalR";
-import type { PublicRoom } from "@/models";
-import { DECORATIVE_COLORS } from "@/constants/colors";
 import {
-  TabButton,
-  JoinRoomTab,
   CreateRoomTab,
-  PublicRoomsTab,
   HowToPlay,
+  JoinRoomTab,
+  PublicRoomsTab,
+  TabButton,
 } from "@/components/Lobby";
+import { DECORATIVE_COLORS } from "@/constants/colors";
+import { parseHubError } from "@/lib/utils";
+import type { PublicRoom } from "@/models";
+import { useConnectionStore } from "@/stores/connectionStore";
+import { useRoomStore } from "@/stores/roomStore";
+import { useState } from "react";
 
 interface JoinScreenProps {
   onJoinGame: (
@@ -27,8 +28,10 @@ export default function JoinScreen({
   onJoinGame,
   initialRoomCode,
 }: JoinScreenProps) {
-  const { getPublicRooms, onReceivePublicRooms, connectionState } =
-    useSignalR();
+  const connectionState = useConnectionStore((s) => s.connectionState);
+  const publicRooms = useRoomStore((s) => s.publicRooms);
+  const isLoadingRooms = useRoomStore((s) => s.isLoadingRooms);
+  const getPublicRooms = useRoomStore((s) => s.getPublicRooms);
 
   const [username, setUsername] = useState("");
   const [roomCode, setRoomCode] = useState(initialRoomCode ?? "");
@@ -37,26 +40,14 @@ export default function JoinScreen({
   );
   const [isJoining, setIsJoining] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [publicRooms, setPublicRooms] = useState<PublicRoom[]>([]);
-  const [isLoadingRooms, setIsLoadingRooms] = useState(false);
   const [isPublicRoom, setIsPublicRoom] = useState(true);
 
   const handleTabChange = (tab: TabType) => {
     setActiveTab(tab);
     if (tab === "public" && connectionState === "Connected") {
-      setIsLoadingRooms(true);
       getPublicRooms();
     }
   };
-
-  // Subscribe to public rooms updates
-  useEffect(() => {
-    const unsubscribe = onReceivePublicRooms((rooms) => {
-      setPublicRooms(rooms);
-      setIsLoadingRooms(false);
-    });
-    return unsubscribe;
-  }, [onReceivePublicRooms]);
 
   const generateRoomCode = () => {
     const characters = "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789";
@@ -114,7 +105,6 @@ export default function JoinScreen({
   };
 
   const refreshPublicRooms = () => {
-    setIsLoadingRooms(true);
     getPublicRooms();
   };
 
