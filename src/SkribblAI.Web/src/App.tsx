@@ -1,14 +1,18 @@
 import "./App.css";
-import { SignalRProvider } from "@/context/SignalRContext";
 import AppRouter from "@/components/Router/AppRouter";
 import ErrorBoundary from "@/components/Common/ErrorBoundary";
+import { useSignalRInit } from "@/hooks/useSignalRInit";
+
+function AppContent() {
+  // Initialize SignalR connection and event handlers
+  useSignalRInit();
+  return <AppRouter />;
+}
 
 function App() {
   return (
     <ErrorBoundary>
-      <SignalRProvider>
-        <AppRouter />
-      </SignalRProvider>
+      <AppContent />
     </ErrorBoundary>
   );
 }
