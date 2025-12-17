@@ -1,12 +1,7 @@
 import { create } from "zustand";
 import type { Player, PublicRoom } from "@/models";
 import { logger } from "@/lib/logger";
-import {
-  useConnectionStore,
-  saveSession,
-  clearStoredSession,
-  getStoredSession,
-} from "./connectionStore";
+import { useConnectionStore } from "./connectionStore";
 import { useGameStore } from "./gameStore";
 import { useChatStore } from "./chatStore";
 import { useCanvasStore } from "./canvasStore";
@@ -34,7 +29,6 @@ interface RoomStore {
   createRoom: (username: string, roomCode: string, isPublic?: boolean) => Promise<void>;
   joinRoom: (username: string, roomCode: string) => Promise<void>;
   leaveRoom: () => Promise<void>;
-  attemptReconnect: () => Promise<boolean>;
   getPublicRooms: () => Promise<void>;
 
   // Reset
@@ -81,7 +75,6 @@ export const useRoomStore = create<RoomStore>((set, get) => ({
 
     set({ username: newUsername });
     await connection.invoke("CreateRoom", newUsername, newRoomCode, isPublic);
-    saveSession(newRoomCode, newUsername);
   },
 
   joinRoom: async (newUsername, newRoomCode) => {
@@ -90,7 +83,6 @@ export const useRoomStore = create<RoomStore>((set, get) => ({
 
     set({ username: newUsername });
     await connection.invoke("JoinRoom", newUsername, newRoomCode);
-    saveSession(newRoomCode, newUsername);
   },
 
   leaveRoom: async () => {
@@ -100,34 +92,12 @@ export const useRoomStore = create<RoomStore>((set, get) => ({
     if (!isConnected() || !connection || !roomCode) return;
 
     await connection.invoke("LeaveRoom");
-    clearStoredSession();
     
     // Reset all stores
     get().reset();
     useGameStore.getState().reset();
     useChatStore.getState().reset();
     useCanvasStore.getState().reset();
-  },
-
-  attemptReconnect: async () => {
-    const session = getStoredSession();
-    if (!session) return false;
-
-    const { connection, isConnected, setIsReconnecting } = useConnectionStore.getState();
-    if (!isConnected() || !connection) return false;
-
-    setIsReconnecting(true);
-    try {
-      set({ username: session.username });
-      await connection.invoke("JoinRoom", session.username, session.roomCode);
-      return true;
-    } catch {
-      clearStoredSession();
-      set({ username: null });
-      return false;
-    } finally {
-      setIsReconnecting(false);
-    }
   },
 
   getPublicRooms: async () => {

@@ -234,6 +234,26 @@ export function setupGameEventHandlers() {
     });
   };
 
+  const handleDrawerLeft = (drawerUsername: string) => {
+    logger.info(`Drawer ${drawerUsername} left, waiting for next turn...`);
+    
+    useChatStore.getState().addMessage({
+      id: crypto.randomUUID(),
+      username: "System",
+      message: `${drawerUsername} left. Moving to next turn...`,
+      timestamp: new Date(),
+      type: "system",
+    });
+
+    // Set a transitional state while waiting for next turn
+    useGameStore.getState().setGameState({
+      phase: "roundEnd",
+      wordChoices: null,
+      currentWord: null,
+      timeRemaining: 0,
+    });
+  };
+
   connection.on("GameStarted", handleGameStarted);
   connection.on("WordChoices", handleWordChoices);
   connection.on("DrawingStarted", handleDrawingStarted);
@@ -244,6 +264,7 @@ export function setupGameEventHandlers() {
   connection.on("HintUpdated", handleHintUpdated);
   connection.on("NextTurnStarted", handleNextTurnStarted);
   connection.on("GameEnded", handleGameEnded);
+  connection.on("DrawerLeft", handleDrawerLeft);
 
   return () => {
     connection.off("GameStarted", handleGameStarted);
@@ -256,5 +277,6 @@ export function setupGameEventHandlers() {
     connection.off("HintUpdated", handleHintUpdated);
     connection.off("NextTurnStarted", handleNextTurnStarted);
     connection.off("GameEnded", handleGameEnded);
+    connection.off("DrawerLeft", handleDrawerLeft);
   };
 }

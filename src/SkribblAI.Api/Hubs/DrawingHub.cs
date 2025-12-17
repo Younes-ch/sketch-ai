@@ -147,14 +147,24 @@ public class DrawingHub : Hub
 
         await Groups.AddToGroupAsync(Context.ConnectionId, roomCode);
 
-        room.Players.Add(player);
-        var players = room!.Players.Select(ToPlayerDto).ToList();
+        room = await _roomService.GetRoomAsync(roomCode);
+        if (room is null)
+        {
+            throw new HubException("Room not found");
+        }
+
+        var players = room.Players.Select(ToPlayerDto).ToList();
 
         await Clients.Caller.SendAsync("RoomJoined", roomCode, players);
 
         await Clients.OthersInGroup(roomCode).SendAsync("PlayerJoined", ToPlayerDto(player));
         _logger.LogInformation("Player {Username} joined room {RoomCode}. Total players: {PlayerCount}",
             username, roomCode, players.Count);
+
+        if (room.Phase != GamePhase.Lobby)
+        {
+            await SendGameStateToNewPlayer(room);
+        }
 
         var history = await _canvasService.GetCanvasHistoryAsync(roomCode);
         if (history.Count > 0)
@@ -487,7 +497,14 @@ public class DrawingHub : Hub
     private async Task HandlePlayerLeaving(string roomCode, Player player)
     {
         var wasHost = player.IsHost;
+        var wasDrawer = false;
         var username = player.Username;
+
+        var roomBeforeLeave = await _roomService.GetRoomAsync(roomCode);
+        if (roomBeforeLeave is not null)
+        {
+            wasDrawer = roomBeforeLeave.CurrentDrawerConnectionId == player.ConnectionId;
+        }
 
         await _roomService.RemovePlayerFromRoomAsync(roomCode, Context.ConnectionId);
         await Groups.RemoveFromGroupAsync(Context.ConnectionId, roomCode);
@@ -511,6 +528,68 @@ public class DrawingHub : Hub
 
         _logger.LogInformation("Player {Username} left room {RoomCode}. Remaining: {PlayerCount}",
             username, roomCode, room.Players.Count);
+
+        if (wasDrawer && room.Players.Count > 0 &&
+            (room.Phase == GamePhase.WordSelection || room.Phase == GamePhase.Drawing))
+        {
+            _logger.LogInformation("Drawer {Username} left during {Phase} phase, advancing to next turn in room {RoomCode}",
+                username, room.Phase, roomCode);
+
+            await Clients.Group(roomCode).SendAsync("DrawerLeft", username);
+
+            _ = Task.Run(async () =>
+            {
+                await Task.Delay(2000);
+                await AdvanceToNextTurn(roomCode);
+            });
+        }
+    }
+
+    /// <summary>
+    /// Sends the current game state to a player who just joined during an active game.
+    /// </summary>
+    private async Task SendGameStateToNewPlayer(Room room)
+    {
+        var gameState = ToGameStateDto(room);
+
+        switch (room.Phase)
+        {
+            case GamePhase.WordSelection:
+                await Clients.Caller.SendAsync("GameStarted", gameState);
+                _logger.LogDebug("Sent WordSelection game state to new player");
+                break;
+
+            case GamePhase.Drawing:
+                gameState.WordHint = room.CurrentWordHint ?? (room.CurrentWord is not null
+                    ? _wordService.GetWordHint(room.CurrentWord)
+                    : null);
+                await Clients.Caller.SendAsync("DrawingStarted", gameState);
+                _logger.LogDebug("Sent Drawing game state to new player");
+                break;
+
+            case GamePhase.RoundEnd:
+                await Clients.Caller.SendAsync("RoundEnded", new
+                {
+                    GameState = gameState,
+                    Word = room.CurrentWord ?? ""
+                });
+                _logger.LogDebug("Sent RoundEnd game state to new player");
+                break;
+
+            case GamePhase.GameEnd:
+                var topThreeWinnerUsernames = room.Players
+                    .OrderByDescending(p => p.Score)
+                    .Take(3)
+                    .Select(p => p.Username)
+                    .ToList();
+                await Clients.Caller.SendAsync("GameEnded", new
+                {
+                    Players = room.Players.Select(ToPlayerDto).ToList(),
+                    WinnerUsernames = topThreeWinnerUsernames
+                });
+                _logger.LogDebug("Sent GameEnd state to new player");
+                break;
+        }
     }
 
     /// <summary>

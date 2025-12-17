@@ -1,7 +1,6 @@
-import { useEffect, useMemo, useState } from "react";
+import { useMemo } from "react";
 import { JoinScreen } from "@/components/Lobby";
 import { GameScreen } from "@/components/Game";
-import { useConnectionStore } from "@/stores/connectionStore";
 import { useRoomStore } from "@/stores/roomStore";
 
 // Get invite room code from URL once (outside component to avoid re-running)
@@ -17,38 +16,12 @@ function getInitialRoomCode(): string | null {
 }
 
 export default function AppRouter() {
-  const connectionState = useConnectionStore((s) => s.connectionState);
-  const isReconnecting = useConnectionStore((s) => s.isReconnecting);
-
   const roomCode = useRoomStore((s) => s.roomCode);
   const createRoom = useRoomStore((s) => s.createRoom);
   const joinRoom = useRoomStore((s) => s.joinRoom);
-  const attemptReconnect = useRoomStore((s) => s.attemptReconnect);
-
-  const [hasAttemptedReconnect, setHasAttemptedReconnect] = useState(false);
 
   // Only compute once on mount
   const inviteRoomCode = useMemo(() => getInitialRoomCode(), []);
-
-  // Attempt to reconnect to previous session on mount
-  useEffect(() => {
-    // Only attempt once, when connected, and if no invite link is present
-    if (
-      hasAttemptedReconnect ||
-      connectionState !== "Connected" ||
-      inviteRoomCode
-    ) {
-      return;
-    }
-
-    setHasAttemptedReconnect(true);
-    attemptReconnect();
-  }, [
-    connectionState,
-    hasAttemptedReconnect,
-    inviteRoomCode,
-    attemptReconnect,
-  ]);
 
   const handleJoinGame = async (
     name: string,
@@ -62,21 +35,6 @@ export default function AppRouter() {
       await joinRoom(name, room);
     }
   };
-
-  // Show reconnecting state
-  if (isReconnecting) {
-    return (
-      <div className="min-h-screen flex flex-col items-center justify-center bg-background p-4">
-        <div className="bg-card rounded-3xl p-8 shadow-2xl border-4 border-card-border text-center">
-          <div className="text-6xl mb-4 animate-bounce">🔄</div>
-          <h1 className="text-2xl font-bold text-white mb-2">
-            Reconnecting...
-          </h1>
-          <p className="text-white/60">Getting you back into the game!</p>
-        </div>
-      </div>
-    );
-  }
 
   if (!roomCode) {
     return (
