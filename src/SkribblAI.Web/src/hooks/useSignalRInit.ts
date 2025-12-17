@@ -19,6 +19,7 @@ export function useSignalRInit() {
   const { connection, initializeConnection } = useConnectionStore();
   const cleanupRef = useRef<(() => void)[]>([]);
   const lastRevealTimeRef = useRef<number | null>(null);
+  const hasEndedRoundRef = useRef<boolean>(false);
 
   // Initialize connection on mount
   useEffect(() => {
@@ -56,6 +57,10 @@ export function useSignalRInit() {
           lastRevealTimeRef.current = null;
         }
       }
+
+      if (state.phase === "drawing" && prevState.phase !== "drawing") {
+        hasEndedRoundRef.current = false;
+      }
     });
 
     const interval = setInterval(() => {
@@ -73,6 +78,15 @@ export function useSignalRInit() {
       const remaining = Math.max(0, ROUND_DURATION - elapsed);
 
       useGameStore.setState({ timeRemaining: remaining });
+
+      if (remaining <= 0 && !hasEndedRoundRef.current) {
+        if (currentDrawer?.username === username) {
+          hasEndedRoundRef.current = true;
+          useGameStore.getState().endRound().catch((err) => {
+            logger.error("Failed to end round", err);
+          });
+        }
+      }
 
       // Check if we should reveal a letter (at 60s, 40s, 20s remaining)
       // Only the drawer triggers the reveal to avoid multiple requests

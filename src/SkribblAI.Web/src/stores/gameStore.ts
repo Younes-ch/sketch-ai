@@ -15,6 +15,7 @@ interface GameStore extends GameState {
   setPlayersWhoGuessed: (players: Set<string>) => void;
   addPlayerWhoGuessed: (username: string) => void;
   setRoundStartedAt: (date: Date | null) => void;
+  endRound: () => Promise<void>;
 
   // SignalR actions
   startGame: () => Promise<void>;
@@ -40,6 +41,12 @@ export const useGameStore = create<GameStore>((set) => ({
     })),
 
   setRoundStartedAt: (date) => set({ roundStartedAt: date }),
+
+  endRound: async () => {
+    const { connection, isConnected } = useConnectionStore.getState();
+    if (!isConnected() || !connection) return;
+    await connection.invoke("EndRound");
+  },
 
   startGame: async () => {
     const { connection, isConnected } = useConnectionStore.getState();
@@ -192,6 +199,41 @@ export function setupGameEventHandlers() {
     useGameStore.getState().setGameState({ wordHint: newHint });
   };
 
+  const handleNextTurnStarted = (gameStateDto: GameStateDto) => {
+    logger.info(`Next turn started, drawer: ${gameStateDto.currentDrawerUsername}`);
+    useRoomStore.getState().setPlayers(gameStateDto.players);
+    useGameStore.getState().setPlayersWhoGuessed(new Set());
+    useChatStore.getState().reset();
+
+    const currentDrawer = gameStateDto.players.find(
+      (p) => p.username === gameStateDto.currentDrawerUsername
+    ) || null;
+
+    useGameStore.getState().setGameState({
+      phase: "wordSelection",
+      currentDrawer,
+      roundNumber: gameStateDto.roundNumber,
+      totalRounds: gameStateDto.totalRounds,
+      wordHint: "",
+      wordChoices: null,
+      currentWord: null,
+      timeRemaining: 80,
+    });
+  };
+
+  const handleGameEnded = (data: { players: Player[], winnerUsernames: string[] }) => {
+    logger.info("Game ended! Winners:", data.winnerUsernames.join(", "));
+    useRoomStore.getState().setPlayers(data.players);
+    
+    useGameStore.getState().setGameState({
+      phase: "gameEnd",
+      currentWord: null,
+      wordHint: "",
+      wordChoices: null,
+      timeRemaining: 0,
+    });
+  };
+
   connection.on("GameStarted", handleGameStarted);
   connection.on("WordChoices", handleWordChoices);
   connection.on("DrawingStarted", handleDrawingStarted);
@@ -200,6 +242,8 @@ export function setupGameEventHandlers() {
   connection.on("ScoresUpdated", handleScoresUpdated);
   connection.on("RoundEnded", handleRoundEnded);
   connection.on("HintUpdated", handleHintUpdated);
+  connection.on("NextTurnStarted", handleNextTurnStarted);
+  connection.on("GameEnded", handleGameEnded);
 
   return () => {
     connection.off("GameStarted", handleGameStarted);
@@ -210,5 +254,7 @@ export function setupGameEventHandlers() {
     connection.off("ScoresUpdated", handleScoresUpdated);
     connection.off("RoundEnded", handleRoundEnded);
     connection.off("HintUpdated", handleHintUpdated);
+    connection.off("NextTurnStarted", handleNextTurnStarted);
+    connection.off("GameEnded", handleGameEnded);
   };
 }

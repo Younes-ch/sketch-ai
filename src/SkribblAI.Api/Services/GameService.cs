@@ -44,6 +44,18 @@ public class GameService : IGameService
         room.Phase = GamePhase.WordSelection;
         room.WordChoices = _wordService.GetRandomWords();
         room.CurrentDrawerConnectionId = drawer.ConnectionId;
+        room.RoundNumber = 1;
+        room.CurrentWord = null;
+        room.CurrentWordHint = null;
+        room.LettersRevealed = 0;
+        room.PlayersWhoGuessed.Clear();
+        room.RoundStartedAt = null;
+
+        foreach (var player in room.Players)
+        {
+            player.Score = 0;
+        }
+
         await _roomService.SaveRoomAsync(room);
 
         _logger.LogInformation("Game started in room {RoomCode}. First drawer: {DrawerUsername}",
@@ -252,12 +264,10 @@ public class GameService : IGameService
 
         if (nextDrawer is null)
         {
-            // All players have drawn this round, move to next round
             room.RoundNumber++;
 
             if (room.RoundNumber > room.TotalRounds)
             {
-                // Game over!
                 room.Phase = GamePhase.GameEnd;
                 room.CurrentWord = null;
                 room.CurrentDrawerConnectionId = null;
@@ -269,7 +279,6 @@ public class GameService : IGameService
                 return;
             }
 
-            // Start new round with first player
             nextDrawer = room.Players.OrderBy(p => p.JoinedAt).First();
             _logger.LogInformation("Starting round {RoundNumber} in room {RoomCode}",
                 room.RoundNumber, roomCode);
