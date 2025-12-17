@@ -3,5 +3,5 @@
     username: string; 
     message: string; 
     timestamp: Date; 
-    type: "chat" | "system" | "correct-guess"; 
+    type: "chat" | "system" | "correct-guess" | "close-guess"; 
 } 

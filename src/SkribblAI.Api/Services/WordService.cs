@@ -56,4 +56,64 @@ public class WordService : IWordService
     {
         return string.Equals(word, guess, StringComparison.OrdinalIgnoreCase);
     }
+
+    public bool IsCloseGuess(string word, string guess)
+    {
+        if (string.IsNullOrWhiteSpace(guess)) return false;
+
+        var normalizedWord = word.ToLowerInvariant().Trim();
+        var normalizedGuess = guess.ToLowerInvariant().Trim();
+
+        if (normalizedWord == normalizedGuess) return false;
+
+        if (Math.Abs(normalizedWord.Length - normalizedGuess.Length) > 1) return false;
+
+        var distance = LevenshteinDistance(normalizedWord, normalizedGuess);
+
+        var threshold = normalizedWord.Length <= 4 ? 1 : normalizedWord.Length <= 7 ? 2 : 3;
+        return distance > 0 && distance <= threshold;
+    }
+
+    private static int LevenshteinDistance(string str1, string str2)
+    {
+        int m = str1.Length;
+        int n = str2.Length;
+
+        // Create a matrix to store distances
+        var dp = new int[m + 1, n + 1];
+
+        // Initialize the first row and column of the matrix
+        for (int i = 0; i <= m; i++)
+        {
+            dp[i, 0] = i; // Number of insertions required for str1 to become an empty string
+        }
+        for (int j = 0; j <= n; j++)
+        {
+            dp[0, j] = j; // Number of insertions required for an empty string to become str2
+        }
+
+        // Fill in the matrix with minimum edit distances
+        for (int i = 1; i <= m; i++)
+        {
+            for (int j = 1; j <= n; j++)
+            {
+                if (str1[i - 1] == str2[j - 1])
+                {
+                    dp[i, j] = dp[i - 1, j - 1]; // Characters match, no operation needed
+                }
+                else
+                {
+                    // Choose the minimum of insert, delete, or replace operations
+                    dp[i, j] = 1 + Math.Min(
+                        dp[i, j - 1], // Insertion
+                        Math.Min(
+                            dp[i - 1, j], // Deletion
+                            dp[i - 1, j - 1] // Replacement
+                        )
+                    );
+                }
+            }
+        }
+        return dp[m, n]; // Return the final edit distance
+    }
 }

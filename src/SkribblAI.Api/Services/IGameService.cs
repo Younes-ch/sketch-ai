@@ -29,7 +29,7 @@ public interface IGameService
     Task<string?> RevealLetterAsync(string roomCode);
 
     /// <summary> 
-    /// Called when round timer expires. 
+    /// Ends the round. 
     /// </summary> 
     Task EndRoundAsync(string roomCode);
 

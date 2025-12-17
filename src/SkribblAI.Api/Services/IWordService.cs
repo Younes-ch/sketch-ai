@@ -26,4 +26,9 @@ public interface IWordService
     /// Checks if a guess matches the word (case-insensitive). 
     /// </summary> 
     bool CheckGuess(string word, string guess);
+
+    /// <summary>
+    /// Checks if a guess is close to the word (contains most characters).
+    /// </summary>
+    bool IsCloseGuess(string word, string guess);
 }

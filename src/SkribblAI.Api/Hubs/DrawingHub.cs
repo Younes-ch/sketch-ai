@@ -323,8 +323,8 @@ public class DrawingHub : Hub
 
             if (!hasAlreadyGuessed)
             {
-                var isCloseGuess = room.CurrentWord is not null && 
-                                   room.Phase == GamePhase.Drawing && 
+                var isCloseGuess = room.CurrentWord is not null &&
+                                   room.Phase == GamePhase.Drawing &&
                                    _wordService.IsCloseGuess(room.CurrentWord, message);
 
                 await Clients.Group(roomCode).SendAsync("ChatMessage", new

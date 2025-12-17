@@ -33,13 +33,14 @@ export function setupChatEventHandlers() {
     username: string;
     message: string;
     timestamp: string;
+    isCloseGuess?: boolean;
   }) => {
     useChatStore.getState().addMessage({
       id: crypto.randomUUID(),
       username: msg.username,
       message: msg.message,
       timestamp: new Date(msg.timestamp),
-      type: "chat",
+      type: msg.isCloseGuess ? "close-guess" : "chat",
     });
   };
 
