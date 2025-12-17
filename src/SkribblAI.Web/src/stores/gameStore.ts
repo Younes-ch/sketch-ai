@@ -254,6 +254,23 @@ export function setupGameEventHandlers() {
     });
   };
 
+  const handleGameReset = (data: { players: Player[], reason: string }) => {
+    logger.info(`Game reset to lobby: ${data.reason}`);
+    
+    useRoomStore.getState().setPlayers(data.players);
+    
+    useChatStore.getState().addMessage({
+      id: crypto.randomUUID(),
+      username: "System",
+      message: data.reason,
+      timestamp: new Date(),
+      type: "system",
+    });
+
+    // Reset game state back to lobby
+    useGameStore.getState().reset();
+  };
+
   connection.on("GameStarted", handleGameStarted);
   connection.on("WordChoices", handleWordChoices);
   connection.on("DrawingStarted", handleDrawingStarted);
@@ -265,6 +282,7 @@ export function setupGameEventHandlers() {
   connection.on("NextTurnStarted", handleNextTurnStarted);
   connection.on("GameEnded", handleGameEnded);
   connection.on("DrawerLeft", handleDrawerLeft);
+  connection.on("GameReset", handleGameReset);
 
   return () => {
     connection.off("GameStarted", handleGameStarted);
@@ -278,5 +296,6 @@ export function setupGameEventHandlers() {
     connection.off("NextTurnStarted", handleNextTurnStarted);
     connection.off("GameEnded", handleGameEnded);
     connection.off("DrawerLeft", handleDrawerLeft);
+    connection.off("GameReset", handleGameReset);
   };
 }

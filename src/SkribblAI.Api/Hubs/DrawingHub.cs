@@ -453,6 +453,18 @@ public class DrawingHub : Hub
 
         switch (room.Phase)
         {
+            case GamePhase.Lobby:
+                {
+                    // Game was reset to lobby due to not enough players
+                    await _hubContext.Clients.Group(roomCode).SendAsync("GameReset", new
+                    {
+                        Players = room.Players.Select(ToPlayerDto).ToList(),
+                        Reason = "Not enough players to continue"
+                    });
+
+                    _logger.LogInformation("Game reset to lobby in room {RoomCode} due to insufficient players", roomCode);
+                    break;
+                }
             case GamePhase.GameEnd:
                 {
                     var topThreeWinnerUsernames = room.Players
@@ -528,6 +540,21 @@ public class DrawingHub : Hub
 
         _logger.LogInformation("Player {Username} left room {RoomCode}. Remaining: {PlayerCount}",
             username, roomCode, room.Players.Count);
+
+        if (room.Players.Count < 2 && room.Phase != GamePhase.Lobby)
+        {
+            _logger.LogInformation("Not enough players in room {RoomCode}, resetting to lobby", roomCode);
+
+            await _gameService.ResetToLobbyAsync(roomCode);
+
+            await Clients.Group(roomCode).SendAsync("GameReset", new
+            {
+                Players = room.Players.Select(ToPlayerDto).ToList(),
+                Reason = "Not enough players to continue"
+            });
+
+            return;
+        }
 
         if (wasDrawer && room.Players.Count > 0 &&
             (room.Phase == GamePhase.WordSelection || room.Phase == GamePhase.Drawing))

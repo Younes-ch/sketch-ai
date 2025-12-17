@@ -260,6 +260,13 @@ public class GameService : IGameService
             return;
         }
 
+        if (room.Players.Count < 2)
+        {
+            _logger.LogInformation("Not enough players in room {RoomCode}, resetting to lobby", roomCode);
+            await ResetToLobbyAsync(roomCode);
+            return;
+        }
+
         var nextDrawer = await GetNextDrawerAsync(roomCode);
 
         if (nextDrawer is null)
@@ -319,5 +326,35 @@ public class GameService : IGameService
         var nextIndex = currentDrawerIndex + 1;
 
         return nextIndex >= orderedPlayers.Count ? null : orderedPlayers[nextIndex];
+    }
+
+    public async Task ResetToLobbyAsync(string roomCode)
+    {
+        var room = await _roomService.GetRoomAsync(roomCode);
+
+        if (room is null)
+        {
+            _logger.LogWarning("ResetToLobby failed: Room {RoomCode} not found", roomCode);
+            return;
+        }
+
+        room.Phase = GamePhase.Lobby;
+        room.CurrentWord = null;
+        room.CurrentWordHint = null;
+        room.CurrentDrawerConnectionId = null;
+        room.WordChoices?.Clear();
+        room.PlayersWhoGuessed.Clear();
+        room.RoundNumber = 0;
+        room.RoundStartedAt = null;
+        room.LettersRevealed = 0;
+
+        foreach (var player in room.Players)
+        {
+            player.Score = 0;
+        }
+
+        await _roomService.SaveRoomAsync(room);
+
+        _logger.LogInformation("Room {RoomCode} reset to lobby phase", roomCode);
     }
 }

@@ -42,4 +42,9 @@ public interface IGameService
     /// Gets the next drawer in rotation. 
     /// </summary> 
     Task<Player?> GetNextDrawerAsync(string roomCode);
+
+    /// <summary>
+    /// Resets the game back to the lobby phase.
+    /// </summary>
+    Task ResetToLobbyAsync(string roomCode);
 }
