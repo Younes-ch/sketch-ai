@@ -9,6 +9,7 @@ import {
   WordHint,
   GamePhaseIndicator,
   WordSelection,
+  Podium,
 } from "@/components/Game";
 import { useRoomStore } from "@/stores/roomStore";
 import { useGameStore } from "@/stores/gameStore";
@@ -170,27 +171,24 @@ export default function GameScreen() {
 
                 {/* Game End Overlay */}
                 {phase === "gameEnd" && (
-                  <div className="absolute inset-0 bg-background/80 backdrop-blur-sm flex flex-col items-center justify-center z-10 rounded-2xl">
-                    <h2 className="text-3xl font-bold mb-4 text-white">
+                  <div className="absolute inset-0 bg-background/90 backdrop-blur-sm flex flex-col items-center justify-center z-10 rounded-2xl overflow-auto py-4">
+                    <h2 className="text-3xl font-bold mb-2 text-white">
                       🎉 Game Over! 🎉
                     </h2>
-                    <p className="text-xl mb-6 text-white">
-                      Winner:{" "}
-                      <span className="text-accent font-bold">
-                        {
-                          [...players].sort((a, b) => b.score - a.score)[0]
-                            ?.username
-                        }
-                      </span>
-                    </p>
+                    <Podium players={players} />
                     {isHost && (
                       <button
                         onClick={handleStartGame}
                         disabled={isStarting}
-                        className="px-8 py-3 rounded-lg font-semibold text-lg bg-primary text-primary-foreground hover:bg-primary/90 transition-all"
+                        className="mt-4 px-8 py-3 rounded-lg font-semibold text-lg bg-success text-white hover:bg-success-hover border-2 border-success-dark transition-all"
                       >
                         {isStarting ? "Starting..." : "Play Again"}
                       </button>
+                    )}
+                    {!isHost && (
+                      <p className="mt-4 text-white/60">
+                        Waiting for host to start a new game...
+                      </p>
                     )}
                   </div>
                 )}

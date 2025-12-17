@@ -5,5 +5,6 @@ export { default as GameScreen } from "./GameScreen";
 export { default as MobileTabNav } from "./MobileTabNav";
 export { type MobileTab } from "./MobileTabNav";
 export { default as PlayerList } from "./PlayerList";
+export { default as Podium } from "./Podium";
 export { default as WordHint } from "./WordHint";
 export { WordSelection } from "./WordSelection";
