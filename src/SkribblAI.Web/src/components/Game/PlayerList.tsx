@@ -61,7 +61,12 @@ export default function PlayerList({
               {player.isHost && (
                 <span className={isDesktop ? "text-sm" : "text-lg"}>👑</span>
               )}
-              <span className={isDesktop ? "text-xl" : "text-2xl"}>
+              <span
+                className={cn(
+                  "text-white",
+                  isDesktop ? "text-xl" : "text-2xl"
+                )}
+              >
                 {isCurrentDrawer ? "🎨" : hasGuessedCorrectly ? "✓" : "👤"}
               </span>
               <div className="flex-1 min-w-0">
