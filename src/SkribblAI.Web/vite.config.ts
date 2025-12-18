@@ -20,8 +20,8 @@ export default defineConfig(({ mode }) => {
             port: parseInt(env.PORT) || 5173,
             proxy: {
                 '/hubs/drawing': {
-                    target: process.env.services__apiservice__https__0 ||
-                        process.env.services__apiservice__http__0,
+                    target: process.env.APISERVICE_HTTP ||
+                        process.env.APISERVICE_HTTPS,
                     changeOrigin: true,
                     secure: false,
                     ws: true,

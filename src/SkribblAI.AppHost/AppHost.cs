@@ -19,7 +19,9 @@ var apiService = builder
             DisplayText = "OpenAPI Docs",
             Endpoint = context.GetEndpoint("https")
         });
-    });
+    })
+    .WithReference(redis)
+    .WaitFor(redis);
 
 var webfrontend = builder
     .AddViteApp("webfrontend", "../SkribblAI.Web")
@@ -28,15 +30,13 @@ var webfrontend = builder
     .WithEnvironment("BROWSER", "none")
     .WithUrl("", "Skribbl UI")
     .WithReference(apiService)
+    .WaitFor(apiService)
     .PublishAsDockerFile();
-
-apiService
-    .WithReference(webfrontend)
-    .WithReference(redis);
 
 var publicDevTunnel = builder
     .AddDevTunnel("public-dev-tunnel")
     .WithAnonymousAccess()
-    .WithReference(webfrontend);
+    .WithReference(webfrontend)
+    .WaitFor(webfrontend);
 
 builder.Build().Run();
