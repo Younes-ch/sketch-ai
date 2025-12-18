@@ -89,8 +89,6 @@ public class DrawingHub : Hub
         var gameState = room.ToDto();
         await Clients.Group(roomCode).SendAsync("GameStarted", gameState);
         await Clients.Client(room.CurrentDrawerConnectionId).SendAsync("WordChoices", room.WordChoices);
-
-        _logger.LogInformation("Game started notification sent to room {RoomCode}", roomCode);
     }
 
     /// <summary>
@@ -127,6 +125,7 @@ public class DrawingHub : Hub
         }
 
         var room = await _roomService.GetRoomAsync(roomCode);
+
         if (room is null)
         {
             _logger.LogWarning("Player {Username} tried to join non-existent room {RoomCode}", username, roomCode);
@@ -134,29 +133,28 @@ public class DrawingHub : Hub
         }
 
         var existingPlayer = room.Players.FirstOrDefault(p => p.Username == username);
-        if (existingPlayer == null && room.Players.Count >= room.MaxPlayers)
+        if (existingPlayer is not null)
+        {
+            throw new HubException("Username already taken in this room");
+        }
+
+        if (room.Players.Count >= room.MaxPlayers)
         {
             throw new HubException("Room is full");
         }
 
         var player = await _roomService.AddPlayerToRoomAsync(roomCode, Context.ConnectionId, username)
                      ?? throw new HubException("Failed to join room");
-        
+
         await Groups.AddToGroupAsync(Context.ConnectionId, roomCode);
 
-        room = await _roomService.GetRoomAsync(roomCode);
-        if (room is null)
-        {
-            throw new HubException("Room not found");
-        }
+        room = await _roomService.GetRoomAsync(roomCode) ?? throw new HubException("Room not found");
 
         var players = room.Players.Select(p => p.ToDto()).ToList();
 
         await Clients.Caller.SendAsync("RoomJoined", roomCode, players);
 
         await Clients.OthersInGroup(roomCode).SendAsync("PlayerJoined", player.ToDto());
-        _logger.LogInformation("Player {Username} joined room {RoomCode}. Total players: {PlayerCount}",
-            username, roomCode, players.Count);
 
         if (room.Phase != GamePhase.Lobby)
         {
@@ -184,7 +182,7 @@ public class DrawingHub : Hub
 
         var room = await _roomService.GetRoomAsync(roomCode)
                    ?? throw new HubException("Room not found");
-        
+
         return room.Players.Select(p => p.ToDto()).ToList();
     }
 
@@ -225,9 +223,6 @@ public class DrawingHub : Hub
         await Clients.Caller.SendAsync("YourWord", room.CurrentWord);
 
         await Clients.OthersInGroup(roomCode).SendAsync("CanvasCleared");
-
-        _logger.LogInformation("Drawing started in room {RoomCode}. Word hint: {WordHint}",
-            roomCode, gameState.WordHint);
     }
 
     /// <summary>
@@ -289,13 +284,13 @@ public class DrawingHub : Hub
 
         var roomCode = await _roomService.GetRoomCodeByConnectionIdAsync(Context.ConnectionId)
                        ?? throw new HubException("You are not in a room");
-        
+
         var room = await _roomService.GetRoomAsync(roomCode)
                    ?? throw new HubException("Room not found");
-        
+
         var player = room.Players.FirstOrDefault(p => p.ConnectionId == Context.ConnectionId)
             ?? throw new HubException("Player not found");
-        
+
         var isCorrectGuess = await _gameService.CheckGuessAsync(roomCode, Context.ConnectionId, message);
 
         if (isCorrectGuess)
@@ -357,7 +352,7 @@ public class DrawingHub : Hub
     {
         var roomCode = await _roomService.GetRoomCodeByConnectionIdAsync(Context.ConnectionId)
                        ?? throw new HubException("You are not in a room");
-        
+
         var room = await _roomService.GetRoomAsync(roomCode)
                    ?? throw new HubException("Room not found");
 
@@ -414,7 +409,7 @@ public class DrawingHub : Hub
 
         var room = await _roomService.GetRoomAsync(roomCode)
                    ?? throw new HubException("Room not found");
-        
+
         var gameState = room.ToDto();
 
         // Reveal the word to everyone at round end
@@ -423,8 +418,6 @@ public class DrawingHub : Hub
             GameState = gameState,
             Word = room.CurrentWord
         });
-
-        _logger.LogInformation("Round ended in room {RoomCode}. Word was: {Word}", roomCode, room.CurrentWord);
 
         _ = Task.Run(async () =>
         {
@@ -439,7 +432,7 @@ public class DrawingHub : Hub
 
         var room = await _roomService.GetRoomAsync(roomCode)
                    ?? throw new HubException("Room not found");
-        
+
         switch (room.Phase)
         {
             case GamePhase.Lobby:
@@ -450,8 +443,6 @@ public class DrawingHub : Hub
                         Players = room.Players.Select(p => p.ToDto()).ToList(),
                         Reason = "Not enough players to continue"
                     });
-
-                    _logger.LogInformation("Game reset to lobby in room {RoomCode} due to insufficient players", roomCode);
                     break;
                 }
             case GamePhase.GameEnd:
@@ -467,9 +458,6 @@ public class DrawingHub : Hub
                         Players = room.Players.Select(p => p.ToDto()).ToList(),
                         WinnerUsernames = topThreeWinnerUsernames
                     });
-
-                    _logger.LogInformation("Game ended in room {RoomCode}. Winners: {Winners}",
-                        roomCode, string.Join(", ", topThreeWinnerUsernames));
                     break;
                 }
             case GamePhase.WordSelection:
@@ -484,9 +472,6 @@ public class DrawingHub : Hub
                     {
                         await _hubContext.Clients.Client(room.CurrentDrawerConnectionId).SendAsync("WordChoices", room.WordChoices);
                     }
-
-                    _logger.LogInformation("Next turn started in room {RoomCode}. Drawer: {Drawer}",
-                        roomCode, gameState.CurrentDrawerUsername);
                     break;
                 }
         }
@@ -515,7 +500,6 @@ public class DrawingHub : Hub
         var room = await _roomService.GetRoomAsync(roomCode);
         if (room is null)
         {
-            _logger.LogInformation("Room {RoomCode} deleted (last player left)", roomCode);
             return;
         }
 
@@ -525,16 +509,10 @@ public class DrawingHub : Hub
         {
             var newHost = room.Players.First(p => p.IsHost);
             await Clients.Group(roomCode).SendAsync("HostChanged", newHost.Username);
-            _logger.LogInformation("Host migrated to {NewHost} in room {RoomCode}", newHost.Username, roomCode);
         }
-
-        _logger.LogInformation("Player {Username} left room {RoomCode}. Remaining: {PlayerCount}",
-            username, roomCode, room.Players.Count);
 
         if (room.Players.Count < 2 && room.Phase != GamePhase.Lobby)
         {
-            _logger.LogInformation("Not enough players in room {RoomCode}, resetting to lobby", roomCode);
-
             await _gameService.ResetToLobbyAsync(roomCode);
 
             await Clients.Group(roomCode).SendAsync("GameReset", new
