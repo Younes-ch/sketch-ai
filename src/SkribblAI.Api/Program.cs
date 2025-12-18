@@ -50,9 +50,9 @@ if (app.Environment.IsDevelopment())
     });
 }
 
-app.UseHttpsRedirection();
-
 app.UseCors("DevCorsPolicy");
+
+app.UseHttpsRedirection();
 
 app.UseAuthorization();
 
