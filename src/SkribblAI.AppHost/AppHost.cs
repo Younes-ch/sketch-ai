@@ -22,8 +22,8 @@ var apiService = builder
     });
 
 var webfrontend = builder
-    .AddViteApp("webfrontend", "../SkribblAI.Web", "pnpm")
-    .WithPnpmPackageInstallation()
+    .AddViteApp("webfrontend", "../SkribblAI.Web")
+    .WithPnpm()
     .WithEndpoint("http", e => e.Port = 9081)
     .WithEnvironment("BROWSER", "none")
     .WithUrl("", "Skribbl UI")
