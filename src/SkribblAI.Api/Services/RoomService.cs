@@ -59,7 +59,11 @@ public class RoomService : IRoomService
     public async Task<Room?> GetRoomAsync(string roomCode)
     {
         var roomKey = RedisKeys.Room(roomCode);
-        var roomJson = await _db.StringGetAsync(roomKey);
+        var roomJson = await RedisHelper.SafeExecuteAsync(
+            () => _db.StringGetAsync(roomKey),
+            _logger,
+            $"GetRoom:{roomCode}",
+            RedisValue.Null);
 
         if (roomJson.IsNullOrEmpty)
         {
@@ -73,7 +77,12 @@ public class RoomService : IRoomService
 
     public async Task<List<Room>> GetPublicRoomsAsync()
     {
-        var publicRoomCodes = await _db.SetMembersAsync(RedisKeys.PublicRooms);
+        var publicRoomCodes = await RedisHelper.SafeExecuteAsync(
+            () => _db.SetMembersAsync(RedisKeys.PublicRooms),
+            _logger,
+            "GetPublicRooms",
+            []) ?? [];
+
         List<Room> rooms = [];
         var staleRoomsRemoved = 0;
 
@@ -113,7 +122,11 @@ public class RoomService : IRoomService
     public async Task<bool> RoomExistsAsync(string roomCode)
     {
         var roomKey = RedisKeys.Room(roomCode);
-        var roomExists = await _db.KeyExistsAsync(roomKey);
+        var roomExists = await RedisHelper.SafeExecuteAsync(
+            () => _db.KeyExistsAsync(roomKey),
+            _logger,
+            $"RoomExists:{roomCode}",
+            false);
 
         return roomExists;
     }
@@ -128,41 +141,25 @@ public class RoomService : IRoomService
             return null;
         }
 
-        // Check if player already exists (reconnection)
-        var existingPlayer = room.Players.FirstOrDefault(p => p.Username == username);
-        if (existingPlayer is null && room.Players.Count >= room.MaxPlayers)
+        if (room.Players.Count >= room.MaxPlayers)
         {
             _logger.LogWarning("Failed to add player {Username} - room {RoomCode} is full ({PlayerCount}/{MaxPlayers})",
                 username, roomCode, room.Players.Count, room.MaxPlayers);
             return null;
         }
 
-        if (existingPlayer is not null)
+        var newPlayer = new Player
         {
-            _logger.LogInformation("Player {Username} reconnecting to room {RoomCode}",
-                username, roomCode);
+            ConnectionId = connectionId,
+            Username = username,
+            IsHost = false,
+            JoinedAt = DateTime.UtcNow,
+            IsConnected = true
+        };
+        room.Players.Add(newPlayer);
 
-            // Clean up old connection key
-            await _db.KeyDeleteAsync(RedisKeys.ConnectionToRoom(existingPlayer.ConnectionId));
-
-            existingPlayer.ConnectionId = connectionId;
-            existingPlayer.IsConnected = true;
-        }
-        else
-        {
-            var newPlayer = new Player
-            {
-                ConnectionId = connectionId,
-                Username = username,
-                IsHost = false,
-                JoinedAt = DateTime.UtcNow,
-                IsConnected = true
-            };
-            room.Players.Add(newPlayer);
-
-            _logger.LogInformation("Player {Username} joined room {RoomCode}. Players: {PlayerCount}/{MaxPlayers}",
-                username, roomCode, room.Players.Count, room.MaxPlayers);
-        }
+        _logger.LogInformation("Player {Username} joined room {RoomCode}. Players: {PlayerCount}/{MaxPlayers}",
+            username, roomCode, room.Players.Count, room.MaxPlayers);
 
         room.LastActivityAt = DateTime.UtcNow;
 
@@ -173,7 +170,7 @@ public class RoomService : IRoomService
         await _db.StringSetAsync(roomKey, updatedRoomJson, RedisKeys.RoomExpiry);
         await _db.StringSetAsync(connectionKey, roomCode, RedisKeys.RoomExpiry);
 
-        return existingPlayer ?? room.Players.First(p => p.ConnectionId == connectionId);
+        return newPlayer;
     }
 
     public async Task<bool> RemovePlayerFromRoomAsync(string roomCode, string connectionId)
@@ -264,7 +261,12 @@ public class RoomService : IRoomService
     public async Task<string?> GetRoomCodeByConnectionIdAsync(string connectionId)
     {
         var connectionKey = RedisKeys.ConnectionToRoom(connectionId);
-        var roomCode = await _db.StringGetAsync(connectionKey);
+        var roomCode = await RedisHelper.SafeExecuteAsync(
+            () => _db.StringGetAsync(connectionKey),
+            _logger,
+            "GetRoomCodeByConnectionId",
+            RedisValue.Null);
+
         return roomCode.HasValue ? roomCode.ToString() : null;
     }
 

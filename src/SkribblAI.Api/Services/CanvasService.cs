@@ -36,7 +36,11 @@ public class CanvasService : ICanvasService
     public async Task<List<DrawingCommandDto>> GetCanvasHistoryAsync(string roomCode)
     {
         var key = RedisKeys.CanvasHistory(roomCode);
-        var historyValues = await _db.ListRangeAsync(key);
+        var historyValues = await RedisHelper.SafeExecuteAsync(
+            () => _db.ListRangeAsync(key),
+            _logger,
+            $"GetCanvasHistory:{roomCode}",
+            []) ?? [];
 
         if (historyValues.Length == 0)
         {
@@ -56,17 +60,31 @@ public class CanvasService : ICanvasService
     public async Task ClearCanvasAsync(string roomCode)
     {
         var key = RedisKeys.CanvasHistory(roomCode);
-        await _db.KeyDeleteAsync(key);
-        _logger.LogInformation("Canvas cleared for room {RoomCode}", roomCode);
+        var success = await RedisHelper.SafeExecuteAsync(
+            () => _db.KeyDeleteAsync(key),
+            _logger,
+            $"ClearCanvas:{roomCode}");
+
+        if (success)
+        {
+            _logger.LogInformation("Canvas cleared for room {RoomCode}", roomCode);
+        }
     }
 
     public async Task DeleteCanvasHistoryAsync(string roomCode)
     {
-        // Same as ClearCanvasAsync, but semantically different
+        // Same as ClearCanvasAsync, but different usage
         // ClearCanvasAsync = user action (clear button)
         // DeleteCanvasHistoryAsync = cleanup when room is deleted
         var key = RedisKeys.CanvasHistory(roomCode);
-        await _db.KeyDeleteAsync(key);
-        _logger.LogDebug("Canvas history deleted for room {RoomCode}", roomCode);
+        var success = await RedisHelper.SafeExecuteAsync(
+            () => _db.KeyDeleteAsync(key),
+            _logger,
+            $"DeleteCanvasHistory:{roomCode}");
+
+        if (success)
+        {
+            _logger.LogDebug("Canvas history deleted for room {RoomCode}", roomCode);
+        }
     }
 }
