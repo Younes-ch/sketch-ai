@@ -25,6 +25,9 @@ export default defineConfig(({ mode }) => {
                     changeOrigin: true,
                     secure: false,
                     ws: true,
+                    headers: {
+                        'X-Tunnel-Skip-AntiPhishing-Page': 'true'
+                    }
                 }
             }
         }
