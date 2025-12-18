@@ -320,7 +320,7 @@ public class DrawingHub : Hub
                                    room.Phase == GamePhase.Drawing &&
                                    _wordService.IsCloseGuess(room.CurrentWord, message);
 
-                await Clients.Group(roomCode).SendAsync("ChatMessage", new
+                await Clients.Client(Context.ConnectionId).SendAsync("ChatMessage", new
                 {
                     player.Username,
                     Message = message,
