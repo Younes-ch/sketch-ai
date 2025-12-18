@@ -10,3 +10,4 @@ global using System.Text.RegularExpressions;
 global using SkribblAI.Api.Services;
 global using SkribblAI.Api.Validation;
 global using SkribblAI.Api.Hubs.Filters;
+global using SkribblAI.Api.Extensions;

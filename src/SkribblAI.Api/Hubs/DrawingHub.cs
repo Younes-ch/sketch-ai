@@ -53,7 +53,7 @@ public class DrawingHub : Hub
 
         await Groups.AddToGroupAsync(Context.ConnectionId, roomCode);
 
-        var players = room.Players.Select(ToPlayerDto).ToList();
+        var players = room.Players.Select(p => p.ToDto()).ToList();
         await Clients.Caller.SendAsync("RoomCreated", roomCode, players);
     }
 
@@ -86,7 +86,7 @@ public class DrawingHub : Hub
         await _canvasService.ClearCanvasAsync(roomCode);
         await Clients.Group(roomCode).SendAsync("CanvasCleared");
 
-        var gameState = ToGameStateDto(room);
+        var gameState = room.ToDto();
         await Clients.Group(roomCode).SendAsync("GameStarted", gameState);
         await Clients.Client(room.CurrentDrawerConnectionId).SendAsync("WordChoices", room.WordChoices);
 
@@ -150,11 +150,11 @@ public class DrawingHub : Hub
             throw new HubException("Room not found");
         }
 
-        var players = room.Players.Select(ToPlayerDto).ToList();
+        var players = room.Players.Select(p => p.ToDto()).ToList();
 
         await Clients.Caller.SendAsync("RoomJoined", roomCode, players);
 
-        await Clients.OthersInGroup(roomCode).SendAsync("PlayerJoined", ToPlayerDto(player));
+        await Clients.OthersInGroup(roomCode).SendAsync("PlayerJoined", player.ToDto());
         _logger.LogInformation("Player {Username} joined room {RoomCode}. Total players: {PlayerCount}",
             username, roomCode, players.Count);
 
@@ -182,9 +182,10 @@ public class DrawingHub : Hub
             return [];
         }
 
-        return room is null ? [] : room.Players.Select(ToPlayerDto).ToList();
         var room = await _roomService.GetRoomAsync(roomCode)
                    ?? throw new HubException("Room not found");
+        
+        return room.Players.Select(p => p.ToDto()).ToList();
     }
 
     /// <summary>
@@ -217,7 +218,7 @@ public class DrawingHub : Hub
 
         await _canvasService.ClearCanvasAsync(roomCode);
 
-        var gameState = ToGameStateDto(room);
+        var gameState = room.ToDto();
         gameState.WordHint = room.CurrentWordHint ?? _wordService.GetWordHint(room.CurrentWord);
         await Clients.Group(roomCode).SendAsync("DrawingStarted", gameState);
 
@@ -411,9 +412,10 @@ public class DrawingHub : Hub
     {
         await _gameService.EndRoundAsync(roomCode);
 
-        var gameState = ToGameStateDto(room);
         var room = await _roomService.GetRoomAsync(roomCode)
                    ?? throw new HubException("Room not found");
+        
+        var gameState = room.ToDto();
 
         // Reveal the word to everyone at round end
         await Clients.Group(roomCode).SendAsync("RoundEnded", new
@@ -445,7 +447,7 @@ public class DrawingHub : Hub
                     // Game was reset to lobby due to not enough players
                     await _hubContext.Clients.Group(roomCode).SendAsync("GameReset", new
                     {
-                        Players = room.Players.Select(ToPlayerDto).ToList(),
+                        Players = room.Players.Select(p => p.ToDto()).ToList(),
                         Reason = "Not enough players to continue"
                     });
 
@@ -462,7 +464,7 @@ public class DrawingHub : Hub
 
                     await _hubContext.Clients.Group(roomCode).SendAsync("GameEnded", new
                     {
-                        Players = room.Players.Select(ToPlayerDto).ToList(),
+                        Players = room.Players.Select(p => p.ToDto()).ToList(),
                         WinnerUsernames = topThreeWinnerUsernames
                     });
 
@@ -475,7 +477,7 @@ public class DrawingHub : Hub
                     await _canvasService.ClearCanvasAsync(roomCode);
                     await _hubContext.Clients.Group(roomCode).SendAsync("CanvasCleared");
 
-                    var gameState = ToGameStateDto(room);
+                    var gameState = room.ToDto();
                     await _hubContext.Clients.Group(roomCode).SendAsync("NextTurnStarted", gameState);
 
                     if (room.CurrentDrawerConnectionId is not null)
@@ -537,7 +539,7 @@ public class DrawingHub : Hub
 
             await Clients.Group(roomCode).SendAsync("GameReset", new
             {
-                Players = room.Players.Select(ToPlayerDto).ToList(),
+                Players = room.Players.Select(p => p.ToDto()).ToList(),
                 Reason = "Not enough players to continue"
             });
 
@@ -565,7 +567,7 @@ public class DrawingHub : Hub
     /// </summary>
     private async Task SendGameStateToNewPlayer(Room room)
     {
-        var gameState = ToGameStateDto(room);
+        var gameState = room.ToDto();
 
         switch (room.Phase)
         {
@@ -599,42 +601,11 @@ public class DrawingHub : Hub
                     .ToList();
                 await Clients.Caller.SendAsync("GameEnded", new
                 {
-                    Players = room.Players.Select(ToPlayerDto).ToList(),
+                    Players = room.Players.Select(p => p.ToDto()).ToList(),
                     WinnerUsernames = topThreeWinnerUsernames
                 });
                 _logger.LogDebug("Sent GameEnd state to new player");
                 break;
         }
-    }
-
-    /// <summary>
-    /// Maps a Player model to a PlayerDto.
-    /// </summary>
-    private static PlayerDto ToPlayerDto(Player player) => new()
-    {
-        Username = player.Username,
-        Score = player.Score,
-        IsHost = player.IsHost,
-        IsConnected = player.IsConnected
-    };
-
-    /// <summary>
-    /// Maps a Room model to a GameStateDto (safe to send to all players).
-    /// </summary>
-    private static GameStateDto ToGameStateDto(Room room)
-    {
-        var drawer = room.Players.FirstOrDefault(p => p.ConnectionId == room.CurrentDrawerConnectionId);
-
-        return new GameStateDto
-        {
-            RoomCode = room.Id,
-            Phase = room.Phase.ToString(),
-            CurrentDrawerUsername = drawer?.Username ?? "Unknown",
-            RoundNumber = room.RoundNumber,
-            TotalRounds = room.TotalRounds,
-            Players = room.Players.Select(ToPlayerDto).ToList(),
-            WordHint = null, // Set by caller when in Drawing phase
-            RoundStartedAt = room.RoundStartedAt
-        };
     }
 }
