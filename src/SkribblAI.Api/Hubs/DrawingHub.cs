@@ -139,12 +139,9 @@ public class DrawingHub : Hub
             throw new HubException("Room is full");
         }
 
-        var player = await _roomService.AddPlayerToRoomAsync(roomCode, Context.ConnectionId, username);
-        if (player is null)
-        {
-            throw new HubException("Failed to join room");
-        }
-
+        var player = await _roomService.AddPlayerToRoomAsync(roomCode, Context.ConnectionId, username)
+                     ?? throw new HubException("Failed to join room");
+        
         await Groups.AddToGroupAsync(Context.ConnectionId, roomCode);
 
         room = await _roomService.GetRoomAsync(roomCode);
@@ -185,8 +182,9 @@ public class DrawingHub : Hub
             return [];
         }
 
-        var room = await _roomService.GetRoomAsync(roomCode);
         return room is null ? [] : room.Players.Select(ToPlayerDto).ToList();
+        var room = await _roomService.GetRoomAsync(roomCode)
+                   ?? throw new HubException("Room not found");
     }
 
     /// <summary>
@@ -288,43 +286,32 @@ public class DrawingHub : Hub
             return;
         }
 
-        var roomCode = await _roomService.GetRoomCodeByConnectionIdAsync(Context.ConnectionId);
-
-        if (roomCode is null)
-        {
-            throw new HubException("You are not in a room");
-        }
-
-        var room = await _roomService.GetRoomAsync(roomCode);
-        if (room is null)
-        {
-            throw new HubException("Room not found");
-        }
-
-        var player = room.Players.FirstOrDefault(p => p.ConnectionId == Context.ConnectionId);
-        if (player is null)
-        {
-            throw new HubException("Player not found");
-        }
-
+        var roomCode = await _roomService.GetRoomCodeByConnectionIdAsync(Context.ConnectionId)
+                       ?? throw new HubException("You are not in a room");
+        
+        var room = await _roomService.GetRoomAsync(roomCode)
+                   ?? throw new HubException("Room not found");
+        
+        var player = room.Players.FirstOrDefault(p => p.ConnectionId == Context.ConnectionId)
+            ?? throw new HubException("Player not found");
+        
         var isCorrectGuess = await _gameService.CheckGuessAsync(roomCode, Context.ConnectionId, message);
 
         if (isCorrectGuess)
         {
             await Clients.Group(roomCode).SendAsync("PlayerGuessedCorrectly", player.Username);
 
-            var updatedRoom = await _roomService.GetRoomAsync(roomCode);
-            if (updatedRoom is not null)
-            {
-                var players = updatedRoom.Players.Select(ToPlayerDto).ToList();
-                await Clients.Group(roomCode).SendAsync("ScoresUpdated", players);
+            var updatedRoom = await _roomService.GetRoomAsync(roomCode)
+                              ?? throw new HubException("Room not found");
 
-                // Check if all players have guessed (round should end)
-                var nonDrawerCount = updatedRoom.Players.Count - 1;
-                if (updatedRoom.PlayersWhoGuessed.Count >= nonDrawerCount)
-                {
-                    await EndRoundAndNotify(roomCode);
-                }
+            var players = updatedRoom.Players.Select(p => p.ToDto()).ToList();
+            await Clients.Group(roomCode).SendAsync("ScoresUpdated", players);
+
+            // Check if all players have guessed (round should end)
+            var nonDrawerCount = updatedRoom.Players.Count - 1;
+            if (updatedRoom.PlayersWhoGuessed.Count >= nonDrawerCount)
+            {
+                await EndRoundAndNotify(roomCode);
             }
         }
         else
@@ -367,11 +354,13 @@ public class DrawingHub : Hub
 
     public async Task EndRound()
     {
-        var roomCode = await _roomService.GetRoomCodeByConnectionIdAsync(Context.ConnectionId);
-        if (roomCode is null) throw new HubException("You are not in a room");
+        var roomCode = await _roomService.GetRoomCodeByConnectionIdAsync(Context.ConnectionId)
+                       ?? throw new HubException("You are not in a room");
+        
+        var room = await _roomService.GetRoomAsync(roomCode)
+                   ?? throw new HubException("Room not found");
 
-        var room = await _roomService.GetRoomAsync(roomCode);
-        if (room?.Phase is not GamePhase.Drawing) return;
+        if (room.Phase is not GamePhase.Drawing) return;
 
         if (room.CurrentDrawerConnectionId != Context.ConnectionId)
         {
@@ -422,10 +411,9 @@ public class DrawingHub : Hub
     {
         await _gameService.EndRoundAsync(roomCode);
 
-        var room = await _roomService.GetRoomAsync(roomCode);
-        if (room is null) return;
-
         var gameState = ToGameStateDto(room);
+        var room = await _roomService.GetRoomAsync(roomCode)
+                   ?? throw new HubException("Room not found");
 
         // Reveal the word to everyone at round end
         await Clients.Group(roomCode).SendAsync("RoundEnded", new
@@ -447,10 +435,9 @@ public class DrawingHub : Hub
     {
         await _gameService.NextTurnAsync(roomCode);
 
-        var room = await _roomService.GetRoomAsync(roomCode);
-
-        if (room is null) return;
-
+        var room = await _roomService.GetRoomAsync(roomCode)
+                   ?? throw new HubException("Room not found");
+        
         switch (room.Phase)
         {
             case GamePhase.Lobby:
@@ -513,6 +500,7 @@ public class DrawingHub : Hub
         var username = player.Username;
 
         var roomBeforeLeave = await _roomService.GetRoomAsync(roomCode);
+
         if (roomBeforeLeave is not null)
         {
             wasDrawer = roomBeforeLeave.CurrentDrawerConnectionId == player.ConnectionId;
