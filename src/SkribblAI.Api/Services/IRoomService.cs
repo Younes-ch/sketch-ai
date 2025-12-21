@@ -22,7 +22,7 @@ public interface IRoomService
     /// <param name="settings">An object containing the new settings to apply to the room. Cannot be null.</param>
     /// <returns>A task that represents the asynchronous operation. The task result contains the updated <see cref="Room"/>
     /// object with the applied settings.</returns>
-    Task<(Room? Room, string? ErrorMessage)> UpdateRoomSettingsAsync(string roomCode, RoomSettings settings);
+    Task<(Room? Room, string? ErrorMessage)> UpdateRoomSettingsAsync(string roomCode, string connectionId, RoomSettingsDto settings);
 
     /// <summary>
     /// Retrieves a room by its code.

@@ -4,4 +4,5 @@ export { default as JoinRoomTab } from "./JoinRoomTab";
 export { default as JoinScreen } from "./JoinScreen";
 export { default as PublicRoomCard } from "./PublicRoomCard";
 export { default as PublicRoomsTab } from "./PublicRoomsTab";
+export { default as RoomSettingsPanel } from "./RoomSettingsPanel";
 export { default as TabButton } from "./TabButton";

@@ -9,7 +9,7 @@ public class GameSettings
     public string DefaultDifficulty { get; set; } = "mixed";
     public int MinPlayers { get; set; } = 2;
     public int MaxPlayers { get; set; } = 20;
-    public int MinRounds { get; set; } = 2;
+    public int MinRounds { get; set; } = 1;
     public int MaxRounds { get; set; } = 10;
     public int MinWordChoices { get; set; } = 2;
     public int MaxWordChoices { get; set; } = 5;

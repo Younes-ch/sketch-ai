@@ -42,7 +42,7 @@ public static partial class ValidationHelper
     {
         if (roomSettings.MaxPlayers < gameSettings.MinPlayers || roomSettings.MaxPlayers > gameSettings.MaxPlayers)
             return (false,
-                $"Max players should be between {gameSettings.MinPlayers}-{gameSettings.MinPlayers} players");
+                $"Max players must be between {gameSettings.MinPlayers} and {gameSettings.MaxPlayers}");
 
         if (roomSettings.TotalRounds < gameSettings.MinRounds || roomSettings.TotalRounds > gameSettings.MaxRounds)
             return (false,

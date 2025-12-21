@@ -1,5 +1,5 @@
 import { create } from "zustand";
-import type { Player, PublicRoom } from "@/models";
+import { type Player, type PublicRoom, type RoomSettings, defaultRoomSettings } from "@/models";
 import { logger } from "@/lib/logger";
 import { useConnectionStore } from "./connectionStore";
 import { useGameStore } from "./gameStore";
@@ -13,6 +13,7 @@ interface RoomStore {
   players: Player[];
   publicRooms: PublicRoom[];
   isLoadingRooms: boolean;
+  roomSettings: RoomSettings;
 
   // Actions
   setRoomCode: (code: string | null) => void;
@@ -24,12 +25,14 @@ interface RoomStore {
   updateHostStatus: (newHostUsername: string) => void;
   setPublicRooms: (rooms: PublicRoom[]) => void;
   setIsLoadingRooms: (value: boolean) => void;
+  setRoomSettings: (settings: RoomSettings) => void;
 
   // SignalR actions
-  createRoom: (username: string, roomCode: string, isPublic?: boolean) => Promise<void>;
+  createRoom: (username: string, roomCode: string, isPublic?: boolean, settings?: RoomSettings) => Promise<void>;
   joinRoom: (username: string, roomCode: string) => Promise<void>;
   leaveRoom: () => Promise<void>;
   getPublicRooms: () => Promise<void>;
+  updateRoomSettings: (settings: Partial<RoomSettings>) => Promise<void>;
 
   // Reset
   reset: () => void;
@@ -42,6 +45,7 @@ export const useRoomStore = create<RoomStore>((set, get) => ({
   players: [],
   publicRooms: [],
   isLoadingRooms: false,
+  roomSettings: { ...defaultRoomSettings },
 
   setRoomCode: (code) => set({ roomCode: code }),
   setUsername: (name) => set({ username: name }),
@@ -49,6 +53,7 @@ export const useRoomStore = create<RoomStore>((set, get) => ({
   setPlayers: (players) => set({ players }),
   setPublicRooms: (rooms) => set({ publicRooms: rooms }),
   setIsLoadingRooms: (value) => set({ isLoadingRooms: value }),
+  setRoomSettings: (settings) => set({ roomSettings: settings }),
   
   addPlayer: (player) =>
     set((state) => ({ players: [...state.players, player] })),
@@ -69,12 +74,19 @@ export const useRoomStore = create<RoomStore>((set, get) => ({
     }));
   },
 
-  createRoom: async (newUsername, newRoomCode, isPublic = false) => {
+  createRoom: async (newUsername, newRoomCode, isPublic = false, settings) => {
     const { connection, isConnected } = useConnectionStore.getState();
     if (!isConnected() || !connection) return;
 
     set({ username: newUsername });
-    await connection.invoke("CreateRoom", newUsername, newRoomCode, isPublic);
+    const settingsDto = settings ? {
+      maxPlayers: settings.maxPlayers,
+      totalRounds: settings.totalRounds,
+      drawTimeSeconds: settings.drawTimeSeconds,
+      wordChoiceCount: settings.wordChoiceCount,
+      difficulty: settings.difficulty,
+    } : null;
+    await connection.invoke("CreateRoom", newUsername, newRoomCode, settingsDto, isPublic);
   },
 
   joinRoom: async (newUsername, newRoomCode) => {
@@ -108,6 +120,15 @@ export const useRoomStore = create<RoomStore>((set, get) => ({
     await connection.invoke("GetPublicRooms");
   },
 
+  updateRoomSettings: async (settings) => {
+    const { connection, isConnected } = useConnectionStore.getState();
+    const currentSettings = get().roomSettings;
+    if (!isConnected() || !connection) return;
+
+    const newSettings = { ...currentSettings, ...settings };
+    await connection.invoke("UpdateRoomSettings", newSettings);
+  },
+
   reset: () =>
     set({
       roomCode: null,
@@ -115,6 +136,7 @@ export const useRoomStore = create<RoomStore>((set, get) => ({
       isHost: false,
       players: [],
       publicRooms: [],
+      roomSettings: { ...defaultRoomSettings },
     }),
 }));
 
@@ -123,16 +145,28 @@ export function setupRoomEventHandlers() {
   const connection = useConnectionStore.getState().connection;
   if (!connection) return () => {};
 
-  const handleRoomCreated = (code: string, playerList: Player[]) => {
+  const handleRoomCreated = (code: string, playerList: Player[], settings?: RoomSettings) => {
     logger.info(`Room ${code} created with ${playerList.length} players`);
     useRoomStore.setState({
       roomCode: code,
       players: playerList,
       isHost: true,
+      roomSettings: settings ?? defaultRoomSettings,
     });
+    // Sync drawTimeSeconds to game store
+    if (settings) {
+      useGameStore.getState().setGameState({ drawTimeSeconds: settings.drawTimeSeconds });
+    }
   };
 
-  const handleRoomJoined = (code: string, playerList: Player[]) => {
+  const handleRoomSettingsUpdated = (settings: RoomSettings) => {
+    logger.info("Room settings updated", settings);
+    useRoomStore.getState().setRoomSettings(settings);
+    // Also update game store's drawTimeSeconds
+    useGameStore.getState().setGameState({ drawTimeSeconds: settings.drawTimeSeconds });
+  };
+
+  const handleRoomJoined = (code: string, playerList: Player[], settings?: RoomSettings) => {
     logger.info(`Joined room ${code} with ${playerList.length} players`);
     const username = useRoomStore.getState().username;
     const currentPlayer = playerList.find((p) => p.username === username);
@@ -140,7 +174,12 @@ export function setupRoomEventHandlers() {
       roomCode: code,
       players: playerList,
       isHost: currentPlayer?.isHost ?? false,
+      roomSettings: settings ?? defaultRoomSettings,
     });
+    // Sync drawTimeSeconds to game store
+    if (settings) {
+      useGameStore.getState().setGameState({ drawTimeSeconds: settings.drawTimeSeconds });
+    }
   };
 
   const handlePlayerJoined = (player: Player) => {
@@ -179,6 +218,7 @@ export function setupRoomEventHandlers() {
   };
 
   connection.on("RoomCreated", handleRoomCreated);
+  connection.on("RoomSettingsUpdated", handleRoomSettingsUpdated);
   connection.on("RoomJoined", handleRoomJoined);
   connection.on("PlayerJoined", handlePlayerJoined);
   connection.on("PlayerLeft", handlePlayerLeft);
@@ -187,6 +227,7 @@ export function setupRoomEventHandlers() {
 
   return () => {
     connection.off("RoomCreated", handleRoomCreated);
+    connection.off("RoomSettingsUpdated", handleRoomSettingsUpdated);
     connection.off("RoomJoined", handleRoomJoined);
     connection.off("PlayerJoined", handlePlayerJoined);
     connection.off("PlayerLeft", handlePlayerLeft);

@@ -10,6 +10,8 @@ public class GameStateDto
     public required string CurrentDrawerUsername { get; set; }
     public int RoundNumber { get; set; }
     public int TotalRounds { get; set; }
+    public int DrawTimeSeconds { get; set; }
+
     public List<PlayerDto> Players { get; set; } = [];
 
     /// <summary>

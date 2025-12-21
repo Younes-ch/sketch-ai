@@ -16,21 +16,10 @@ public static class RoomExtensions
             CurrentDrawerUsername = drawer?.Username ?? "Unknown",
             RoundNumber = room.RoundNumber,
             TotalRounds = room.Settings.TotalRounds,
+            DrawTimeSeconds = room.Settings.DrawTimeSeconds,
             Players = room.Players.Select(p => p.ToDto()).ToList(),
             WordHint = null,
             RoundStartedAt = room.RoundStartedAt
-        };
-    }
-
-    public static RoomSettingsDto ToDto(this RoomSettings roomSettings)
-    {
-        return new RoomSettingsDto()
-        {
-            Difficulty = roomSettings.Difficulty,
-            DrawTimeSeconds = roomSettings.DrawTimeSeconds,
-            MaxPlayers = roomSettings.MaxPlayers,
-            TotalRounds = roomSettings.TotalRounds,
-            WordChoiceCount = roomSettings.WordChoiceCount
         };
     }
 }

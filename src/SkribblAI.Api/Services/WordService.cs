@@ -11,10 +11,10 @@ public class WordService : IWordService
         _wordsByDifficulty = JsonSerializer.Deserialize<Dictionary<string, List<string>>>(wordsFileContent) ?? [];
     }
 
-    public List<string> GetRandomWords(int count = 3, string? difficulty = null)
+    public List<string> GetRandomWords(int count = 3, string difficulty = "mixed")
     {
         List<string> wordPool = [];
-        if (difficulty is not null)
+        if (difficulty != "mixed")
         {
             wordPool = _wordsByDifficulty[difficulty.ToLower()];
         }

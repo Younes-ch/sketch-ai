@@ -8,7 +8,7 @@ public interface IWordService
     /// <param name="count">Number of words to return (usually 3).</param> 
     /// <param name="difficulty">Optional difficulty filter.</param> 
     /// <returns>List of random words.</returns> 
-    List<string> GetRandomWords(int count = 3, string? difficulty = null);
+    List<string> GetRandomWords(int count = 3, string difficulty = "mixed");
 
     /// <summary> 
     /// Generates a hint string with all letters hidden. 

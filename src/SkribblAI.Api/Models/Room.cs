@@ -5,7 +5,7 @@ public class Room
     public required string Id { get; set; }
     public required string HostConnectionId { get; set; }
     public bool IsPublic { get; set; }
-    public required RoomSettings Settings { get; set; }
+    public required RoomSettingsDto Settings { get; set; }
     public List<Player> Players { get; set; } = [];
     public GamePhase Phase { get; set; } = GamePhase.Lobby;
     public string? CurrentDrawerConnectionId { get; set; }
@@ -18,13 +18,4 @@ public class Room
     public HashSet<string> PlayersWhoGuessed { get; set; } = [];
     public DateTime CreatedAt { get; set; }
     public DateTime LastActivityAt { get; set; }
-}
-
-public class RoomSettings
-{
-    public int MaxPlayers { get; set; }
-    public int TotalRounds { get; set; }
-    public int DrawTimeSeconds { get; set; }
-    public int WordChoiceCount { get; set; }
-    public string Difficulty { get; set; } = "mixed";
 }

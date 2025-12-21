@@ -31,7 +31,7 @@ public class DrawingHub : Hub
     /// <summary>
     /// Creates a new room and joins the creator as host.
     /// </summary>
-    public async Task CreateRoom(string username, string roomCode, bool isPublic = true)
+    public async Task CreateRoom(string username, string roomCode, RoomSettingsDto? roomSettings, bool isPublic = true)
     {
         if (!ValidationHelper.IsValidUsername(username))
         {
@@ -51,12 +51,53 @@ public class DrawingHub : Hub
 
         var room = await _roomService.CreateRoomAsync(roomCode, isPublic, Context.ConnectionId, username);
 
+        if (roomSettings is not null)
+        {
+            var (_, errorMessage) = await _roomService.UpdateRoomSettingsAsync(roomCode, Context.ConnectionId, roomSettings);
+
+            if (errorMessage is not null)
+            {
+                _logger.LogWarning("CreateRoom with custom roomSettings failed - Error: {ErrorMessage}", errorMessage);
+                throw new HubException(errorMessage);
+            }
+        }
+
         await Groups.AddToGroupAsync(Context.ConnectionId, roomCode);
 
         var players = room.Players.Select(p => p.ToDto()).ToList();
-        await Clients.Caller.SendAsync("RoomCreated", roomCode, players);
+        await Clients.Caller.SendAsync("RoomCreated", roomCode, players, roomSettings);
     }
 
+    public async Task UpdateRoomSettings(RoomSettingsDto roomSettings)
+    {
+        var roomCode = await _roomService.GetRoomCodeByConnectionIdAsync(Context.ConnectionId);
+
+        if (roomCode is null)
+        {
+            _logger.LogWarning("UpdateRoomSettings failed: Connection {ConnectionId} is not in any room", Context.ConnectionId);
+            throw new HubException("You are not in a room");
+        }
+
+        var (_, errorMessage) = await _roomService.UpdateRoomSettingsAsync(roomCode, Context.ConnectionId, roomSettings);
+
+        if (errorMessage is not null)
+        {
+            _logger.LogWarning("UpdateRoomSettings failed - Error: {ErrorMessage}", errorMessage);
+            throw new HubException(errorMessage);
+        }
+
+        await Clients.Group(roomCode).SendAsync("RoomSettingsUpdated", roomSettings);
+    }
+
+    /// <summary>
+    /// Starts a new game in the room associated with the current connection, if the caller is the host and the room has
+    /// at least two players.
+    /// </summary>
+    /// <remarks>This method clears the canvas for the room before starting a new game and notifies all
+    /// clients in the room. Only the host can start the game, and the room must have at least two players.</remarks>
+    /// <returns>A task that represents the asynchronous operation.</returns>
+    /// <exception cref="HubException">Thrown if the caller is not in a room, is not the host, there are fewer than two players in the room, or if an
+    /// unexpected error occurs while starting the game.</exception>
     public async Task StartGame()
     {
         var roomCode = await _roomService.GetRoomCodeByConnectionIdAsync(Context.ConnectionId);
@@ -152,7 +193,7 @@ public class DrawingHub : Hub
 
         var players = room.Players.Select(p => p.ToDto()).ToList();
 
-        await Clients.Caller.SendAsync("RoomJoined", roomCode, players);
+        await Clients.Caller.SendAsync("RoomJoined", roomCode, players, room.Settings);
 
         await Clients.OthersInGroup(roomCode).SendAsync("PlayerJoined", player.ToDto());
 

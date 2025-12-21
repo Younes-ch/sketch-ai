@@ -9,6 +9,7 @@ export interface GameState {
   wordChoices: string[] | null;    // 3 words for drawer to pick 
   roundNumber: number; 
   totalRounds: number; 
+  drawTimeSeconds: number;
   timeRemaining: number; 
 } 
 
@@ -21,5 +22,6 @@ export const initialGameState: GameState = {
   wordChoices: null, 
   roundNumber: 0, 
   totalRounds: 3, 
+  drawTimeSeconds: 80,
   timeRemaining: 0, 
 }; 

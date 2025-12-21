@@ -33,7 +33,7 @@ public class RoomService : IRoomService
             IsConnected = true
         };
 
-        var roomSettings = new RoomSettings()
+        var roomSettings = new RoomSettingsDto()
         {
             Difficulty = _gameSettings.Value.DefaultDifficulty,
             DrawTimeSeconds = _gameSettings.Value.DefaultDrawTime,
@@ -53,12 +53,9 @@ public class RoomService : IRoomService
             LastActivityAt = DateTime.UtcNow
         };
 
-        var roomKey = RedisKeys.Room(roomCode);
+        await SaveRoomAsync(room);
+
         var connectionKey = RedisKeys.ConnectionToRoom(hostConnectionId);
-
-        var roomJson = JsonSerializer.Serialize(room, JsonOptions);
-
-        await _db.StringSetAsync(roomKey, roomJson, RedisKeys.RoomExpiry);
         await _db.StringSetAsync(connectionKey, roomCode, RedisKeys.RoomExpiry);
 
         if (isPublic)
@@ -72,16 +69,15 @@ public class RoomService : IRoomService
         return room;
     }
 
-    public async Task<(Room? Room, string? ErrorMessage)> UpdateRoomSettingsAsync(string roomCode, RoomSettings roomSettings)
+    public async Task<(Room? Room, string? ErrorMessage)> UpdateRoomSettingsAsync(string roomCode, string connectionId, RoomSettingsDto roomSettings)
     {
-        var roomSettingsDto = roomSettings.ToDto();
         var (isValid, errorMessage) = ValidationHelper.IsValidRoomSettings(
-            roomSettingsDto,
+            roomSettings,
             _gameSettings.Value);
 
         if (!isValid)
         {
-            _logger.LogWarning("Failed to update room settings with code {RoomCode} - {ErrorMessage}",
+            _logger.LogWarning("UpdateRoomSettings rejected for room {RoomCode}: {ValidationError}",
                 roomCode,
                 errorMessage);
             return (null, errorMessage);
@@ -95,6 +91,20 @@ public class RoomService : IRoomService
                 roomCode);
 
             return (null, "Room not found");
+        }
+
+        if (room.HostConnectionId != connectionId)
+        {
+            _logger.LogWarning("UpdateRoomSettings rejected: Connection {ConnectionId} is not the host of room {RoomCode}",
+                connectionId, roomCode);
+            return (null, "Only the host can change room settings");
+        }
+
+        if (room.Phase != GamePhase.Lobby && room.Phase != GamePhase.GameEnd)
+        {
+            _logger.LogWarning("UpdateRoomSettings rejected: Room {RoomCode} is in {CurrentPhase} phase, expected Lobby|GamePhase",
+                roomCode, room.Phase);
+            return (null, "Room settings can only be changed in the lobby or when the game ended");
         }
 
         room.Settings = roomSettings;
@@ -212,7 +222,7 @@ public class RoomService : IRoomService
         room.LastActivityAt = DateTime.UtcNow;
 
         await SaveRoomAsync(room);
-        
+
         var connectionKey = RedisKeys.ConnectionToRoom(connectionId);
         await _db.StringSetAsync(connectionKey, roomCode, RedisKeys.RoomExpiry);
 
@@ -362,7 +372,7 @@ public class RoomService : IRoomService
             () => _db.SetAddAsync(RedisKeys.RoomsInDrawingPhase, roomCode),
             _logger,
             $"AddToDrawingPhase:{roomCode}");
-        
+
         _logger.LogDebug("Room {RoomCode} added to drawing phase tracking", roomCode);
     }
 
@@ -372,7 +382,7 @@ public class RoomService : IRoomService
             () => _db.SetRemoveAsync(RedisKeys.RoomsInDrawingPhase, roomCode),
             _logger,
             $"RemoveFromDrawingPhase:{roomCode}");
-        
+
         _logger.LogDebug("Room {RoomCode} removed from drawing phase tracking", roomCode);
     }
 }
