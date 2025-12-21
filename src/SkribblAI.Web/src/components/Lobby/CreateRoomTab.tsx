@@ -79,8 +79,9 @@ export default function CreateRoomTab({
             <p className="text-white font-bold text-sm">Room Settings</p>
             <p className="text-white/50 text-xs">
               {settings.totalRounds} round
-              {settings.totalRounds === 1 ? "" : "s"} •{" "}
-              {settings.drawTimeSeconds}s draw time • {settings.difficulty}
+              {settings.totalRounds === 1 ? "" : "s"} • {settings.maxPlayers}{" "}
+              players max • {settings.drawTimeSeconds}s draw time •{" "}
+              {settings.difficulty}
             </p>
           </div>
         </div>

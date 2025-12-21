@@ -4,6 +4,8 @@ import {
   ALLOWED_DIFFICULTIES,
   MIN_ROUNDS,
   MAX_ROUNDS,
+  MIN_PLAYERS,
+  MAX_PLAYERS,
   MIN_WORD_CHOICES,
   MAX_WORD_CHOICES,
   type RoomSettings,
@@ -25,6 +27,11 @@ export default function RoomSettingsPanel({
   const roundOptions = Array.from(
     { length: MAX_ROUNDS - MIN_ROUNDS + 1 },
     (_, i) => MIN_ROUNDS + i
+  );
+
+  const maxPlayerOptions = Array.from(
+    { length: MAX_PLAYERS - MIN_PLAYERS + 1 },
+    (_, i) => MIN_PLAYERS + i
   );
 
   const wordChoiceOptions = Array.from(
@@ -75,6 +82,23 @@ export default function RoomSettingsPanel({
             {roundOptions.map((round) => (
               <option key={round} value={round}>
                 {round}
+              </option>
+            ))}
+          </select>
+        </div>
+
+        {/* Max Players */}
+        <div className="flex flex-col gap-1">
+          <label className={labelClasses}>⛹️ Max Players</label>
+          <select
+            value={settings.maxPlayers}
+            onChange={(e) => onChange({ maxPlayers: Number(e.target.value) })}
+            disabled={disabled}
+            className={selectClasses}
+          >
+            {maxPlayerOptions.map((player) => (
+              <option key={player} value={player}>
+                {player}
               </option>
             ))}
           </select>
@@ -161,6 +185,23 @@ export default function RoomSettingsPanel({
             {roundOptions.map((round) => (
               <option key={round} value={round}>
                 {round} {round === 1 ? "round" : "rounds"}
+              </option>
+            ))}
+          </select>
+        </div>
+
+        {/* Max Players */}
+        <div className="flex flex-col gap-1.5">
+          <label className={labelClasses}>⛹️ Max Players</label>
+          <select
+            value={settings.maxPlayers}
+            onChange={(e) => onChange({ maxPlayers: Number(e.target.value) })}
+            disabled={disabled}
+            className={selectClasses}
+          >
+            {maxPlayerOptions.map((player) => (
+              <option key={player} value={player}>
+                {player} players
               </option>
             ))}
           </select>
