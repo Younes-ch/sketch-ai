@@ -12,6 +12,9 @@ builder.Services.AddSingleton<ICanvasService, CanvasService>();
 builder.Services.AddSingleton<IWordService, WordService>();
 builder.Services.AddSingleton<IGameService, GameService>();
 
+// Background services
+builder.Services.AddHostedService<RoundTimerService>();
+
 // SignalR
 builder.Services.AddSignalR(config =>
 {

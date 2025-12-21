@@ -278,7 +278,8 @@ public class RoomService : IRoomService
         _logger.LogInformation("Deleting room {RoomCode} with {PlayerCount} players",
             roomCode, room.Players.Count);
 
-        await _db.SetRemoveAsync(RedisKeys.PublicRooms, RedisKeys.Room(roomCode));
+        await _db.SetRemoveAsync(RedisKeys.PublicRooms, roomCode);
+        await _db.SetRemoveAsync(RedisKeys.RoomsInDrawingPhase, roomCode);
 
         // Clean up all connection keys for players in this room
         var keysToDelete = room.Players
@@ -324,5 +325,54 @@ public class RoomService : IRoomService
 
         _logger.LogDebug("Room {RoomCode} state saved (Phase: {Phase}, Players: {PlayerCount})",
             room.Id, room.Phase, room.Players.Count);
+    }
+
+    public async Task<List<Room>> GetActiveDrawingRoomsAsync()
+    {
+        var drawingPhaseRoomCodes = await RedisHelper.SafeExecuteAsync(
+            () => _db.SetMembersAsync(RedisKeys.RoomsInDrawingPhase),
+            _logger,
+            "GetActiveDrawingRooms",
+            []) ?? [];
+
+        List<Room> activeRooms = [];
+
+        foreach (var roomCode in drawingPhaseRoomCodes)
+        {
+            if (roomCode.IsNullOrEmpty) continue;
+
+            var room = await GetRoomAsync(roomCode.ToString());
+            if (room is { Phase: GamePhase.Drawing, RoundStartedAt: not null })
+            {
+                activeRooms.Add(room);
+            }
+            else
+            {
+                // Room no longer exists or not in drawing phase
+                await RemoveFromDrawingPhaseAsync(roomCode.ToString());
+            }
+        }
+
+        return activeRooms;
+    }
+
+    public async Task AddToDrawingPhaseAsync(string roomCode)
+    {
+        await RedisHelper.SafeExecuteAsync(
+            () => _db.SetAddAsync(RedisKeys.RoomsInDrawingPhase, roomCode),
+            _logger,
+            $"AddToDrawingPhase:{roomCode}");
+        
+        _logger.LogDebug("Room {RoomCode} added to drawing phase tracking", roomCode);
+    }
+
+    public async Task RemoveFromDrawingPhaseAsync(string roomCode)
+    {
+        await RedisHelper.SafeExecuteAsync(
+            () => _db.SetRemoveAsync(RedisKeys.RoomsInDrawingPhase, roomCode),
+            _logger,
+            $"RemoveFromDrawingPhase:{roomCode}");
+        
+        _logger.LogDebug("Room {RoomCode} removed from drawing phase tracking", roomCode);
     }
 }

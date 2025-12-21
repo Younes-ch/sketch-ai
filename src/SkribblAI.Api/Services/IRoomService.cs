@@ -83,6 +83,27 @@ public interface IRoomService
     Task UpdateLastActivityAsync(string roomCode);
 
     /// <summary>
+    /// Gets all rooms currently in the Drawing phase.
+    /// Used by the background timer service to check for round expiry and hint reveals.
+    /// </summary>
+    /// <returns>List of rooms in the Drawing phase.</returns>
+    Task<List<Room>> GetActiveDrawingRoomsAsync();
+
+    /// <summary>
+    /// Adds a room to the drawing phase tracking set.
+    /// Call this when a room enters the Drawing phase.
+    /// </summary>
+    /// <param name="roomCode">The room code to add.</param>
+    Task AddToDrawingPhaseAsync(string roomCode);
+
+    /// <summary>
+    /// Removes a room from the drawing phase tracking set.
+    /// Call this when a room exits the Drawing phase.
+    /// </summary>
+    /// <param name="roomCode">The room code to remove.</param>
+    Task RemoveFromDrawingPhaseAsync(string roomCode);
+
+    /// <summary>
     /// Finds a player in a room by their connection ID.
     /// </summary>
     /// <param name="roomCode">The room to search.</param>
