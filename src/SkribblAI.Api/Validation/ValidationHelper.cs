@@ -21,13 +21,10 @@ public static partial class ValidationHelper
     /// </summary>
     public static bool IsValidRoomCode(string? roomCode)
     {
-        if (string.IsNullOrWhiteSpace(roomCode))
-            return false;
+        return !string.IsNullOrWhiteSpace(roomCode) && roomCode.Length == RoomCodeLength && RoomCodeRegex().IsMatch(roomCode);
+    }
 
-        if (roomCode.Length != RoomCodeLength)
-            return false;
 
-        return RoomCodeRegex().IsMatch(roomCode);
     }
 
     /// <summary>
@@ -78,10 +75,7 @@ public static partial class ValidationHelper
     /// </summary>
     public static bool IsValidHexColor(string? color)
     {
-        if (string.IsNullOrWhiteSpace(color))
-            return false;
-
-        return HexColorRegex().IsMatch(color);
+        return !string.IsNullOrWhiteSpace(color) && HexColorRegex().IsMatch(color);
     }
 
     /// <summary>
