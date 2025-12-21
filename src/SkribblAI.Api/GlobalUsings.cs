@@ -12,3 +12,6 @@ global using SkribblAI.Api.Validation;
 global using SkribblAI.Api.Hubs.Filters;
 global using SkribblAI.Api.Extensions;
 global using SkribblAI.Api.Helpers;
+global using SkribblAI.Api.Configuration;
+
+global using Microsoft.Extensions.Options;

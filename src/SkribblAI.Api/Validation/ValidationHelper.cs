@@ -24,7 +24,42 @@ public static partial class ValidationHelper
         return !string.IsNullOrWhiteSpace(roomCode) && roomCode.Length == RoomCodeLength && RoomCodeRegex().IsMatch(roomCode);
     }
 
+    /// <summary>
+    /// Validates the specified room settings against the provided game settings and returns whether the configuration
+    /// is valid.
+    /// </summary>
+    /// <remarks>The method checks each property of the room settings against the corresponding constraints in
+    /// the game settings. Only the first validation error encountered is reported in the error message.</remarks>
+    /// <param name="roomSettings">The room settings to validate. Contains user-specified values such as maximum players, total rounds, draw time,
+    /// word choice count, and difficulty.</param>
+    /// <param name="gameSettings">The game settings that define the allowed ranges and options for room configuration. Used as the validation
+    /// criteria.</param>
+    /// <returns>A tuple containing a boolean value that indicates whether the room settings are valid, and an error message
+    /// describing the first validation failure if invalid; otherwise, null.</returns>
+    public static (bool IsValid, string? ErrorMessage) IsValidRoomSettings(
+        RoomSettingsDto roomSettings,
+        GameSettings gameSettings)
+    {
+        if (roomSettings.MaxPlayers < gameSettings.MinPlayers || roomSettings.MaxPlayers > gameSettings.MaxPlayers)
+            return (false,
+                $"Max players should be between {gameSettings.MinPlayers}-{gameSettings.MinPlayers} players");
 
+        if (roomSettings.TotalRounds < gameSettings.MinRounds || roomSettings.TotalRounds > gameSettings.MaxRounds)
+            return (false,
+                $"Total rounds should be between {gameSettings.MinRounds}-{gameSettings.MaxRounds}");
+
+        if (!gameSettings.AllowedDrawTimes.Contains(roomSettings.DrawTimeSeconds))
+            return (false, "Draw time should be one of the provided options");
+
+        if (roomSettings.WordChoiceCount < gameSettings.MinWordChoices ||
+            roomSettings.WordChoiceCount > gameSettings.MaxWordChoices)
+            return (false,
+                $"Word choices count should be between {gameSettings.MinWordChoices}-{gameSettings.MaxWordChoices}");
+
+        if (!gameSettings.AllowedDifficulties.Contains(roomSettings.Difficulty))
+            return (false, "Difficulty is not recognized");
+
+        return (true, null);
     }
 
     /// <summary>

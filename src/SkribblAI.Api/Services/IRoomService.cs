@@ -16,6 +16,15 @@ public interface IRoomService
     Task<Room> CreateRoomAsync(string roomCode, bool isPublic, string hostConnectionId, string hostUsername);
 
     /// <summary>
+    /// Asynchronously updates the settings for the specified room.
+    /// </summary>
+    /// <param name="roomCode">The unique code identifying the room whose settings are to be updated. Cannot be null or empty.</param>
+    /// <param name="settings">An object containing the new settings to apply to the room. Cannot be null.</param>
+    /// <returns>A task that represents the asynchronous operation. The task result contains the updated <see cref="Room"/>
+    /// object with the applied settings.</returns>
+    Task<(Room? Room, string? ErrorMessage)> UpdateRoomSettingsAsync(string roomCode, RoomSettings settings);
+
+    /// <summary>
     /// Retrieves a room by its code.
     /// </summary>
     /// <param name="roomCode">The room code to look up.</param>

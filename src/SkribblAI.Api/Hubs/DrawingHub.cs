@@ -102,7 +102,7 @@ public class DrawingHub : Hub
         {
             RoomCode = r.Id,
             PlayerCount = r.Players.Count,
-            r.MaxPlayers,
+            r.Settings.MaxPlayers,
             HostUsername = r.Players.FirstOrDefault(p => p.IsHost)?.Username
         }).ToList();
 
@@ -138,7 +138,7 @@ public class DrawingHub : Hub
             throw new HubException("Username already taken in this room");
         }
 
-        if (room.Players.Count >= room.MaxPlayers)
+        if (room.Players.Count >= room.Settings.MaxPlayers)
         {
             throw new HubException("Room is full");
         }

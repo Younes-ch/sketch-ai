@@ -35,6 +35,9 @@ builder.Services.AddCors(options =>
     });
 });
 
+// Register Configuration
+builder.Services.Configure<GameSettings>(builder.Configuration.GetSection("GameSettings"));
+
 var app = builder.Build();
 
 // Configure the HTTP request pipeline.

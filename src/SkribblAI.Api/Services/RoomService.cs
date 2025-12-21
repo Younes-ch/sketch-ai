@@ -2,18 +2,24 @@
 
 public class RoomService : IRoomService
 {
-    private readonly ILogger<RoomService> _logger;
+
     private readonly IDatabase _db;
+    private readonly IOptions<GameSettings> _gameSettings;
+    private readonly ILogger<RoomService> _logger;
 
     private static readonly JsonSerializerOptions JsonOptions = new()
     {
         PropertyNamingPolicy = JsonNamingPolicy.CamelCase
     };
 
-    public RoomService(IConnectionMultiplexer redis, ILogger<RoomService> logger)
+    public RoomService(
+        IConnectionMultiplexer redis,
+        IOptions<GameSettings> gameSettings,
+        ILogger<RoomService> logger)
     {
-        _logger = logger;
         _db = redis.GetDatabase();
+        _gameSettings = gameSettings;
+        _logger = logger;
     }
 
     public async Task<Room> CreateRoomAsync(string roomCode, bool isPublic, string hostConnectionId, string hostUsername)
@@ -27,11 +33,21 @@ public class RoomService : IRoomService
             IsConnected = true
         };
 
+        var roomSettings = new RoomSettings()
+        {
+            Difficulty = _gameSettings.Value.DefaultDifficulty,
+            DrawTimeSeconds = _gameSettings.Value.DefaultDrawTime,
+            MaxPlayers = _gameSettings.Value.DefaultMaxPlayers,
+            TotalRounds = _gameSettings.Value.DefaultRounds,
+            WordChoiceCount = _gameSettings.Value.DefaultWordChoices
+        };
+
         var room = new Room
         {
             Id = roomCode,
             HostConnectionId = hostConnectionId,
             IsPublic = isPublic,
+            Settings = roomSettings,
             Players = [host],
             CreatedAt = DateTime.UtcNow,
             LastActivityAt = DateTime.UtcNow
@@ -54,6 +70,37 @@ public class RoomService : IRoomService
             roomCode, hostUsername, hostConnectionId);
 
         return room;
+    }
+
+    public async Task<(Room? Room, string? ErrorMessage)> UpdateRoomSettingsAsync(string roomCode, RoomSettings roomSettings)
+    {
+        var roomSettingsDto = roomSettings.ToDto();
+        var (isValid, errorMessage) = ValidationHelper.IsValidRoomSettings(
+            roomSettingsDto,
+            _gameSettings.Value);
+
+        if (!isValid)
+        {
+            _logger.LogWarning("Failed to update room settings with code {RoomCode} - {ErrorMessage}",
+                roomCode,
+                errorMessage);
+            return (null, errorMessage);
+        }
+
+        var room = await GetRoomAsync(roomCode);
+
+        if (room is null)
+        {
+            _logger.LogWarning("Failed to update room settings with code {RoomCode} - room not found",
+                roomCode);
+
+            return (null, "Room not found");
+        }
+
+        room.Settings = roomSettings;
+        await SaveRoomAsync(room);
+
+        return (room, null);
     }
 
     public async Task<Room?> GetRoomAsync(string roomCode)
@@ -92,7 +139,7 @@ public class RoomService : IRoomService
 
             var roomCodeStr = roomCode.ToString();
             var room = await GetRoomAsync(roomCodeStr);
-            if (room is not null && room.Players.Count < room.MaxPlayers)
+            if (room is not null && room.Players.Count < room.Settings.MaxPlayers)
             {
                 rooms.Add(room);
             }
@@ -116,7 +163,7 @@ public class RoomService : IRoomService
     {
         var room = await GetRoomAsync(roomCode);
 
-        return room is null || room.Players.Count >= room.MaxPlayers;
+        return room is null || room.Players.Count >= room.Settings.MaxPlayers;
     }
 
     public async Task<bool> RoomExistsAsync(string roomCode)
@@ -141,10 +188,10 @@ public class RoomService : IRoomService
             return null;
         }
 
-        if (room.Players.Count >= room.MaxPlayers)
+        if (room.Players.Count >= room.Settings.MaxPlayers)
         {
             _logger.LogWarning("Failed to add player {Username} - room {RoomCode} is full ({PlayerCount}/{MaxPlayers})",
-                username, roomCode, room.Players.Count, room.MaxPlayers);
+                username, roomCode, room.Players.Count, room.Settings.MaxPlayers);
             return null;
         }
 
@@ -156,10 +203,11 @@ public class RoomService : IRoomService
             JoinedAt = DateTime.UtcNow,
             IsConnected = true
         };
+
         room.Players.Add(newPlayer);
 
         _logger.LogInformation("Player {Username} joined room {RoomCode}. Players: {PlayerCount}/{MaxPlayers}",
-            username, roomCode, room.Players.Count, room.MaxPlayers);
+            username, roomCode, room.Players.Count, room.Settings.MaxPlayers);
 
         room.LastActivityAt = DateTime.UtcNow;
 
