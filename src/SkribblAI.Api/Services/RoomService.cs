@@ -163,11 +163,9 @@ public class RoomService : IRoomService
 
         room.LastActivityAt = DateTime.UtcNow;
 
-        var roomKey = RedisKeys.Room(roomCode);
-        var updatedRoomJson = JsonSerializer.Serialize(room, JsonOptions);
+        await SaveRoomAsync(room);
+        
         var connectionKey = RedisKeys.ConnectionToRoom(connectionId);
-
-        await _db.StringSetAsync(roomKey, updatedRoomJson, RedisKeys.RoomExpiry);
         await _db.StringSetAsync(connectionKey, roomCode, RedisKeys.RoomExpiry);
 
         return newPlayer;
@@ -213,8 +211,8 @@ public class RoomService : IRoomService
             }
 
             room.LastActivityAt = DateTime.UtcNow;
-            var updatedRoomJson = JsonSerializer.Serialize(room, JsonOptions);
-            await _db.StringSetAsync(RedisKeys.Room(roomCode), updatedRoomJson, RedisKeys.RoomExpiry);
+
+            await SaveRoomAsync(room);
         }
 
         return true;
