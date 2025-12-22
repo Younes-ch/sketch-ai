@@ -46,15 +46,15 @@ public static partial class ValidationHelper
 
         if (roomSettings.TotalRounds < gameSettings.MinRounds || roomSettings.TotalRounds > gameSettings.MaxRounds)
             return (false,
-                $"Total rounds should be between {gameSettings.MinRounds}-{gameSettings.MaxRounds}");
+                $"Total rounds must be between {gameSettings.MinRounds}-{gameSettings.MaxRounds}");
 
         if (!gameSettings.AllowedDrawTimes.Contains(roomSettings.DrawTimeSeconds))
-            return (false, "Draw time should be one of the provided options");
+            return (false, "Draw time must be one of the provided options");
 
         if (roomSettings.WordChoiceCount < gameSettings.MinWordChoices ||
             roomSettings.WordChoiceCount > gameSettings.MaxWordChoices)
             return (false,
-                $"Word choices count should be between {gameSettings.MinWordChoices}-{gameSettings.MaxWordChoices}");
+                $"Word choices count must be between {gameSettings.MinWordChoices}-{gameSettings.MaxWordChoices}");
 
         if (!gameSettings.AllowedDifficulties.Contains(roomSettings.Difficulty))
             return (false, "Difficulty is not recognized");

@@ -1,5 +1,10 @@
 import { create } from "zustand";
-import { type Player, type PublicRoom, type RoomSettings, defaultRoomSettings } from "@/models";
+import {
+  type Player,
+  type PublicRoom,
+  type RoomSettings,
+  defaultRoomSettings
+} from "@/models";
 import { logger } from "@/lib/logger";
 import { useConnectionStore } from "./connectionStore";
 import { useGameStore } from "./gameStore";
@@ -28,7 +33,7 @@ interface RoomStore {
   setRoomSettings: (settings: RoomSettings) => void;
 
   // SignalR actions
-  createRoom: (username: string, roomCode: string, isPublic?: boolean, settings?: RoomSettings) => Promise<void>;
+  createRoom: (username: string, roomCode: string, isPublic: boolean, settings: RoomSettings) => Promise<void>;
   joinRoom: (username: string, roomCode: string) => Promise<void>;
   leaveRoom: () => Promise<void>;
   getPublicRooms: () => Promise<void>;
@@ -79,14 +84,7 @@ export const useRoomStore = create<RoomStore>((set, get) => ({
     if (!isConnected() || !connection) return;
 
     set({ username: newUsername });
-    const settingsDto = settings ? {
-      maxPlayers: settings.maxPlayers,
-      totalRounds: settings.totalRounds,
-      drawTimeSeconds: settings.drawTimeSeconds,
-      wordChoiceCount: settings.wordChoiceCount,
-      difficulty: settings.difficulty,
-    } : null;
-    await connection.invoke("CreateRoom", newUsername, newRoomCode, settingsDto, isPublic);
+    await connection.invoke("CreateRoom", newUsername, newRoomCode, isPublic, settings);
   },
 
   joinRoom: async (newUsername, newRoomCode) => {

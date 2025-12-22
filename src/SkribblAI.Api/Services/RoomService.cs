@@ -102,7 +102,7 @@ public class RoomService : IRoomService
 
         if (room.Phase != GamePhase.Lobby && room.Phase != GamePhase.GameEnd)
         {
-            _logger.LogWarning("UpdateRoomSettings rejected: Room {RoomCode} is in {CurrentPhase} phase, expected Lobby|GamePhase",
+            _logger.LogWarning("UpdateRoomSettings rejected: Room {RoomCode} is in {CurrentPhase} phase, expected Lobby|GameEnd",
                 roomCode, room.Phase);
             return (null, "Room settings can only be changed in the lobby or when the game ended");
         }
@@ -149,14 +149,15 @@ public class RoomService : IRoomService
 
             var roomCodeStr = roomCode.ToString();
             var room = await GetRoomAsync(roomCodeStr);
-            if (room is not null && room.Players.Count < room.Settings.MaxPlayers)
-            {
-                rooms.Add(room);
-            }
-            else if (room is null)
+            var isRoomFull = await IsRoomFullAsync(roomCodeStr);
+            if (room is null)
             {
                 await _db.SetRemoveAsync(RedisKeys.PublicRooms, roomCode);
                 staleRoomsRemoved++;
+            }
+            else if (!isRoomFull)
+            {
+                rooms.Add(room);
             }
         }
 
@@ -198,7 +199,8 @@ public class RoomService : IRoomService
             return null;
         }
 
-        if (room.Players.Count >= room.Settings.MaxPlayers)
+        var isFull = await IsRoomFullAsync(roomCode);
+        if (isFull)
         {
             _logger.LogWarning("Failed to add player {Username} - room {RoomCode} is full ({PlayerCount}/{MaxPlayers})",
                 username, roomCode, room.Players.Count, room.Settings.MaxPlayers);

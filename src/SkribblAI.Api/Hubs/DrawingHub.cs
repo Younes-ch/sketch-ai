@@ -31,7 +31,7 @@ public class DrawingHub : Hub
     /// <summary>
     /// Creates a new room and joins the creator as host.
     /// </summary>
-    public async Task CreateRoom(string username, string roomCode, RoomSettingsDto? roomSettings, bool isPublic = true)
+    public async Task CreateRoom(string username, string roomCode, bool isPublic = true, RoomSettingsDto? roomSettings = null)
     {
         if (!ValidationHelper.IsValidUsername(username))
         {
@@ -66,6 +66,7 @@ public class DrawingHub : Hub
         await Groups.AddToGroupAsync(Context.ConnectionId, roomCode);
 
         var players = room.Players.Select(p => p.ToDto()).ToList();
+        roomSettings ??= room.Settings;
         await Clients.Caller.SendAsync("RoomCreated", roomCode, players, roomSettings);
     }
 
@@ -180,7 +181,8 @@ public class DrawingHub : Hub
             throw new HubException("Username already taken in this room");
         }
 
-        if (room.Players.Count >= room.Settings.MaxPlayers)
+        var isFull = await _roomService.IsRoomFullAsync(roomCode);
+        if (isFull)
         {
             throw new HubException("Room is full");
         }
