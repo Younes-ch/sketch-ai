@@ -29,9 +29,11 @@ public interface IGameService
     Task<string?> RevealLetterAsync(string roomCode);
 
     /// <summary> 
-    /// Ends the round. 
-    /// </summary> 
-    Task EndRoundAsync(string roomCode);
+    /// Ends the round.
+    /// </summary>
+    /// <param name="roomCode">The room code.</param>
+    /// <param name="isTimeout">True if round ended due to timer expiry, false if ended manually.</param>
+    Task EndRoundAsync(string roomCode, bool isTimeout = false);
 
     /// <summary> 
     /// Advances to next drawer or ends game. 

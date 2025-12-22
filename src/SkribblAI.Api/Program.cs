@@ -12,6 +12,9 @@ builder.Services.AddSingleton<ICanvasService, CanvasService>();
 builder.Services.AddSingleton<IWordService, WordService>();
 builder.Services.AddSingleton<IGameService, GameService>();
 
+// Background services
+builder.Services.AddHostedService<RoundTimerService>();
+
 // SignalR
 builder.Services.AddSignalR(config =>
 {
@@ -34,6 +37,9 @@ builder.Services.AddCors(options =>
             .AllowCredentials();
     });
 });
+
+// Register Configuration
+builder.Services.Configure<GameSettings>(builder.Configuration.GetSection("GameSettings"));
 
 var app = builder.Build();
 

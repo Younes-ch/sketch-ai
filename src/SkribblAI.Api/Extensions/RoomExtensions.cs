@@ -15,7 +15,8 @@ public static class RoomExtensions
             Phase = room.Phase.ToString(),
             CurrentDrawerUsername = drawer?.Username ?? "Unknown",
             RoundNumber = room.RoundNumber,
-            TotalRounds = room.TotalRounds,
+            TotalRounds = room.Settings.TotalRounds,
+            DrawTimeSeconds = room.Settings.DrawTimeSeconds,
             Players = room.Players.Select(p => p.ToDto()).ToList(),
             WordHint = null,
             RoundStartedAt = room.RoundStartedAt

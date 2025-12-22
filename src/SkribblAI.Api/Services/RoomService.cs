@@ -2,18 +2,24 @@
 
 public class RoomService : IRoomService
 {
-    private readonly ILogger<RoomService> _logger;
+
     private readonly IDatabase _db;
+    private readonly IOptions<GameSettings> _gameSettings;
+    private readonly ILogger<RoomService> _logger;
 
     private static readonly JsonSerializerOptions JsonOptions = new()
     {
         PropertyNamingPolicy = JsonNamingPolicy.CamelCase
     };
 
-    public RoomService(IConnectionMultiplexer redis, ILogger<RoomService> logger)
+    public RoomService(
+        IConnectionMultiplexer redis,
+        IOptions<GameSettings> gameSettings,
+        ILogger<RoomService> logger)
     {
-        _logger = logger;
         _db = redis.GetDatabase();
+        _gameSettings = gameSettings;
+        _logger = logger;
     }
 
     public async Task<Room> CreateRoomAsync(string roomCode, bool isPublic, string hostConnectionId, string hostUsername)
@@ -27,22 +33,29 @@ public class RoomService : IRoomService
             IsConnected = true
         };
 
+        var roomSettings = new RoomSettingsDto()
+        {
+            Difficulty = _gameSettings.Value.DefaultDifficulty,
+            DrawTimeSeconds = _gameSettings.Value.DefaultDrawTime,
+            MaxPlayers = _gameSettings.Value.DefaultMaxPlayers,
+            TotalRounds = _gameSettings.Value.DefaultRounds,
+            WordChoiceCount = _gameSettings.Value.DefaultWordChoices
+        };
+
         var room = new Room
         {
             Id = roomCode,
             HostConnectionId = hostConnectionId,
             IsPublic = isPublic,
+            Settings = roomSettings,
             Players = [host],
             CreatedAt = DateTime.UtcNow,
             LastActivityAt = DateTime.UtcNow
         };
 
-        var roomKey = RedisKeys.Room(roomCode);
+        await SaveRoomAsync(room);
+
         var connectionKey = RedisKeys.ConnectionToRoom(hostConnectionId);
-
-        var roomJson = JsonSerializer.Serialize(room, JsonOptions);
-
-        await _db.StringSetAsync(roomKey, roomJson, RedisKeys.RoomExpiry);
         await _db.StringSetAsync(connectionKey, roomCode, RedisKeys.RoomExpiry);
 
         if (isPublic)
@@ -54,6 +67,50 @@ public class RoomService : IRoomService
             roomCode, hostUsername, hostConnectionId);
 
         return room;
+    }
+
+    public async Task<(Room? Room, string? ErrorMessage)> UpdateRoomSettingsAsync(string roomCode, string connectionId, RoomSettingsDto roomSettings)
+    {
+        var (isValid, errorMessage) = ValidationHelper.IsValidRoomSettings(
+            roomSettings,
+            _gameSettings.Value);
+
+        if (!isValid)
+        {
+            _logger.LogWarning("UpdateRoomSettings rejected for room {RoomCode}: {ValidationError}",
+                roomCode,
+                errorMessage);
+            return (null, errorMessage);
+        }
+
+        var room = await GetRoomAsync(roomCode);
+
+        if (room is null)
+        {
+            _logger.LogWarning("Failed to update room settings with code {RoomCode} - room not found",
+                roomCode);
+
+            return (null, "Room not found");
+        }
+
+        if (room.HostConnectionId != connectionId)
+        {
+            _logger.LogWarning("UpdateRoomSettings rejected: Connection {ConnectionId} is not the host of room {RoomCode}",
+                connectionId, roomCode);
+            return (null, "Only the host can change room settings");
+        }
+
+        if (room.Phase != GamePhase.Lobby && room.Phase != GamePhase.GameEnd)
+        {
+            _logger.LogWarning("UpdateRoomSettings rejected: Room {RoomCode} is in {CurrentPhase} phase, expected Lobby|GameEnd",
+                roomCode, room.Phase);
+            return (null, "Room settings can only be changed in the lobby or when the game ended");
+        }
+
+        room.Settings = roomSettings;
+        await SaveRoomAsync(room);
+
+        return (room, null);
     }
 
     public async Task<Room?> GetRoomAsync(string roomCode)
@@ -92,14 +149,15 @@ public class RoomService : IRoomService
 
             var roomCodeStr = roomCode.ToString();
             var room = await GetRoomAsync(roomCodeStr);
-            if (room is not null && room.Players.Count < room.MaxPlayers)
-            {
-                rooms.Add(room);
-            }
-            else if (room is null)
+            var isRoomFull = await IsRoomFullAsync(roomCodeStr);
+            if (room is null)
             {
                 await _db.SetRemoveAsync(RedisKeys.PublicRooms, roomCode);
                 staleRoomsRemoved++;
+            }
+            else if (!isRoomFull)
+            {
+                rooms.Add(room);
             }
         }
 
@@ -116,7 +174,7 @@ public class RoomService : IRoomService
     {
         var room = await GetRoomAsync(roomCode);
 
-        return room is null || room.Players.Count >= room.MaxPlayers;
+        return room is null || room.Players.Count >= room.Settings.MaxPlayers;
     }
 
     public async Task<bool> RoomExistsAsync(string roomCode)
@@ -141,10 +199,11 @@ public class RoomService : IRoomService
             return null;
         }
 
-        if (room.Players.Count >= room.MaxPlayers)
+        var isFull = await IsRoomFullAsync(roomCode);
+        if (isFull)
         {
             _logger.LogWarning("Failed to add player {Username} - room {RoomCode} is full ({PlayerCount}/{MaxPlayers})",
-                username, roomCode, room.Players.Count, room.MaxPlayers);
+                username, roomCode, room.Players.Count, room.Settings.MaxPlayers);
             return null;
         }
 
@@ -156,15 +215,16 @@ public class RoomService : IRoomService
             JoinedAt = DateTime.UtcNow,
             IsConnected = true
         };
+
         room.Players.Add(newPlayer);
 
         _logger.LogInformation("Player {Username} joined room {RoomCode}. Players: {PlayerCount}/{MaxPlayers}",
-            username, roomCode, room.Players.Count, room.MaxPlayers);
+            username, roomCode, room.Players.Count, room.Settings.MaxPlayers);
 
         room.LastActivityAt = DateTime.UtcNow;
 
         await SaveRoomAsync(room);
-        
+
         var connectionKey = RedisKeys.ConnectionToRoom(connectionId);
         await _db.StringSetAsync(connectionKey, roomCode, RedisKeys.RoomExpiry);
 
@@ -230,7 +290,8 @@ public class RoomService : IRoomService
         _logger.LogInformation("Deleting room {RoomCode} with {PlayerCount} players",
             roomCode, room.Players.Count);
 
-        await _db.SetRemoveAsync(RedisKeys.PublicRooms, RedisKeys.Room(roomCode));
+        await _db.SetRemoveAsync(RedisKeys.PublicRooms, roomCode);
+        await _db.SetRemoveAsync(RedisKeys.RoomsInDrawingPhase, roomCode);
 
         // Clean up all connection keys for players in this room
         var keysToDelete = room.Players
@@ -276,5 +337,54 @@ public class RoomService : IRoomService
 
         _logger.LogDebug("Room {RoomCode} state saved (Phase: {Phase}, Players: {PlayerCount})",
             room.Id, room.Phase, room.Players.Count);
+    }
+
+    public async Task<List<Room>> GetActiveDrawingRoomsAsync()
+    {
+        var drawingPhaseRoomCodes = await RedisHelper.SafeExecuteAsync(
+            () => _db.SetMembersAsync(RedisKeys.RoomsInDrawingPhase),
+            _logger,
+            "GetActiveDrawingRooms",
+            []) ?? [];
+
+        List<Room> activeRooms = [];
+
+        foreach (var roomCode in drawingPhaseRoomCodes)
+        {
+            if (roomCode.IsNullOrEmpty) continue;
+
+            var room = await GetRoomAsync(roomCode.ToString());
+            if (room is { Phase: GamePhase.Drawing, RoundStartedAt: not null })
+            {
+                activeRooms.Add(room);
+            }
+            else
+            {
+                // Room no longer exists or not in drawing phase
+                await RemoveFromDrawingPhaseAsync(roomCode.ToString());
+            }
+        }
+
+        return activeRooms;
+    }
+
+    public async Task AddToDrawingPhaseAsync(string roomCode)
+    {
+        await RedisHelper.SafeExecuteAsync(
+            () => _db.SetAddAsync(RedisKeys.RoomsInDrawingPhase, roomCode),
+            _logger,
+            $"AddToDrawingPhase:{roomCode}");
+
+        _logger.LogDebug("Room {RoomCode} added to drawing phase tracking", roomCode);
+    }
+
+    public async Task RemoveFromDrawingPhaseAsync(string roomCode)
+    {
+        await RedisHelper.SafeExecuteAsync(
+            () => _db.SetRemoveAsync(RedisKeys.RoomsInDrawingPhase, roomCode),
+            _logger,
+            $"RemoveFromDrawingPhase:{roomCode}");
+
+        _logger.LogDebug("Room {RoomCode} removed from drawing phase tracking", roomCode);
     }
 }

@@ -84,6 +84,7 @@ interface GameStateDto {
   currentDrawerUsername: string;
   roundNumber: number;
   totalRounds: number;
+  drawTimeSeconds: number;
   players: Player[];
   wordHint: string | null;
   roundStartedAt: string | null;
@@ -142,7 +143,8 @@ export function setupGameEventHandlers() {
       wordChoices: null,
       roundNumber: gameStateDto.roundNumber,
       totalRounds: gameStateDto.totalRounds,
-      timeRemaining: 80,
+      drawTimeSeconds: gameStateDto.drawTimeSeconds,
+      timeRemaining: gameStateDto.drawTimeSeconds,
     });
   };
 
@@ -214,10 +216,11 @@ export function setupGameEventHandlers() {
       currentDrawer,
       roundNumber: gameStateDto.roundNumber,
       totalRounds: gameStateDto.totalRounds,
+      drawTimeSeconds: gameStateDto.drawTimeSeconds,
       wordHint: "",
       wordChoices: null,
       currentWord: null,
-      timeRemaining: 80,
+      timeRemaining: gameStateDto.drawTimeSeconds,
     });
   };
 

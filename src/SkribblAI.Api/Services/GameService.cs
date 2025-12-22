@@ -42,7 +42,7 @@ public class GameService : IGameService
 
         var drawer = room.Players.First(p => p.IsHost);
         room.Phase = GamePhase.WordSelection;
-        room.WordChoices = _wordService.GetRandomWords();
+        room.WordChoices = _wordService.GetRandomWords(room.Settings.WordChoiceCount, room.Settings.Difficulty);
         room.CurrentDrawerConnectionId = drawer.ConnectionId;
         room.RoundNumber = 1;
         room.CurrentWord = null;
@@ -98,6 +98,7 @@ public class GameService : IGameService
         room.WordChoices.Clear();
 
         await _roomService.SaveRoomAsync(room);
+        await _roomService.AddToDrawingPhaseAsync(roomCode);
 
         var drawer = room.Players.First(p => p.ConnectionId == connectionId);
         _logger.LogInformation("Drawer {DrawerUsername} selected the word {SelectedWord} in room {RoomCode}.",
@@ -175,9 +176,9 @@ public class GameService : IGameService
         // Calculate score based on time remaining and guess order
         var player = room.Players.First(p => p.ConnectionId == connectionId);
         var timeElapsed = DateTime.UtcNow - room.RoundStartedAt!.Value;
-        var maxRoundTime = 80; // seconds - could be configurable
+        var maxRoundTime = room.Settings.DrawTimeSeconds;
         var timeRemaining = Math.Max(0, maxRoundTime - timeElapsed.TotalSeconds);
-        var timeBonus = (int)(timeRemaining * 10); // Up to 600 points for fast guess
+        var timeBonus = (int)(timeRemaining * 10);
         var orderBonus = (room.Players.Count - room.PlayersWhoGuessed.Count) * 50; // Bonus for guessing early
         var score = 100 + timeBonus + orderBonus; // Base 100 + bonuses
 
@@ -185,10 +186,7 @@ public class GameService : IGameService
 
         // Also give points to the drawer for each correct guess (if still in room)
         var drawer = room.Players.FirstOrDefault(p => p.ConnectionId == room.CurrentDrawerConnectionId);
-        if (drawer is not null)
-        {
-            drawer.Score += 50;
-        }
+        drawer?.Score += 50;
 
         await _roomService.SaveRoomAsync(room);
 
@@ -231,7 +229,7 @@ public class GameService : IGameService
         return room.WordChoices;
     }
 
-    public async Task EndRoundAsync(string roomCode)
+    public async Task EndRoundAsync(string roomCode, bool isTimeout = false)
     {
         var room = await _roomService.GetRoomAsync(roomCode);
 
@@ -245,9 +243,11 @@ public class GameService : IGameService
         room.PlayersWhoGuessed.Clear();
 
         await _roomService.SaveRoomAsync(room);
+        await _roomService.RemoveFromDrawingPhaseAsync(roomCode);
 
-        _logger.LogInformation("Round {RoundNumber} ended in room {RoomCode}. Word was: {Word}",
-            room.RoundNumber, roomCode, room.CurrentWord);
+        var reason = isTimeout ? "timeout" : "manual";
+        _logger.LogInformation("Round {RoundNumber} ended in room {RoomCode} ({Reason}). Word was: {Word}",
+            room.RoundNumber, roomCode, reason, room.CurrentWord);
     }
 
     public async Task NextTurnAsync(string roomCode)
@@ -273,7 +273,7 @@ public class GameService : IGameService
         {
             room.RoundNumber++;
 
-            if (room.RoundNumber > room.TotalRounds)
+            if (room.RoundNumber > room.Settings.TotalRounds)
             {
                 room.Phase = GamePhase.GameEnd;
                 room.CurrentWord = null;
@@ -282,7 +282,7 @@ public class GameService : IGameService
                 await _roomService.SaveRoomAsync(room);
 
                 _logger.LogInformation("Game ended in room {RoomCode} after {TotalRounds} rounds",
-                    roomCode, room.TotalRounds);
+                    roomCode, room.Settings.TotalRounds);
                 return;
             }
 
@@ -295,7 +295,7 @@ public class GameService : IGameService
         room.Phase = GamePhase.WordSelection;
         room.CurrentDrawerConnectionId = nextDrawer.ConnectionId;
         room.CurrentWord = null;
-        room.WordChoices = _wordService.GetRandomWords();
+        room.WordChoices = _wordService.GetRandomWords(room.Settings.WordChoiceCount, room.Settings.Difficulty);
         room.PlayersWhoGuessed.Clear();
         room.RoundStartedAt = null;
 

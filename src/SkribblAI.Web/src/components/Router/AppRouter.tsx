@@ -2,13 +2,13 @@ import { useMemo } from "react";
 import { JoinScreen } from "@/components/Lobby";
 import { GameScreen } from "@/components/Game";
 import { useRoomStore } from "@/stores/roomStore";
+import { defaultRoomSettings, type RoomSettings } from "@/models";
 
 // Get invite room code from URL once (outside component to avoid re-running)
 function getInitialRoomCode(): string | null {
   const params = new URLSearchParams(window.location.search);
   const roomParam = params.get("room");
   if (roomParam) {
-    // Clean up URL without reload
     window.history.replaceState({}, "", window.location.pathname);
     return roomParam.toUpperCase();
   }
@@ -27,10 +27,11 @@ export default function AppRouter() {
     name: string,
     room: string,
     isCreating: boolean,
-    isPublic: boolean = false
+    isPublic: boolean = false,
+    settings: RoomSettings = defaultRoomSettings
   ) => {
     if (isCreating) {
-      await createRoom(name, room, isPublic);
+      await createRoom(name, room, isPublic, settings);
     } else {
       await joinRoom(name, room);
     }

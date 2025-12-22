@@ -16,6 +16,20 @@ public interface IRoomService
     Task<Room> CreateRoomAsync(string roomCode, bool isPublic, string hostConnectionId, string hostUsername);
 
     /// <summary>
+    /// Asynchronously updates the settings for the specified room if the requesting connection has permission.
+    /// </summary>
+    /// <remarks>The method validates the caller's permissions before applying the new settings. If the update
+    /// fails due to invalid input, lack of permissions, or other errors, the returned <see cref="Room"/> will be <see
+    /// langword="null"/> and <c>ErrorMessage</c> will contain a descriptive message.</remarks>
+    /// <param name="roomCode">The unique code identifying the room whose settings are to be updated. Cannot be null or empty.</param>
+    /// <param name="connectionId">The identifier of the connection requesting the update. Must correspond to a connected user with permission to
+    /// modify the room settings.</param>
+    /// <param name="settings">An object containing the new settings to apply to the room. Cannot be null.</param>
+    /// <returns>A tuple containing the updated <see cref="Room"/> if the operation succeeds, or <see langword="null"/> if it
+    /// fails, and an error message describing the reason for failure if applicable; otherwise, <see langword="null"/>.</returns>
+    Task<(Room? Room, string? ErrorMessage)> UpdateRoomSettingsAsync(string roomCode, string connectionId, RoomSettingsDto settings);
+
+    /// <summary>
     /// Retrieves a room by its code.
     /// </summary>
     /// <param name="roomCode">The room code to look up.</param>
@@ -72,6 +86,27 @@ public interface IRoomService
     /// </summary>
     /// <param name="roomCode">The room to update.</param>
     Task UpdateLastActivityAsync(string roomCode);
+
+    /// <summary>
+    /// Gets all rooms currently in the Drawing phase.
+    /// Used by the background timer service to check for round expiry and hint reveals.
+    /// </summary>
+    /// <returns>List of rooms in the Drawing phase.</returns>
+    Task<List<Room>> GetActiveDrawingRoomsAsync();
+
+    /// <summary>
+    /// Adds a room to the drawing phase tracking set.
+    /// Call this when a room enters the Drawing phase.
+    /// </summary>
+    /// <param name="roomCode">The room code to add.</param>
+    Task AddToDrawingPhaseAsync(string roomCode);
+
+    /// <summary>
+    /// Removes a room from the drawing phase tracking set.
+    /// Call this when a room exits the Drawing phase.
+    /// </summary>
+    /// <param name="roomCode">The room code to remove.</param>
+    Task RemoveFromDrawingPhaseAsync(string roomCode);
 
     /// <summary>
     /// Finds a player in a room by their connection ID.

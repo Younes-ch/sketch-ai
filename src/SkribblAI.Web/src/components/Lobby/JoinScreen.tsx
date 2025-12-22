@@ -7,7 +7,7 @@ import {
 } from "@/components/Lobby";
 import { DECORATIVE_COLORS } from "@/constants/colors";
 import { parseHubError } from "@/lib/utils";
-import type { PublicRoom } from "@/models";
+import type { PublicRoom, RoomSettings } from "@/models";
 import { useConnectionStore } from "@/stores/connectionStore";
 import { useRoomStore } from "@/stores/roomStore";
 import { useState } from "react";
@@ -17,7 +17,8 @@ interface JoinScreenProps {
     username: string,
     roomCode: string,
     isCreating: boolean,
-    isPublic?: boolean
+    isPublic?: boolean,
+    settings?: RoomSettings
   ) => Promise<void>;
   initialRoomCode?: string | null;
 }
@@ -74,14 +75,23 @@ export default function JoinScreen({
     }
   };
 
-  const handleCreateRoom = async (e: React.FormEvent) => {
+  const handleCreateRoom = async (
+    e: React.FormEvent,
+    settings: RoomSettings
+  ) => {
     e.preventDefault();
     if (username.trim()) {
       setIsJoining(true);
       setError(null);
       try {
         const newRoomCode = generateRoomCode();
-        await onJoinGame(username.trim(), newRoomCode, true, isPublicRoom);
+        await onJoinGame(
+          username.trim(),
+          newRoomCode,
+          true,
+          isPublicRoom,
+          settings
+        );
       } catch (err) {
         setError(parseHubError(err));
         setIsJoining(false);
