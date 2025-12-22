@@ -116,7 +116,6 @@ public class GameService : IGameService
             return null;
         }
 
-        // Check how many letters are still hidden
         var hiddenCount = room.CurrentWordHint.Count(c => c == '_');
         if (hiddenCount <= 1)
         {

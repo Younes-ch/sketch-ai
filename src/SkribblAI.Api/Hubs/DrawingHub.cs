@@ -215,22 +215,6 @@ public class DrawingHub : Hub
     }
 
     /// <summary>
-    /// Gets the list of players in a room.
-    /// </summary>
-    public async Task<List<PlayerDto>> GetPlayersInRoom(string roomCode)
-    {
-        if (!ValidationHelper.IsValidRoomCode(roomCode))
-        {
-            return [];
-        }
-
-        var room = await _roomService.GetRoomAsync(roomCode)
-                   ?? throw new HubException("Room not found");
-
-        return room.Players.Select(p => p.ToDto()).ToList();
-    }
-
-    /// <summary>
     /// Called by the drawer to select a word from the choices.
     /// </summary>
     public async Task SelectWord(string word)
@@ -267,26 +251,6 @@ public class DrawingHub : Hub
         await Clients.Caller.SendAsync("YourWord", room.CurrentWord);
 
         await Clients.OthersInGroup(roomCode).SendAsync("CanvasCleared");
-    }
-
-    /// <summary>
-    /// Reveals a letter in the word hint. Can be called periodically during drawing phase.
-    /// </summary>
-    public async Task RevealLetter()
-    {
-        var roomCode = await _roomService.GetRoomCodeByConnectionIdAsync(Context.ConnectionId);
-
-        if (roomCode is null)
-        {
-            return;
-        }
-
-        var newHint = await _gameService.RevealLetterAsync(roomCode);
-
-        if (newHint is not null)
-        {
-            await Clients.Group(roomCode).SendAsync("HintUpdated", newHint);
-        }
     }
 
     /// <summary>
@@ -413,10 +377,10 @@ public class DrawingHub : Hub
     public async Task LeaveRoom()
     {
         var roomCode = await _roomService.GetRoomCodeByConnectionIdAsync(Context.ConnectionId);
-        if (roomCode == null) return;
+        if (roomCode is null) return;
 
         var player = await _roomService.GetPlayerByConnectionIdAsync(roomCode, Context.ConnectionId);
-        if (player == null) return;
+        if (player is null) return;
 
         await HandlePlayerLeaving(roomCode, player);
     }
