@@ -58,6 +58,7 @@ public class DrawingHub : Hub
             if (errorMessage is not null)
             {
                 _logger.LogWarning("CreateRoom with custom roomSettings failed - Error: {ErrorMessage}", errorMessage);
+                await _roomService.DeleteRoomAsync(roomCode);
                 throw new HubException(errorMessage);
             }
         }
