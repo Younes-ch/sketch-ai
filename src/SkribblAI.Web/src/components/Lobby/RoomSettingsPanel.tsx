@@ -125,7 +125,7 @@ export default function RoomSettingsPanel({
 
         {/* Difficulty */}
         <div className="flex flex-col gap-1">
-          <label className={labelClasses}>🎯 Difficulty</label>
+          <label className={labelClasses}>🎯 Word Difficulty</label>
           <select
             value={settings.difficulty}
             onChange={(e) =>
