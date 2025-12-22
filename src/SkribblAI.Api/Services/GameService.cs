@@ -74,6 +74,13 @@ public class GameService : IGameService
             return false;
         }
 
+        if (room.Phase != GamePhase.WordSelection)
+        {
+            _logger.LogWarning("SelectWord failed: Room {RoomCode} in {GamePhase} phase - expected WordSelection",
+                roomCode, nameof(room.Phase));
+            return false;
+        }
+
         var isCurrentDrawer = room.CurrentDrawerConnectionId == connectionId;
 
         if (!isCurrentDrawer)
