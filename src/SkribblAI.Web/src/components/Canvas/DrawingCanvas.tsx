@@ -55,6 +55,7 @@ export default function DrawingCanvas({
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
   const isDrawingRef = useRef(false);
+  const hasMovedRef = useRef(false); // Track if pointer moved since starting
   const lastPointRef = useRef<Point | null>(null);
   const [currentColor, setCurrentColor] = useState<string>(
     DRAWING_COLORS.DEFAULT
@@ -128,20 +129,28 @@ export default function DrawingCanvas({
       ctx.lineCap = "round";
       ctx.lineJoin = "round";
 
-      if (command.type === "stroke" && command.points.length > 1) {
+      if (command.type === "stroke" && command.points.length >= 1) {
         // Denormalize points from 0-1 to canvas coordinates if from network
         const points = isLocal
           ? command.points
           : command.points.map(denormalizePoint);
 
         ctx.beginPath();
-        ctx.moveTo(points[0].x, points[0].y);
 
-        for (let i = 1; i < points.length; i++) {
-          ctx.lineTo(points[i].x, points[i].y);
+        if (points.length === 1) {
+          // Single point - draw a dot
+          const point = points[0];
+          ctx.arc(point.x, point.y, command.width / 2, 0, Math.PI * 2);
+          ctx.fillStyle = command.color;
+          ctx.fill();
+        } else {
+          // Multiple points - draw a stroke
+          ctx.moveTo(points[0].x, points[0].y);
+          for (let i = 1; i < points.length; i++) {
+            ctx.lineTo(points[i].x, points[i].y);
+          }
+          ctx.stroke();
         }
-
-        ctx.stroke();
       }
     },
     []
@@ -226,14 +235,43 @@ export default function DrawingCanvas({
   // Start drawing at a point
   const startDrawing = useCallback((point: Point) => {
     isDrawingRef.current = true;
+    hasMovedRef.current = false;
     lastPointRef.current = point;
   }, []);
 
-  // Stop drawing
+  // Stop drawing - draw a dot if we haven't moved (single tap)
   const stopDrawing = useCallback(() => {
+    const point = lastPointRef.current;
+
+    // If we started drawing but never moved, draw a dot
+    if (isDrawingRef.current && !hasMovedRef.current && point) {
+      const effectiveColor = getEffectiveColor();
+
+      // Draw locally
+      const localCommand: DrawingCommand = {
+        type: "stroke",
+        points: [point],
+        color: effectiveColor,
+        width: currentWidth,
+      };
+      drawCommand(localCommand, true);
+
+      // Send to server
+      const networkCommand: DrawingCommand = {
+        type: "stroke",
+        points: [normalizePoint(point)],
+        color: effectiveColor,
+        width: currentWidth,
+      };
+      sendDrawingCommand(networkCommand).catch((error) => {
+        logger.error("Failed to send dot command", error);
+      });
+    }
+
     isDrawingRef.current = false;
+    hasMovedRef.current = false;
     lastPointRef.current = null;
-  }, []);
+  }, [currentWidth, drawCommand, getEffectiveColor, sendDrawingCommand]);
 
   // Continue drawing to a new point
   const continueDrawing = useCallback(
@@ -241,6 +279,7 @@ export default function DrawingCanvas({
       const lastPoint = lastPointRef.current;
       if (!lastPoint) return;
 
+      hasMovedRef.current = true;
       const effectiveColor = getEffectiveColor();
 
       // Draw locally with canvas coordinates
