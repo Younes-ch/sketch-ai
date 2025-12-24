@@ -85,9 +85,29 @@ public class RateLimitingHubFilter : IHubFilter
     {
         if (IpBasedPolicies.Contains(policy))
         {
-            var ipAddress = invocationContext.Context.GetHttpContext()?.Connection.RemoteIpAddress?.ToString();
+            var httpContext = invocationContext.Context.GetHttpContext();
+            if (httpContext is null)
+            {
+                return $"conn-{invocationContext.Context.ConnectionId}";
+            }
 
-            return !string.IsNullOrEmpty(ipAddress) ? ipAddress : "unknown";
+            // After UseForwardedHeaders middleware, RemoteIpAddress contains the real client IP
+            // from X-Forwarded-For header (if present and trusted)
+            var ipAddress = httpContext.Connection.RemoteIpAddress?.ToString();
+
+            // Fallback: check X-Forwarded-For header directly if middleware didn't populate it
+            if (string.IsNullOrEmpty(ipAddress) || ipAddress == "::1" || ipAddress == "127.0.0.1")
+            {
+                var forwardedFor = httpContext.Request.Headers["X-Forwarded-For"].FirstOrDefault();
+                if (!string.IsNullOrEmpty(forwardedFor))
+                {
+                    // X-Forwarded-For can contain multiple IPs; the first is the original client
+                    ipAddress = forwardedFor.Split(',', StringSplitOptions.RemoveEmptyEntries)
+                        .FirstOrDefault()?.Trim();
+                }
+            }
+
+            return !string.IsNullOrEmpty(ipAddress) ? ipAddress : $"conn-{invocationContext.Context.ConnectionId}";
         }
 
         return invocationContext.Context.ConnectionId;
@@ -99,9 +119,9 @@ public class RateLimitingHubFilter : IHubFilter
         {
             "drawing" => new SlidingWindowRateLimiter(new SlidingWindowRateLimiterOptions()
             {
-                PermitLimit = 60,
+                PermitLimit = 100,
                 Window = TimeSpan.FromSeconds(1),
-                SegmentsPerWindow = 6,
+                SegmentsPerWindow = 10,
                 QueueLimit = 0
             }),
 

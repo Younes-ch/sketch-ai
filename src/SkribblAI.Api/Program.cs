@@ -46,6 +46,33 @@ builder.Services.AddCors(options =>
 // Register Configuration
 builder.Services.Configure<GameSettings>(builder.Configuration.GetSection("GameSettings"));
 
+// Configure Forwarded Headers for proxy/load balancer scenarios
+builder.Services.Configure<ForwardedHeadersOptions>(options =>
+{
+    options.ForwardedHeaders = ForwardedHeaders.XForwardedFor | ForwardedHeaders.XForwardedProto;
+
+    var proxyIps = builder.Configuration.GetSection("ForwardedHeaders:KnownProxies").Get<string[]>();
+    if (proxyIps is not null)
+    {
+        foreach (var ip in proxyIps)
+        {
+            options.KnownProxies.Add(IPAddress.Parse(ip));
+        }
+    }
+
+    var networks = builder.Configuration.GetSection("ForwardedHeaders:KnownNetworks")
+        .Get<List<NetworkConfig>>();
+
+    if (networks is not null)
+    {
+        foreach (var network in networks)
+        {
+            options.KnownIPNetworks.Add(
+                new System.Net.IPNetwork(IPAddress.Parse(network.Prefix), network.PrefixLength));
+        }
+    }
+});
+
 var app = builder.Build();
 
 // Configure the HTTP request pipeline.
@@ -62,6 +89,8 @@ if (app.Environment.IsDevelopment())
 }
 
 app.UseCors("DevCorsPolicy");
+
+app.UseForwardedHeaders();
 
 app.UseHttpsRedirection();
 
