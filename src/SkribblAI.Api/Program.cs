@@ -14,6 +14,10 @@ builder.Services.AddSingleton<IGameService, GameService>();
 
 // Background services
 builder.Services.AddHostedService<RoundTimerService>();
+builder.Services.AddHostedService<RateLimiterCleanupService>();
+
+// TimeProvider
+builder.Services.AddSingleton(TimeProvider.System);
 
 // SignalR
 builder.Services.AddSignalR(config =>
@@ -39,51 +43,10 @@ builder.Services.AddCors(options =>
     });
 });
 
-// Add rate limiting
-builder.Services.AddRateLimiter(options =>
-{
-    // Policy for drawing commands: 60 requests per second per connection
-    options.AddPolicy("drawing", context =>
-        RateLimitPartition.GetSlidingWindowLimiter(
-            partitionKey: context.Connection.Id,
-            factory: _ => new SlidingWindowRateLimiterOptions()
-            {
-                PermitLimit = 60,
-                Window = TimeSpan.FromSeconds(1),
-                SegmentsPerWindow = 6,
-                QueueProcessingOrder = QueueProcessingOrder.OldestFirst,
-                QueueLimit = 0
-            }));
-
-    // Policy for chat/guessing: 5 messages per second per connection
-    options.AddPolicy("chat", context =>
-        RateLimitPartition.GetFixedWindowLimiter(
-            partitionKey: context.Connection.Id,
-            factory: _ => new FixedWindowRateLimiterOptions()
-            {
-                PermitLimit = 5,
-                Window = TimeSpan.FromSeconds(1),
-                QueueLimit = 0
-            }));
-
-    // Policy for room creation: 2 per minute per IP
-    options.AddPolicy("roomCreation", context =>
-        RateLimitPartition.GetFixedWindowLimiter(
-            partitionKey: context.Connection.RemoteIpAddress?.ToString() ?? "unknown",
-            factory: _ => new FixedWindowRateLimiterOptions()
-            {
-                PermitLimit = 2,
-                Window = TimeSpan.FromMinutes(1),
-                QueueLimit = 0
-            }));
-});
-
 // Register Configuration
 builder.Services.Configure<GameSettings>(builder.Configuration.GetSection("GameSettings"));
 
 var app = builder.Build();
-
-app.UseRateLimiter();
 
 // Configure the HTTP request pipeline.
 if (app.Environment.IsDevelopment())
