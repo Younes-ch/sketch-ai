@@ -6,15 +6,44 @@ import { cn } from "@/lib/utils";
 import { DRAWING_COLORS } from "@/constants/colors";
 import { CanvasToolbar, type ToolType } from "@/components/Canvas";
 
-// Fixed canvas resolution - all clients use this for consistent coordinates
+// Canvas dimensions - drawing commands use normalized coordinates (0-1)
 const CANVAS_WIDTH = 800;
 const CANVAS_HEIGHT = 500;
+const CANVAS_ASPECT_RATIO = CANVAS_WIDTH / CANVAS_HEIGHT;
+
+// Layout constraints
+const TOOLBAR_RESERVED_HEIGHT = 160;
+const MIN_CANVAS_WIDTH = 200;
+const MIN_CANVAS_HEIGHT = 125;
 
 // Clamp a point to canvas bounds to prevent out-of-bounds coordinates
 const clampPoint = (point: Point): Point => ({
   x: Math.max(0, Math.min(CANVAS_WIDTH, point.x)),
   y: Math.max(0, Math.min(CANVAS_HEIGHT, point.y)),
 });
+
+// Normalize a point from canvas coordinates to 0-1 range for network transmission
+const normalizePoint = (point: Point): Point => ({
+  x: point.x / CANVAS_WIDTH,
+  y: point.y / CANVAS_HEIGHT,
+});
+
+// Denormalize a point from 0-1 range to canvas coordinates for rendering
+const denormalizePoint = (point: Point): Point => ({
+  x: point.x * CANVAS_WIDTH,
+  y: point.y * CANVAS_HEIGHT,
+});
+
+// Extract client coordinates from mouse or touch event
+const getClientCoords = (
+  e: React.MouseEvent | React.TouchEvent
+): { clientX: number; clientY: number } | null => {
+  if ("touches" in e) {
+    if (e.touches.length === 0) return null;
+    return { clientX: e.touches[0].clientX, clientY: e.touches[0].clientY };
+  }
+  return { clientX: e.clientX, clientY: e.clientY };
+};
 
 interface DrawingCanvasProps {
   disabled?: boolean;
@@ -25,8 +54,8 @@ export default function DrawingCanvas({
 }: DrawingCanvasProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
-  const [isDrawing, setIsDrawing] = useState(false);
-  const isDrawingRef = useRef(false); // Ref to avoid stale closure in touch events
+  const isDrawingRef = useRef(false);
+  const lastPointRef = useRef<Point | null>(null);
   const [currentColor, setCurrentColor] = useState<string>(
     DRAWING_COLORS.DEFAULT
   );
@@ -42,21 +71,21 @@ export default function DrawingCanvas({
     const updateSize = () => {
       if (containerRef.current) {
         const containerWidth = containerRef.current.offsetWidth - 16;
-        const containerHeight = containerRef.current.offsetHeight - 160; // Reserve space for toolbar
+        const containerHeight =
+          containerRef.current.offsetHeight - TOOLBAR_RESERVED_HEIGHT;
 
-        const aspectRatio = CANVAS_WIDTH / CANVAS_HEIGHT;
         let displayWidth = Math.min(containerWidth, CANVAS_WIDTH);
-        let displayHeight = displayWidth / aspectRatio;
+        let displayHeight = displayWidth / CANVAS_ASPECT_RATIO;
 
         // If height exceeds available space, scale based on height
         if (displayHeight > containerHeight && containerHeight > 100) {
           displayHeight = containerHeight;
-          displayWidth = displayHeight * aspectRatio;
+          displayWidth = displayHeight * CANVAS_ASPECT_RATIO;
         }
 
         setDisplaySize({
-          width: Math.max(displayWidth, 200),
-          height: Math.max(displayHeight, 125),
+          width: Math.max(displayWidth, MIN_CANVAS_WIDTH),
+          height: Math.max(displayHeight, MIN_CANVAS_HEIGHT),
         });
       }
     };
@@ -65,9 +94,6 @@ export default function DrawingCanvas({
     window.addEventListener("resize", updateSize);
     return () => window.removeEventListener("resize", updateSize);
   }, []);
-
-  // Optimization: Use a ref to track the last point without triggering re-renders
-  const lastPointRef = useRef<Point | null>(null);
 
   const sendDrawingCommand = useCanvasStore((s) => s.sendDrawingCommand);
   const signalRClearCanvas = useCanvasStore((s) => s.clearCanvas);
@@ -88,30 +114,38 @@ export default function DrawingCanvas({
     return currentTool === "eraser" ? DRAWING_COLORS.ERASER : currentColor;
   }, [currentTool, currentColor]);
 
-  // Draw a command on the canvas
-  const drawCommand = useCallback((command: DrawingCommand) => {
-    const canvas = canvasRef.current;
-    if (!canvas) return;
+  // Draw a command on the canvas (expects normalized coordinates from network)
+  const drawCommand = useCallback(
+    (command: DrawingCommand, isLocal = false) => {
+      const canvas = canvasRef.current;
+      if (!canvas) return;
 
-    const ctx = canvas.getContext("2d");
-    if (!ctx) return;
+      const ctx = canvas.getContext("2d");
+      if (!ctx) return;
 
-    ctx.strokeStyle = command.color;
-    ctx.lineWidth = command.width;
-    ctx.lineCap = "round";
-    ctx.lineJoin = "round";
+      ctx.strokeStyle = command.color;
+      ctx.lineWidth = command.width;
+      ctx.lineCap = "round";
+      ctx.lineJoin = "round";
 
-    if (command.type === "stroke" && command.points.length > 1) {
-      ctx.beginPath();
-      ctx.moveTo(command.points[0].x, command.points[0].y);
+      if (command.type === "stroke" && command.points.length > 1) {
+        // Denormalize points from 0-1 to canvas coordinates if from network
+        const points = isLocal
+          ? command.points
+          : command.points.map(denormalizePoint);
 
-      for (let i = 1; i < command.points.length; i++) {
-        ctx.lineTo(command.points[i].x, command.points[i].y);
+        ctx.beginPath();
+        ctx.moveTo(points[0].x, points[0].y);
+
+        for (let i = 1; i < points.length; i++) {
+          ctx.lineTo(points[i].x, points[i].y);
+        }
+
+        ctx.stroke();
       }
-
-      ctx.stroke();
-    }
-  }, []);
+    },
+    []
+  );
 
   // Clear the entire canvas
   const clearCanvas = useCallback(() => {
@@ -171,147 +205,100 @@ export default function DrawingCanvas({
     clearCanvas,
   ]);
 
-  // Mouse down - start drawing
-  const handleMouseDown = (e: React.MouseEvent<HTMLCanvasElement>) => {
-    if (disabled) return;
+  // Convert client coordinates to canvas coordinates
+  const getCanvasPoint = useCallback(
+    (clientX: number, clientY: number): Point | null => {
+      const canvas = canvasRef.current;
+      if (!canvas) return null;
 
-    const canvas = canvasRef.current;
-    if (!canvas) return;
+      const rect = canvas.getBoundingClientRect();
+      const scaleX = CANVAS_WIDTH / rect.width;
+      const scaleY = CANVAS_HEIGHT / rect.height;
 
-    const rect = canvas.getBoundingClientRect();
-    // Scale mouse coordinates to fixed canvas resolution
-    const scaleX = CANVAS_WIDTH / rect.width;
-    const scaleY = CANVAS_HEIGHT / rect.height;
+      return clampPoint({
+        x: (clientX - rect.left) * scaleX,
+        y: (clientY - rect.top) * scaleY,
+      });
+    },
+    []
+  );
 
-    const point = clampPoint({
-      x: (e.clientX - rect.left) * scaleX,
-      y: (e.clientY - rect.top) * scaleY,
-    });
-
-    setIsDrawing(true);
+  // Start drawing at a point
+  const startDrawing = useCallback((point: Point) => {
     isDrawingRef.current = true;
     lastPointRef.current = point;
-  };
+  }, []);
 
-  // Mouse move - continue drawing
-  const handleMouseMove = async (e: React.MouseEvent<HTMLCanvasElement>) => {
-    if (disabled) return;
-    if (!isDrawing || !lastPointRef.current) return;
-
-    const canvas = canvasRef.current;
-    if (!canvas) return;
-
-    const rect = canvas.getBoundingClientRect();
-    // Scale mouse coordinates to fixed canvas resolution
-    const scaleX = CANVAS_WIDTH / rect.width;
-    const scaleY = CANVAS_HEIGHT / rect.height;
-
-    const currentPoint = clampPoint({
-      x: (e.clientX - rect.left) * scaleX,
-      y: (e.clientY - rect.top) * scaleY,
-    });
-
-    const lastPoint = lastPointRef.current;
-    const effectiveColor = getEffectiveColor();
-
-    const command: DrawingCommand = {
-      type: "stroke",
-      points: [lastPoint, currentPoint],
-      color: effectiveColor,
-      width: currentWidth,
-    };
-
-    // 1. Draw locally (Optimization: only draw the new segment)
-    drawCommand(command);
-
-    // 2. Send to server immediately (Live Drawing)
-    try {
-      // We don't await this to keep drawing smooth
-      sendDrawingCommand(command);
-    } catch (error) {
-      logger.error("Failed to send drawing command", error);
-    }
-
-    // Update last point
-    lastPointRef.current = currentPoint;
-  };
-
-  // Mouse up - finish drawing
-  const handleMouseUp = () => {
-    setIsDrawing(false);
+  // Stop drawing
+  const stopDrawing = useCallback(() => {
     isDrawingRef.current = false;
     lastPointRef.current = null;
-  };
+  }, []);
 
-  // Touch handlers for mobile support
-  const handleTouchStart = (e: React.TouchEvent<HTMLCanvasElement>) => {
-    if (disabled) return;
-    e.preventDefault(); // Prevent scrolling while drawing
-    const canvas = canvasRef.current;
-    if (!canvas || e.touches.length === 0) return;
+  // Continue drawing to a new point
+  const continueDrawing = useCallback(
+    (currentPoint: Point) => {
+      const lastPoint = lastPointRef.current;
+      if (!lastPoint) return;
 
-    const touch = e.touches[0];
-    const rect = canvas.getBoundingClientRect();
-    const scaleX = CANVAS_WIDTH / rect.width;
-    const scaleY = CANVAS_HEIGHT / rect.height;
+      const effectiveColor = getEffectiveColor();
 
-    const point = clampPoint({
-      x: (touch.clientX - rect.left) * scaleX,
-      y: (touch.clientY - rect.top) * scaleY,
-    });
+      // Draw locally with canvas coordinates
+      const localCommand: DrawingCommand = {
+        type: "stroke",
+        points: [lastPoint, currentPoint],
+        color: effectiveColor,
+        width: currentWidth,
+      };
+      drawCommand(localCommand, true);
 
-    setIsDrawing(true);
-    isDrawingRef.current = true;
-    lastPointRef.current = point;
-  };
+      // Send normalized coordinates to server
+      const networkCommand: DrawingCommand = {
+        type: "stroke",
+        points: [normalizePoint(lastPoint), normalizePoint(currentPoint)],
+        color: effectiveColor,
+        width: currentWidth,
+      };
 
-  const handleTouchMove = (e: React.TouchEvent<HTMLCanvasElement>) => {
-    if (disabled) return;
-    e.preventDefault(); // Prevent scrolling while drawing
-    if (
-      !isDrawingRef.current ||
-      !lastPointRef.current ||
-      e.touches.length === 0
-    )
-      return;
+      sendDrawingCommand(networkCommand).catch((error) => {
+        logger.error("Failed to send drawing command", error);
+      });
 
-    const canvas = canvasRef.current;
-    if (!canvas) return;
+      lastPointRef.current = currentPoint;
+    },
+    [currentWidth, drawCommand, getEffectiveColor, sendDrawingCommand]
+  );
 
-    const touch = e.touches[0];
-    const rect = canvas.getBoundingClientRect();
-    const scaleX = CANVAS_WIDTH / rect.width;
-    const scaleY = CANVAS_HEIGHT / rect.height;
+  // Unified pointer down handler
+  const handlePointerDown = useCallback(
+    (e: React.MouseEvent | React.TouchEvent) => {
+      if (disabled) return;
+      if ("touches" in e) e.preventDefault();
 
-    const currentPoint = clampPoint({
-      x: (touch.clientX - rect.left) * scaleX,
-      y: (touch.clientY - rect.top) * scaleY,
-    });
+      const coords = getClientCoords(e);
+      if (!coords) return;
 
-    const lastPoint = lastPointRef.current;
-    const effectiveColor = getEffectiveColor();
+      const point = getCanvasPoint(coords.clientX, coords.clientY);
+      if (point) startDrawing(point);
+    },
+    [disabled, getCanvasPoint, startDrawing]
+  );
 
-    const command: DrawingCommand = {
-      type: "stroke",
-      points: [lastPoint, currentPoint],
-      color: effectiveColor,
-      width: currentWidth,
-    };
+  // Unified pointer move handler
+  const handlePointerMove = useCallback(
+    (e: React.MouseEvent | React.TouchEvent) => {
+      if (disabled) return;
+      if ("touches" in e) e.preventDefault();
+      if (!isDrawingRef.current || !lastPointRef.current) return;
 
-    drawCommand(command);
-    try {
-      sendDrawingCommand(command);
-    } catch (error) {
-      logger.error("Failed to send touch drawing command", error);
-    }
-    lastPointRef.current = currentPoint;
-  };
+      const coords = getClientCoords(e);
+      if (!coords) return;
 
-  const handleTouchEnd = () => {
-    setIsDrawing(false);
-    isDrawingRef.current = false;
-    lastPointRef.current = null;
-  };
+      const point = getCanvasPoint(coords.clientX, coords.clientY);
+      if (point) continueDrawing(point);
+    },
+    [disabled, getCanvasPoint, continueDrawing]
+  );
 
   const getCursor = () => {
     if (disabled) return "not-allowed";
@@ -341,14 +328,14 @@ export default function DrawingCanvas({
         ref={canvasRef}
         width={CANVAS_WIDTH}
         height={CANVAS_HEIGHT}
-        onMouseDown={handleMouseDown}
-        onMouseMove={handleMouseMove}
-        onMouseUp={handleMouseUp}
-        onMouseLeave={handleMouseUp}
-        onTouchStart={handleTouchStart}
-        onTouchMove={handleTouchMove}
-        onTouchEnd={handleTouchEnd}
-        onTouchCancel={handleTouchEnd}
+        onMouseDown={handlePointerDown}
+        onMouseMove={handlePointerMove}
+        onMouseUp={stopDrawing}
+        onMouseLeave={stopDrawing}
+        onTouchStart={handlePointerDown}
+        onTouchMove={handlePointerMove}
+        onTouchEnd={stopDrawing}
+        onTouchCancel={stopDrawing}
         className={cn(
           "bg-white rounded-lg shadow-inner shrink-0 touch-none border-4 border-card-border",
           disabled && "opacity-90"

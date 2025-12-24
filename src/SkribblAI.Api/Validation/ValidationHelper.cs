@@ -2,9 +2,12 @@
 
 public static partial class ValidationHelper
 {
-    // Canvas bounds
-    private const int CanvasWidth = 800;
-    private const int CanvasHeight = 500;
+    // Normalized coordinate bounds (0.0 to 1.0)
+    // Coordinates are normalized by the client before sending
+    private const double NormalizedMin = 0.0;
+    private const double NormalizedMax = 1.0;
+    // Small tolerance for floating-point precision issues
+    private const double NormalizedTolerance = 0.01;
 
     // Validation limits
     private const int MinUsernameLength = 1;
@@ -114,20 +117,18 @@ public static partial class ValidationHelper
     }
 
     /// <summary>
-    /// Validates that a point is within canvas bounds.
+    /// Validates that a point is within normalized bounds (0.0 to 1.0).
     /// </summary>
     private static bool IsPointWithinBounds(PointDto? point)
     {
         if (point is null)
             return false;
 
-        // Allow small negative values and slightly out of bounds for edge drawing
-        const int tolerance = 10;
-
-        return point.X >= -tolerance &&
-               point.X <= CanvasWidth + tolerance &&
-               point.Y >= -tolerance &&
-               point.Y <= CanvasHeight + tolerance;
+        // Validate normalized coordinates with tolerance for floating-point precision
+        return point.X >= NormalizedMin - NormalizedTolerance &&
+               point.X <= NormalizedMax + NormalizedTolerance &&
+               point.Y >= NormalizedMin - NormalizedTolerance &&
+               point.Y <= NormalizedMax + NormalizedTolerance;
     }
 
     // Regex patterns using source generators for performance
