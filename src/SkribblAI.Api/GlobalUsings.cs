@@ -1,5 +1,6 @@
 ﻿global using System.Text.Json;
 global using System.Text.RegularExpressions;
+global using System.Threading.RateLimiting;
 
 global using Microsoft.AspNetCore.SignalR;
 global using Microsoft.Extensions.Options;
