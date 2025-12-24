@@ -3,7 +3,7 @@
 public class RateLimitingHubFilter : IHubFilter
 {
     private readonly ILogger<RateLimitingHubFilter> _logger;
-    private static TimeProvider s_timeProvider = TimeProvider.System;
+    private readonly TimeProvider _timeProvider;
 
     // Store limiters per connection/IP address, keyed by "{connectionId|ipAddress}:{policy}"
     private static readonly ConcurrentDictionary<string, LimiterEntry> Limiters = new();
@@ -23,7 +23,7 @@ public class RateLimitingHubFilter : IHubFilter
     public RateLimitingHubFilter(ILogger<RateLimitingHubFilter> logger, TimeProvider timeProvider)
     {
         _logger = logger;
-        s_timeProvider = timeProvider;
+        _timeProvider = timeProvider;
     }
 
     /// <summary>
@@ -63,8 +63,8 @@ public class RateLimitingHubFilter : IHubFilter
 
         var partitionKey = GetPartitionKey(invocationContext, policy);
         var limiterKey = $"{partitionKey}:{policy}";
-        var entry = Limiters.GetOrAdd(limiterKey, _ => new LimiterEntry(CreateLimiter(policy), policy, s_timeProvider));
-        entry.Touch(s_timeProvider);
+        var entry = Limiters.GetOrAdd(limiterKey, _ => new LimiterEntry(CreateLimiter(policy), policy, _timeProvider));
+        entry.Touch(_timeProvider);
 
         using var lease = await entry.Limiter.AcquireAsync(permitCount: 1);
 
@@ -92,20 +92,7 @@ public class RateLimitingHubFilter : IHubFilter
             }
 
             // After UseForwardedHeaders middleware, RemoteIpAddress contains the real client IP
-            // from X-Forwarded-For header (if present and trusted)
             var ipAddress = httpContext.Connection.RemoteIpAddress?.ToString();
-
-            // Fallback: check X-Forwarded-For header directly if middleware didn't populate it
-            if (string.IsNullOrEmpty(ipAddress) || ipAddress == "::1" || ipAddress == "127.0.0.1")
-            {
-                var forwardedFor = httpContext.Request.Headers["X-Forwarded-For"].FirstOrDefault();
-                if (!string.IsNullOrEmpty(forwardedFor))
-                {
-                    // X-Forwarded-For can contain multiple IPs; the first is the original client
-                    ipAddress = forwardedFor.Split(',', StringSplitOptions.RemoveEmptyEntries)
-                        .FirstOrDefault()?.Trim();
-                }
-            }
 
             return !string.IsNullOrEmpty(ipAddress) ? ipAddress : $"conn-{invocationContext.Context.ConnectionId}";
         }
@@ -168,20 +155,18 @@ public class RateLimitingHubFilter : IHubFilter
     /// Cleans up IP-based limiters that have been idle for longer than the specified threshold.
     /// </summary>
     /// <param name="idleThreshold">The duration after which an idle limiter should be removed.</param>
+    /// <param name="timeProvider">The time provider to use for determining current time.</param>
     /// <returns>The number of limiters that were cleaned up.</returns>
-    public static int CleanupStaleLimiters(TimeSpan idleThreshold)
+    public static int CleanupStaleLimiters(TimeSpan idleThreshold, TimeProvider timeProvider)
     {
-        var now = s_timeProvider.GetUtcNow();
+        var now = timeProvider.GetUtcNow();
         var cleanedUp = 0;
 
-        var staleKeys = Limiters
-            .Where(kvp => IpBasedPolicies.Contains(kvp.Value.Policy) && (now - kvp.Value.LastAccess) > idleThreshold)
-            .Select(kvp => kvp.Key)
-            .ToList();
-
-        foreach (var key in staleKeys)
+        foreach (var kvp in Limiters)
         {
-            if (Limiters.TryRemove(key, out var entry))
+            if (IpBasedPolicies.Contains(kvp.Value.Policy) &&
+                (now - kvp.Value.LastAccess) > idleThreshold &&
+                Limiters.TryRemove(kvp.Key, out var entry))
             {
                 entry.Limiter.Dispose();
                 cleanedUp++;

@@ -6,12 +6,14 @@ namespace SkribblAI.Api.Services;
 public class RateLimiterCleanupService : BackgroundService
 {
     private readonly ILogger<RateLimiterCleanupService> _logger;
+    private readonly TimeProvider _timeProvider;
     private readonly TimeSpan _cleanupInterval = TimeSpan.FromMinutes(10);
     private readonly TimeSpan _idleThreshold = TimeSpan.FromHours(1);
 
-    public RateLimiterCleanupService(ILogger<RateLimiterCleanupService> logger)
+    public RateLimiterCleanupService(ILogger<RateLimiterCleanupService> logger, TimeProvider timeProvider)
     {
         _logger = logger;
+        _timeProvider = timeProvider;
     }
 
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
@@ -37,7 +39,7 @@ public class RateLimiterCleanupService : BackgroundService
             try
             {
                 var beforeCount = RateLimitingHubFilter.ActiveLimiterCount;
-                var cleanedUp = RateLimitingHubFilter.CleanupStaleLimiters(_idleThreshold);
+                var cleanedUp = RateLimitingHubFilter.CleanupStaleLimiters(_idleThreshold, _timeProvider);
                 var afterCount = RateLimitingHubFilter.ActiveLimiterCount;
 
                 if (cleanedUp > 0)

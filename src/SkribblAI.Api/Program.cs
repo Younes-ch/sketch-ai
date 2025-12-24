@@ -56,7 +56,14 @@ builder.Services.Configure<ForwardedHeadersOptions>(options =>
     {
         foreach (var ip in proxyIps)
         {
-            options.KnownProxies.Add(IPAddress.Parse(ip));
+            if (IPAddress.TryParse(ip, out var address))
+            {
+                options.KnownProxies.Add(address);
+            }
+            else
+            {
+                throw new InvalidOperationException($"Invalid proxy IP address in configuration: {ip}");
+            }
         }
     }
 
@@ -67,8 +74,14 @@ builder.Services.Configure<ForwardedHeadersOptions>(options =>
     {
         foreach (var network in networks)
         {
-            options.KnownIPNetworks.Add(
-                new System.Net.IPNetwork(IPAddress.Parse(network.Prefix), network.PrefixLength));
+            if (IPAddress.TryParse(network.Prefix, out var prefix))
+            {
+                options.KnownIPNetworks.Add(new System.Net.IPNetwork(prefix, network.PrefixLength));
+            }
+            else
+            {
+                throw new InvalidOperationException($"Invalid network prefix in configuration: {network.Prefix}");
+            }
         }
     }
 });
@@ -87,10 +100,9 @@ if (app.Environment.IsDevelopment())
                .WithTheme(ScalarTheme.BluePlanet);
     });
 }
+app.UseForwardedHeaders();
 
 app.UseCors("DevCorsPolicy");
-
-app.UseForwardedHeaders();
 
 app.UseHttpsRedirection();
 
