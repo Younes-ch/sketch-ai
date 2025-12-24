@@ -405,6 +405,9 @@ public class DrawingHub : Hub
             }
         }
 
+        // Clean up rate limiters for this connection
+        RateLimitingHubFilter.CleanupConnection(Context.ConnectionId);
+
         await base.OnDisconnectedAsync(exception);
     }
 

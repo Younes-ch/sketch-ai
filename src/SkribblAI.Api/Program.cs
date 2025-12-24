@@ -14,11 +14,16 @@ builder.Services.AddSingleton<IGameService, GameService>();
 
 // Background services
 builder.Services.AddHostedService<RoundTimerService>();
+builder.Services.AddHostedService<RateLimiterCleanupService>();
+
+// TimeProvider
+builder.Services.AddSingleton(TimeProvider.System);
 
 // SignalR
 builder.Services.AddSignalR(config =>
 {
     config.AddFilter<HubExceptionFilter>();
+    config.AddFilter<RateLimitingHubFilter>();
 });
 
 // Add CORS
@@ -40,6 +45,48 @@ builder.Services.AddCors(options =>
 
 // Register Configuration
 builder.Services.Configure<GameSettings>(builder.Configuration.GetSection("GameSettings"));
+builder.Services.Configure<RateLimiterCleanupConfig>(
+    builder.Configuration.GetSection("RateLimiterCleanup"));
+
+// Configure Forwarded Headers for proxy/load balancer scenarios
+builder.Services.Configure<ForwardedHeadersOptions>(options =>
+{
+    options.ForwardedHeaders = ForwardedHeaders.XForwardedFor | ForwardedHeaders.XForwardedProto;
+
+    var proxyIps = builder.Configuration.GetSection("ForwardedHeaders:KnownProxies").Get<string[]>();
+    if (proxyIps is not null)
+    {
+        foreach (var ip in proxyIps)
+        {
+            if (IPAddress.TryParse(ip, out var address))
+            {
+                options.KnownProxies.Add(address);
+            }
+            else
+            {
+                throw new InvalidOperationException($"Invalid proxy IP address in configuration: {ip}");
+            }
+        }
+    }
+
+    var networks = builder.Configuration.GetSection("ForwardedHeaders:KnownNetworks")
+        .Get<List<NetworkConfig>>();
+
+    if (networks is not null)
+    {
+        foreach (var network in networks)
+        {
+            if (IPAddress.TryParse(network.Prefix, out var prefix))
+            {
+                options.KnownIPNetworks.Add(new System.Net.IPNetwork(prefix, network.PrefixLength));
+            }
+            else
+            {
+                throw new InvalidOperationException($"Invalid network prefix in configuration: {network.Prefix}");
+            }
+        }
+    }
+});
 
 var app = builder.Build();
 
@@ -55,6 +102,7 @@ if (app.Environment.IsDevelopment())
                .WithTheme(ScalarTheme.BluePlanet);
     });
 }
+app.UseForwardedHeaders();
 
 app.UseCors("DevCorsPolicy");
 
