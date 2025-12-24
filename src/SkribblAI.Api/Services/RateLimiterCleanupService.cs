@@ -7,13 +7,18 @@ public class RateLimiterCleanupService : BackgroundService
 {
     private readonly ILogger<RateLimiterCleanupService> _logger;
     private readonly TimeProvider _timeProvider;
-    private readonly TimeSpan _cleanupInterval = TimeSpan.FromMinutes(10);
-    private readonly TimeSpan _idleThreshold = TimeSpan.FromHours(1);
+    private readonly TimeSpan _cleanupInterval;
+    private readonly TimeSpan _idleThreshold;
 
-    public RateLimiterCleanupService(ILogger<RateLimiterCleanupService> logger, TimeProvider timeProvider)
+    public RateLimiterCleanupService(
+        ILogger<RateLimiterCleanupService> logger,
+        TimeProvider timeProvider,
+        IOptions<RateLimiterCleanupConfig> options)
     {
         _logger = logger;
         _timeProvider = timeProvider;
+        _cleanupInterval = options.Value.CleanupInterval;
+        _idleThreshold = options.Value.IdleThreshold;
     }
 
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)

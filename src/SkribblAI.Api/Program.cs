@@ -45,6 +45,8 @@ builder.Services.AddCors(options =>
 
 // Register Configuration
 builder.Services.Configure<GameSettings>(builder.Configuration.GetSection("GameSettings"));
+builder.Services.Configure<RateLimiterCleanupConfig>(
+    builder.Configuration.GetSection("RateLimiterCleanup"));
 
 // Configure Forwarded Headers for proxy/load balancer scenarios
 builder.Services.Configure<ForwardedHeadersOptions>(options =>

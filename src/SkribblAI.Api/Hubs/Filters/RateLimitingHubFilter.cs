@@ -6,7 +6,7 @@ public class RateLimitingHubFilter : IHubFilter
     private readonly TimeProvider _timeProvider;
 
     // Store limiters per connection/IP address, keyed by "{connectionId|ipAddress}:{policy}"
-    private static readonly ConcurrentDictionary<string, LimiterEntry> Limiters = new();
+    private static readonly ConcurrentDictionary<string, Lazy<LimiterEntry>> Limiters = new();
 
     private static readonly Dictionary<string, string> MethodPolicies = new(StringComparer.OrdinalIgnoreCase)
     {
@@ -63,7 +63,7 @@ public class RateLimitingHubFilter : IHubFilter
 
         var partitionKey = GetPartitionKey(invocationContext, policy);
         var limiterKey = $"{partitionKey}:{policy}";
-        var entry = Limiters.GetOrAdd(limiterKey, _ => new LimiterEntry(CreateLimiter(policy), policy, _timeProvider));
+        var entry = Limiters.GetOrAdd(limiterKey, _ => new Lazy<LimiterEntry>(() => new LimiterEntry(CreateLimiter(policy), policy, _timeProvider))).Value;
         entry.Touch(_timeProvider);
 
         using var lease = await entry.Limiter.AcquireAsync(permitCount: 1);
@@ -144,9 +144,9 @@ public class RateLimitingHubFilter : IHubFilter
 
         foreach (var key in keysToRemove)
         {
-            if (Limiters.TryRemove(key, out var entry))
+            if (Limiters.TryRemove(key, out var lazyEntry) && lazyEntry.IsValueCreated)
             {
-                entry.Limiter.Dispose();
+                lazyEntry.Value.Limiter.Dispose();
             }
         }
     }
@@ -164,11 +164,12 @@ public class RateLimitingHubFilter : IHubFilter
 
         foreach (var kvp in Limiters)
         {
-            if (IpBasedPolicies.Contains(kvp.Value.Policy) &&
-                (now - kvp.Value.LastAccess) > idleThreshold &&
+            if (kvp.Value.IsValueCreated &&
+                IpBasedPolicies.Contains(kvp.Value.Value.Policy) &&
+                (now - kvp.Value.Value.LastAccess) > idleThreshold &&
                 Limiters.TryRemove(kvp.Key, out var entry))
             {
-                entry.Limiter.Dispose();
+                entry.Value.Limiter.Dispose();
                 cleanedUp++;
             }
         }
