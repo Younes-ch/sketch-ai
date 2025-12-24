@@ -10,6 +10,12 @@ import { CanvasToolbar, type ToolType } from "@/components/Canvas";
 const CANVAS_WIDTH = 800;
 const CANVAS_HEIGHT = 500;
 
+// Clamp a point to canvas bounds to prevent out-of-bounds coordinates
+const clampPoint = (point: Point): Point => ({
+  x: Math.max(0, Math.min(CANVAS_WIDTH, point.x)),
+  y: Math.max(0, Math.min(CANVAS_HEIGHT, point.y)),
+});
+
 interface DrawingCanvasProps {
   disabled?: boolean;
 }
@@ -177,10 +183,10 @@ export default function DrawingCanvas({
     const scaleX = CANVAS_WIDTH / rect.width;
     const scaleY = CANVAS_HEIGHT / rect.height;
 
-    const point: Point = {
+    const point = clampPoint({
       x: (e.clientX - rect.left) * scaleX,
       y: (e.clientY - rect.top) * scaleY,
-    };
+    });
 
     setIsDrawing(true);
     isDrawingRef.current = true;
@@ -200,10 +206,10 @@ export default function DrawingCanvas({
     const scaleX = CANVAS_WIDTH / rect.width;
     const scaleY = CANVAS_HEIGHT / rect.height;
 
-    const currentPoint: Point = {
+    const currentPoint = clampPoint({
       x: (e.clientX - rect.left) * scaleX,
       y: (e.clientY - rect.top) * scaleY,
-    };
+    });
 
     const lastPoint = lastPointRef.current;
     const effectiveColor = getEffectiveColor();
@@ -249,10 +255,10 @@ export default function DrawingCanvas({
     const scaleX = CANVAS_WIDTH / rect.width;
     const scaleY = CANVAS_HEIGHT / rect.height;
 
-    const point: Point = {
+    const point = clampPoint({
       x: (touch.clientX - rect.left) * scaleX,
       y: (touch.clientY - rect.top) * scaleY,
-    };
+    });
 
     setIsDrawing(true);
     isDrawingRef.current = true;
@@ -277,10 +283,10 @@ export default function DrawingCanvas({
     const scaleX = CANVAS_WIDTH / rect.width;
     const scaleY = CANVAS_HEIGHT / rect.height;
 
-    const currentPoint: Point = {
+    const currentPoint = clampPoint({
       x: (touch.clientX - rect.left) * scaleX,
       y: (touch.clientY - rect.top) * scaleY,
-    };
+    });
 
     const lastPoint = lastPointRef.current;
     const effectiveColor = getEffectiveColor();
