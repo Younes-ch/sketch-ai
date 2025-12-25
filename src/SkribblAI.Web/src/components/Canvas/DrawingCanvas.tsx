@@ -30,8 +30,8 @@ const normalizePoint = (point: Point): Point => ({
 
 // Denormalize a point from 0-1 range to canvas coordinates for rendering
 const denormalizePoint = (point: Point): Point => ({
-  x: point.x * CANVAS_WIDTH,
-  y: point.y * CANVAS_HEIGHT,
+  x: Math.max(0, Math.min(1, point.x)) * CANVAS_WIDTH,
+  y: Math.max(0, Math.min(1, point.y)) * CANVAS_HEIGHT,
 });
 
 // Extract client coordinates from mouse or touch event
