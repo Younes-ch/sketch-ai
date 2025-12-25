@@ -20,8 +20,10 @@ export const useConnectionStore = create<ConnectionStore>((set, get) => ({
   connectionState: "Disconnected",
 
   initializeConnection: () => {
-
-    if (get().connection) return;
+    const { connection } = get();
+    
+    // Only skip if we have an active connection
+    if (connection && connection.state === signalR.HubConnectionState.Connected) return;
 
     const newConnection = new signalR.HubConnectionBuilder()
       .withUrl("/hubs/drawing")
@@ -42,7 +44,7 @@ export const useConnectionStore = create<ConnectionStore>((set, get) => ({
 
     newConnection.onclose(() => {
       logger.info("SignalR Disconnected");
-      set({ connectionState: "Disconnected" });
+      set({ connectionState: "Disconnected", connection: null });
     });
 
     newConnection
