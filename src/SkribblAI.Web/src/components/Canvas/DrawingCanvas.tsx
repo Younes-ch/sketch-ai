@@ -91,9 +91,12 @@ export default function DrawingCanvas({
       }
     };
 
+    const observer = new ResizeObserver(updateSize);
+    if (containerRef.current) {
+      observer.observe(containerRef.current);
+    }
     updateSize();
-    window.addEventListener("resize", updateSize);
-    return () => window.removeEventListener("resize", updateSize);
+    return () => observer.disconnect();
   }, []);
 
   const sendDrawingCommand = useCanvasStore((s) => s.sendDrawingCommand);
