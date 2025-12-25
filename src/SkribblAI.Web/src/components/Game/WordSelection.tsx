@@ -110,7 +110,7 @@ export function WordSelection({ words, timeLimit = 15 }: WordSelectionProps) {
                 <span className="text-sm text-white/60">{index + 1}.</span>
                 <span>{word}</span>
                 <span className="text-sm text-white/60">
-                  {word.length} letters
+                  {word.replace(/\s/g, "").length} letters
                 </span>
               </span>
             </button>

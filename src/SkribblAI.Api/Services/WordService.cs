@@ -31,7 +31,8 @@ public class WordService : IWordService
 
     public string GetWordHint(string word)
     {
-        return string.Join(" ", word.Select(_ => "_"));
+        var hintChars = word.Select(c => char.IsWhiteSpace(c) ? ' ' : '_');
+        return string.Join(" ", hintChars);
     }
 
     public string RevealLetter(string word, string currentHint)

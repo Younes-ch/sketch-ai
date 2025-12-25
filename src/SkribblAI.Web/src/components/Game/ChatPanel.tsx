@@ -32,7 +32,7 @@ export default function ChatPanel({ variant = "desktop" }: ChatPanelProps) {
 
   // Calculate word length from hint (count non-space characters)
   const wordLength = wordHint ? wordHint.replace(/\s/g, "").length : 0;
-  const currentInputLength = inputValue.trim().length;
+  const currentInputLength = inputValue.trim().replace(/\s/g, "").length;
   const showCharacterCount =
     isDrawingPhase && !isDrawer && !hasAlreadyGuessed && wordLength > 0;
 
