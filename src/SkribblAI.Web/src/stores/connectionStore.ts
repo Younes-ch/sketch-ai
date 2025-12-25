@@ -20,6 +20,9 @@ export const useConnectionStore = create<ConnectionStore>((set, get) => ({
   connectionState: "Disconnected",
 
   initializeConnection: () => {
+
+    if (get().connection) return;
+
     const newConnection = new signalR.HubConnectionBuilder()
       .withUrl("/hubs/drawing")
       .withAutomaticReconnect()
