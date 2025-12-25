@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState, useCallback, useMemo } from "react";
+import simplify from "simplify-js";
 import type { Point, DrawingCommand } from "@/models";
 import { useCanvasStore } from "@/stores/canvasStore";
 import { logger } from "@/lib/logger";
@@ -14,6 +15,12 @@ const CANVAS_ASPECT_RATIO = CANVAS_WIDTH / CANVAS_HEIGHT;
 // Batching configuration for network optimization
 // Points are accumulated and sent every BATCH_INTERVAL_MS to reduce network traffic
 const BATCH_INTERVAL_MS = 50;
+
+// Point simplification configuration (Douglas-Peucker + Radial Distance)
+// Tolerance controls how aggressively points are removed (in canvas coordinates)
+// Higher = more simplification, lower = more precision
+const SIMPLIFY_TOLERANCE = 1.5;
+const SIMPLIFY_HIGH_QUALITY = true; // Use Douglas-Peucker (slower but better quality)
 
 // Layout constraints
 const TOOLBAR_RESERVED_HEIGHT = 160;
@@ -272,10 +279,21 @@ export default function DrawingCanvas({
     (points: Point[], effectiveColor: string) => {
       if (points.length < 2) return;
 
+      // Simplify points using Douglas-Peucker algorithm to reduce payload size
+      // This removes redundant points while preserving the stroke's visual shape
+      const simplifiedPoints = simplify(
+        points,
+        SIMPLIFY_TOLERANCE,
+        SIMPLIFY_HIGH_QUALITY
+      ) as Point[];
+
+      // Only send if we have meaningful data after simplification
+      if (simplifiedPoints.length < 2) return;
+
       // Send normalized coordinates to server
       const networkCommand: DrawingCommand = {
         type: "stroke",
-        points: points.map(normalizePoint),
+        points: simplifiedPoints.map(normalizePoint),
         color: effectiveColor,
         width: currentWidth,
       };
