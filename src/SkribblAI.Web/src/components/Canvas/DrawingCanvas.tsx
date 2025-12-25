@@ -239,53 +239,13 @@ export default function DrawingCanvas({
     lastPointRef.current = point;
   }, []);
 
-  // Stop drawing - draw a dot if we haven't moved (single tap)
-  const stopDrawing = useCallback(() => {
-    const point = lastPointRef.current;
-
-    // If we started drawing but never moved, draw a dot
-    if (isDrawingRef.current && !hasMovedRef.current && point) {
-      const effectiveColor = getEffectiveColor();
-
-      // Draw locally
-      const localCommand: DrawingCommand = {
-        type: "stroke",
-        points: [point],
-        color: effectiveColor,
-        width: currentWidth,
-      };
-      drawCommand(localCommand, true);
-
-      // Send to server
-      const networkCommand: DrawingCommand = {
-        type: "stroke",
-        points: [normalizePoint(point)],
-        color: effectiveColor,
-        width: currentWidth,
-      };
-      sendDrawingCommand(networkCommand).catch((error) => {
-        logger.error("Failed to send dot command", error);
-      });
-    }
-
-    isDrawingRef.current = false;
-    hasMovedRef.current = false;
-    lastPointRef.current = null;
-  }, [currentWidth, drawCommand, getEffectiveColor, sendDrawingCommand]);
-
-  // Continue drawing to a new point
-  const continueDrawing = useCallback(
-    (currentPoint: Point) => {
-      const lastPoint = lastPointRef.current;
-      if (!lastPoint) return;
-
-      hasMovedRef.current = true;
-      const effectiveColor = getEffectiveColor();
-
+  // Helper to create and send a drawing command
+  const createAndSendCommand = useCallback(
+    (points: Point[], effectiveColor: string) => {
       // Draw locally with canvas coordinates
       const localCommand: DrawingCommand = {
         type: "stroke",
-        points: [lastPoint, currentPoint],
+        points: points,
         color: effectiveColor,
         width: currentWidth,
       };
@@ -294,7 +254,7 @@ export default function DrawingCanvas({
       // Send normalized coordinates to server
       const networkCommand: DrawingCommand = {
         type: "stroke",
-        points: [normalizePoint(lastPoint), normalizePoint(currentPoint)],
+        points: points.map(normalizePoint),
         color: effectiveColor,
         width: currentWidth,
       };
@@ -302,10 +262,35 @@ export default function DrawingCanvas({
       sendDrawingCommand(networkCommand).catch((error) => {
         logger.error("Failed to send drawing command", error);
       });
+    },
+    [currentWidth, drawCommand, sendDrawingCommand]
+  );
 
+  // Stop drawing - draw a dot if we haven't moved (single tap)
+  const stopDrawing = useCallback(() => {
+    const point = lastPointRef.current;
+
+    // If we started drawing but never moved, draw a dot
+    if (isDrawingRef.current && !hasMovedRef.current && point) {
+      createAndSendCommand([point], getEffectiveColor());
+    }
+
+    isDrawingRef.current = false;
+    hasMovedRef.current = false;
+    lastPointRef.current = null;
+  }, [createAndSendCommand, getEffectiveColor]);
+
+  // Continue drawing to a new point
+  const continueDrawing = useCallback(
+    (currentPoint: Point) => {
+      const lastPoint = lastPointRef.current;
+      if (!lastPoint) return;
+
+      hasMovedRef.current = true;
+      createAndSendCommand([lastPoint, currentPoint], getEffectiveColor());
       lastPointRef.current = currentPoint;
     },
-    [currentWidth, drawCommand, getEffectiveColor, sendDrawingCommand]
+    [createAndSendCommand, getEffectiveColor]
   );
 
   // Unified pointer down handler
