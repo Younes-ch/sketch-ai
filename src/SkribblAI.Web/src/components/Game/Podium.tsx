@@ -3,6 +3,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import { cn } from "@/lib/utils";
 import type { Player } from "@/models";
 import { useConfetti } from "@/components/effects/Confetti";
+import { useAudio } from "@/hooks/useAudio";
 
 interface PodiumProps {
   players: Player[];
@@ -10,6 +11,7 @@ interface PodiumProps {
 
 export default function Podium({ players }: PodiumProps) {
   const { fireMultiple } = useConfetti();
+  const { play, stop } = useAudio();
   const [revealedPositions, setRevealedPositions] = useState<number[]>([]);
 
   // Sort players by score and get top 3
@@ -26,19 +28,26 @@ export default function Podium({ players }: PodiumProps) {
   useEffect(() => {
     setRevealedPositions([]);
 
+    // Start drum roll immediately
+    play("drum-roll");
+
     // Reveal 3rd place after 500ms
     const timer1 = setTimeout(() => {
       setRevealedPositions((prev) => [...prev, 3]);
+      play("podium-reveal");
     }, 500);
 
     // Reveal 2nd place after 1200ms
     const timer2 = setTimeout(() => {
       setRevealedPositions((prev) => [...prev, 2]);
+      play("podium-reveal");
     }, 1200);
 
     // Reveal 1st place after 2000ms
     const timer3 = setTimeout(() => {
       setRevealedPositions((prev) => [...prev, 1]);
+      stop("drum-roll");
+      play("podium-reveal");
     }, 2000);
 
     // Fire confetti after 1st place reveal
@@ -51,8 +60,9 @@ export default function Podium({ players }: PodiumProps) {
       clearTimeout(timer2);
       clearTimeout(timer3);
       clearTimeout(timer4);
+      stop("drum-roll");
     };
-  }, [fireMultiple]);
+  }, [fireMultiple, play, stop]);
 
   const getMedalEmoji = (position: number) => {
     switch (position) {
