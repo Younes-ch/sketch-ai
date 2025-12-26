@@ -1,3 +1,4 @@
+import { motion, AnimatePresence } from "framer-motion";
 import { useGameStore } from "@/stores/gameStore";
 import { useRoomStore } from "@/stores/roomStore";
 import { cn } from "@/lib/utils";
@@ -101,18 +102,38 @@ export default function GamePhaseIndicator() {
         )}
       </div>
       {content.showTimer && timeRemaining > 0 && (
-        <div
+        <motion.div
+          key={timeRemaining <= 10 ? "warning" : "normal"}
+          initial={timeRemaining <= 10 ? { scale: 1.1 } : {}}
+          animate={
+            timeRemaining <= 10
+              ? {
+                  scale: [1, 1.1, 1],
+                  transition: { repeat: Infinity, duration: 0.5 },
+                }
+              : { scale: 1 }
+          }
           className={cn(
             "px-3 py-1 rounded-lg font-mono font-bold text-lg",
             timeRemaining <= 10
-              ? "bg-danger text-white animate-pulse"
+              ? "bg-danger text-white"
               : timeRemaining <= 30
               ? "bg-warning text-background"
               : "bg-success text-white"
           )}
         >
-          {formatTime(timeRemaining)}
-        </div>
+          <AnimatePresence mode="wait">
+            <motion.span
+              key={timeRemaining}
+              initial={{ opacity: 0, y: -10 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: 10 }}
+              transition={{ duration: 0.15 }}
+            >
+              {formatTime(timeRemaining)}
+            </motion.span>
+          </AnimatePresence>
+        </motion.div>
       )}
     </div>
   );

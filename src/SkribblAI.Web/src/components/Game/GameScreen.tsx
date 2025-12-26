@@ -1,11 +1,14 @@
 import { useState } from "react";
+import { motion, AnimatePresence } from "framer-motion";
 import { DrawingCanvas } from "@/components/Canvas";
 import {
   GameHeader,
   PlayerList,
   ChatPanel,
-  MobileTabNav,
-  type MobileTab,
+  MobileGameHeader,
+  MobilePlayerList,
+  MobileChatMessages,
+  MobileChatInput,
   WordHint,
   GamePhaseIndicator,
   WordSelection,
@@ -33,7 +36,6 @@ export default function GameScreen() {
   const startGame = useGameStore((s) => s.startGame);
 
   const [showCopied, setShowCopied] = useState(false);
-  const [mobileTab, setMobileTab] = useState<MobileTab>("canvas");
   const [isStarting, setIsStarting] = useState(false);
   const [isUpdatingSettings, setIsUpdatingSettings] = useState(false);
 
@@ -92,12 +94,12 @@ export default function GameScreen() {
       {/* Word Selection Modal */}
       {showWordSelection && <WordSelection words={wordChoices!} />}
 
-      <div className="w-full flex-1 flex flex-col min-h-0">
+
+      {/* Desktop Layout */}
+      <div className="hidden lg:flex w-full flex-1 flex-col min-h-0">
         {/* Header Bar */}
         <GameHeader
           roomCode={roomCode ?? ""}
-          username={username ?? ""}
-          isHost={isHost}
           showCopied={showCopied}
           onShare={handleShareRoom}
           onLeave={handleLeaveRoom}
@@ -106,8 +108,8 @@ export default function GameScreen() {
 
         {/* Main Game Area */}
         <div className="flex gap-3 flex-1 min-h-0">
-          {/* Left Sidebar - Players (Desktop only) */}
-          <div className="w-56 hidden lg:flex flex-col shrink-0 h-full">
+          {/* Left Sidebar - Players */}
+          <div className="w-56 flex flex-col shrink-0 h-full">
             <PlayerList
               players={players}
               currentUsername={username ?? ""}
@@ -115,25 +117,28 @@ export default function GameScreen() {
             />
           </div>
 
-          {/* Center - Canvas (Desktop) / Tab Content (Mobile) */}
+          {/* Center - Canvas */}
           <div className="flex-1 min-w-0 min-h-0 flex flex-col">
-            {/* Mobile Tab Navigation */}
-            <MobileTabNav activeTab={mobileTab} onTabChange={setMobileTab} />
-
-            {/* Canvas View (Desktop always, Mobile when tab selected) */}
-            <div
-              className={cn(
-                "flex-1 min-h-0 flex-col",
-                mobileTab !== "canvas" ? "hidden lg:flex" : "flex"
-              )}
-            >
-              <div className="bg-card rounded-2xl p-2 sm:p-4 border-4 border-card-border shadow-lg h-full flex flex-col overflow-hidden relative">
+            <div className="bg-card rounded-2xl p-4 border-4 border-card-border shadow-lg h-full flex flex-col overflow-hidden relative">
+              <AnimatePresence mode="wait">
                 {/* Lobby Overlay */}
                 {phase === "lobby" && (
-                  <div className="absolute inset-0 bg-background/80 backdrop-blur-sm flex flex-col items-center justify-center z-10 rounded-2xl overflow-auto p-4">
-                    <h2 className="text-2xl font-bold mb-2 text-white">
+                  <motion.div
+                    key="lobby"
+                    initial={{ opacity: 0 }}
+                    animate={{ opacity: 1 }}
+                    exit={{ opacity: 0 }}
+                    transition={{ duration: 0.3 }}
+                    className="absolute inset-0 bg-background/80 backdrop-blur-sm flex flex-col items-center justify-center z-10 rounded-2xl overflow-auto p-4"
+                  >
+                    <motion.h2
+                      initial={{ y: -20, opacity: 0 }}
+                      animate={{ y: 0, opacity: 1 }}
+                      transition={{ delay: 0.1 }}
+                      className="text-2xl font-bold mb-2 text-white"
+                    >
                       Waiting for players...
-                    </h2>
+                    </motion.h2>
                     <p className="text-white/60 mb-4">
                       {players.length} player{players.length !== 1 ? "s" : ""}{" "}
                       in lobby
@@ -141,14 +146,19 @@ export default function GameScreen() {
 
                     {/* Room Settings (Host only) */}
                     {isHost && (
-                      <div className="w-full max-w-xs mb-4 bg-card/50 rounded-xl p-4 border border-card-border">
+                      <motion.div
+                        initial={{ scale: 0.95, opacity: 0 }}
+                        animate={{ scale: 1, opacity: 1 }}
+                        transition={{ delay: 0.2 }}
+                        className="w-full max-w-xs mb-4 bg-card/50 rounded-xl p-4 border border-card-border"
+                      >
                         <RoomSettingsPanel
                           settings={roomSettings}
                           onChange={handleSettingsChange}
                           disabled={isUpdatingSettings}
                           compact
                         />
-                      </div>
+                      </motion.div>
                     )}
 
                     {/* Settings Summary (Non-host) */}
@@ -156,14 +166,17 @@ export default function GameScreen() {
                       <div className="text-white/50 text-sm mb-4 text-center">
                         <p>
                           ⏱️ {roomSettings.drawTimeSeconds}s • 🔄{" "}
-                          {roomSettings.totalRounds} round{roomSettings.totalRounds !== 1 ? "s" : ""} • 🎯{" "}
+                          {roomSettings.totalRounds} round
+                          {roomSettings.totalRounds !== 1 ? "s" : ""} • 🎯{" "}
                           {roomSettings.difficulty}
                         </p>
                       </div>
                     )}
 
                     {isHost ? (
-                      <button
+                      <motion.button
+                        whileHover={{ scale: 1.05 }}
+                        whileTap={{ scale: 0.95 }}
                         onClick={handleStartGame}
                         disabled={isStarting || players.length < 2}
                         className={cn(
@@ -178,126 +191,409 @@ export default function GameScreen() {
                           : players.length < 2
                           ? "Need 2+ players"
                           : "Start Game"}
-                      </button>
+                      </motion.button>
                     ) : (
                       <p className="text-white/60">
                         Waiting for host to start...
                       </p>
                     )}
-                  </div>
+                  </motion.div>
                 )}
 
                 {/* Word Selection Waiting Overlay (for non-drawers) */}
                 {phase === "wordSelection" && !isDrawer && (
-                  <div className="absolute inset-0 bg-background/80 backdrop-blur-sm flex flex-col items-center justify-center z-10 rounded-2xl">
-                    <h2 className="text-2xl font-bold mb-4 text-white">
+                  <motion.div
+                    key="wordSelection"
+                    initial={{ opacity: 0 }}
+                    animate={{ opacity: 1 }}
+                    exit={{ opacity: 0 }}
+                    transition={{ duration: 0.3 }}
+                    className="absolute inset-0 bg-background/80 backdrop-blur-sm flex flex-col items-center justify-center z-10 rounded-2xl"
+                  >
+                    <motion.h2
+                      initial={{ scale: 0.8, opacity: 0 }}
+                      animate={{ scale: 1, opacity: 1 }}
+                      transition={{
+                        type: "spring",
+                        stiffness: 300,
+                        damping: 20,
+                      }}
+                      className="text-2xl font-bold mb-4 text-white"
+                    >
                       {currentDrawer?.username} is choosing a word...
-                    </h2>
+                    </motion.h2>
                     {/* Loading spinner */}
-                    <div className="relative w-16 h-16 mb-4">
+                    <motion.div
+                      animate={{ rotate: 360 }}
+                      transition={{
+                        duration: 2,
+                        repeat: Infinity,
+                        ease: "linear",
+                      }}
+                      className="relative w-16 h-16 mb-4"
+                    >
                       <div className="absolute inset-0 border-4 border-accent/20 rounded-full"></div>
-                      <div className="absolute inset-0 border-4 border-transparent border-t-accent rounded-full animate-spin"></div>
+                      <div className="absolute inset-0 border-4 border-transparent border-t-accent rounded-full"></div>
                       <div className="absolute inset-0 flex items-center justify-center text-2xl">
                         🎨
                       </div>
-                    </div>
+                    </motion.div>
                     <p className="text-white/50 text-sm">Get ready to guess!</p>
-                  </div>
+                  </motion.div>
                 )}
 
                 {/* Round End Overlay */}
                 {phase === "roundEnd" && (
-                  <div className="absolute inset-0 bg-background/80 backdrop-blur-sm flex flex-col items-center justify-center z-10 rounded-2xl">
-                    <h2 className="text-2xl font-bold mb-2 text-white">
+                  <motion.div
+                    key="roundEnd"
+                    initial={{ opacity: 0 }}
+                    animate={{ opacity: 1 }}
+                    exit={{ opacity: 0 }}
+                    transition={{ duration: 0.3 }}
+                    className="absolute inset-0 bg-background/80 backdrop-blur-sm flex flex-col items-center justify-center z-10 rounded-2xl"
+                  >
+                    <motion.h2
+                      initial={{ y: -30, opacity: 0 }}
+                      animate={{ y: 0, opacity: 1 }}
+                      transition={{
+                        type: "spring",
+                        stiffness: 300,
+                        damping: 20,
+                      }}
+                      className="text-2xl font-bold mb-2 text-white"
+                    >
                       Round Over!
-                    </h2>
-                    <p className="text-xl text-accent mb-4">
+                    </motion.h2>
+                    <motion.p
+                      initial={{ scale: 0.5, opacity: 0 }}
+                      animate={{ scale: 1, opacity: 1 }}
+                      transition={{
+                        delay: 0.2,
+                        type: "spring",
+                        stiffness: 300,
+                        damping: 20,
+                      }}
+                      className="text-xl text-accent mb-4"
+                    >
                       The word was:{" "}
-                      <span className="font-bold">{currentWord}</span>
-                    </p>
+                      <span className="font-bold text-2xl">{currentWord}</span>
+                    </motion.p>
                     {/* Loading progress for next round */}
                     <div className="flex items-center gap-2 text-white/60">
                       <div className="w-4 h-4 border-2 border-white/30 border-t-white/70 rounded-full animate-spin"></div>
                       <p>Next round starting soon...</p>
                     </div>
-                  </div>
+                  </motion.div>
                 )}
 
                 {/* Game End Overlay */}
                 {phase === "gameEnd" && (
-                  <div className="absolute inset-0 bg-background/90 backdrop-blur-sm flex flex-col items-center justify-center z-10 rounded-2xl overflow-auto py-4">
-                    <h2 className="text-3xl font-bold mb-2 text-white">
+                  <motion.div
+                    key="gameEnd"
+                    initial={{ opacity: 0 }}
+                    animate={{ opacity: 1 }}
+                    exit={{ opacity: 0 }}
+                    transition={{ duration: 0.3 }}
+                    className="absolute inset-0 bg-background/90 backdrop-blur-sm flex flex-col items-center justify-center z-10 rounded-2xl overflow-auto py-4"
+                  >
+                    <motion.h2
+                      initial={{ scale: 0.5, opacity: 0 }}
+                      animate={{ scale: 1, opacity: 1 }}
+                      transition={{
+                        type: "spring",
+                        stiffness: 200,
+                        damping: 15,
+                      }}
+                      className="text-3xl font-bold mb-2 text-white"
+                    >
                       🎉 Game Over! 🎉
-                    </h2>
+                    </motion.h2>
                     <Podium players={players} />
 
                     {/* Room Settings (Host only) */}
                     {isHost && (
-                      <div className="w-full max-w-xs mt-4 bg-card/50 rounded-xl p-4 border border-card-border">
+                      <motion.div
+                        initial={{ y: 20, opacity: 0 }}
+                        animate={{ y: 0, opacity: 1 }}
+                        transition={{ delay: 2.5 }}
+                        className="w-full max-w-xs mt-4 bg-card/50 rounded-xl p-4 border border-card-border"
+                      >
                         <RoomSettingsPanel
                           settings={roomSettings}
                           onChange={handleSettingsChange}
                           disabled={isUpdatingSettings}
                           compact
                         />
-                      </div>
+                      </motion.div>
                     )}
 
                     {isHost && (
-                      <button
+                      <motion.button
+                        initial={{ y: 20, opacity: 0 }}
+                        animate={{ y: 0, opacity: 1 }}
+                        transition={{ delay: 2.7 }}
+                        whileHover={{ scale: 1.05 }}
+                        whileTap={{ scale: 0.95 }}
                         onClick={handleStartGame}
                         disabled={isStarting}
                         className="mt-4 px-8 py-3 rounded-lg font-semibold text-lg bg-success text-white hover:bg-success-hover border-2 border-success-dark transition-all"
                       >
                         {isStarting ? "Starting..." : "Play Again"}
-                      </button>
+                      </motion.button>
                     )}
                     {!isHost && (
-                      <p className="mt-4 text-white/60">
+                      <motion.p
+                        initial={{ opacity: 0 }}
+                        animate={{ opacity: 1 }}
+                        transition={{ delay: 2.5 }}
+                        className="mt-4 text-white/60"
+                      >
                         Waiting for host to start a new game...
-                      </p>
+                      </motion.p>
                     )}
-                  </div>
+                  </motion.div>
                 )}
+              </AnimatePresence>
 
-                <WordHint />
-                <div className="flex-1 min-h-0 flex items-center justify-center">
-                  <DrawingCanvas disabled={!canDraw} />
-                </div>
+              <WordHint />
+              <div className="flex-1 min-h-0 flex items-center justify-center">
+                <DrawingCanvas disabled={!canDraw} />
               </div>
-            </div>
-
-            {/* Mobile Players View */}
-            <div
-              className={cn(
-                "flex-1 min-h-0 lg:hidden flex-col",
-                mobileTab !== "players" ? "hidden" : "flex"
-              )}
-            >
-              <PlayerList
-                players={players}
-                currentUsername={username ?? ""}
-                roomCode={roomCode ?? ""}
-                variant="mobile"
-              />
-            </div>
-
-            {/* Mobile Chat View */}
-            <div
-              className={cn(
-                "flex-1 min-h-0 lg:hidden flex-col",
-                mobileTab !== "chat" ? "hidden" : "flex"
-              )}
-            >
-              <ChatPanel variant="mobile" />
             </div>
           </div>
 
-          {/* Right Sidebar - Chat (Desktop only) */}
-          <div className="w-72 hidden lg:flex flex-col shrink-0 h-full">
+          {/* Right Sidebar - Chat */}
+          <div className="w-72 flex flex-col shrink-0 h-full">
             <ChatPanel variant="desktop" />
           </div>
         </div>
+      </div>
+
+      {/* Mobile Layout - Grid */}
+      <div className="lg:hidden grid grid-rows-[auto_1fr_minmax(100px,180px)_auto] gap-2 h-full w-full">
+        {/* Row 1: Header */}
+        <MobileGameHeader
+          roomCode={roomCode ?? ""}
+          onShare={handleShareRoom}
+          onLeave={handleLeaveRoom}
+          showCopied={showCopied}
+        />
+
+        {/* Row 2: Canvas */}
+        <div className="min-h-0 overflow-hidden">
+          <div className="bg-card rounded-xl p-2 border-4 border-card-border shadow-lg h-full flex flex-col overflow-hidden relative">
+            <AnimatePresence mode="wait">
+              {/* Lobby Overlay */}
+              {phase === "lobby" && (
+                <motion.div
+                  key="lobby-mobile"
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  exit={{ opacity: 0 }}
+                  transition={{ duration: 0.3 }}
+                  className="absolute inset-0 bg-background/80 backdrop-blur-sm flex flex-col items-center justify-center z-10 rounded-xl overflow-auto p-3"
+                >
+                  <motion.h2
+                    initial={{ y: -20, opacity: 0 }}
+                    animate={{ y: 0, opacity: 1 }}
+                    transition={{ delay: 0.1 }}
+                    className="text-lg font-bold mb-1 text-white"
+                  >
+                    Waiting for players...
+                  </motion.h2>
+                  <p className="text-white/60 text-sm mb-3">
+                    {players.length} player{players.length !== 1 ? "s" : ""} in
+                    lobby
+                  </p>
+
+                  {isHost && (
+                    <motion.div
+                      initial={{ scale: 0.95, opacity: 0 }}
+                      animate={{ scale: 1, opacity: 1 }}
+                      transition={{ delay: 0.2 }}
+                      className="w-full max-w-xs mb-3 bg-card/50 rounded-xl p-3 border border-card-border"
+                    >
+                      <RoomSettingsPanel
+                        settings={roomSettings}
+                        onChange={handleSettingsChange}
+                        disabled={isUpdatingSettings}
+                        compact
+                      />
+                    </motion.div>
+                  )}
+
+                  {!isHost && (
+                    <div className="text-white/50 text-xs mb-3 text-center">
+                      <p>
+                        ⏱️ {roomSettings.drawTimeSeconds}s • 🔄{" "}
+                        {roomSettings.totalRounds} rounds • 🎯{" "}
+                        {roomSettings.difficulty}
+                      </p>
+                    </div>
+                  )}
+
+                  {isHost ? (
+                    <motion.button
+                      whileHover={{ scale: 1.05 }}
+                      whileTap={{ scale: 0.95 }}
+                      onClick={handleStartGame}
+                      disabled={isStarting || players.length < 2}
+                      className={cn(
+                        "px-6 py-2 rounded-lg font-semibold transition-all",
+                        players.length < 2
+                          ? "bg-card-border text-white/40 cursor-not-allowed"
+                          : "bg-success text-white hover:bg-success-hover border-2 border-success-dark"
+                      )}
+                    >
+                      {isStarting
+                        ? "Starting..."
+                        : players.length < 2
+                        ? "Need 2+ players"
+                        : "Start Game"}
+                    </motion.button>
+                  ) : (
+                    <p className="text-white/60 text-sm">
+                      Waiting for host to start...
+                    </p>
+                  )}
+                </motion.div>
+              )}
+
+              {/* Word Selection Waiting Overlay */}
+              {phase === "wordSelection" && !isDrawer && (
+                <motion.div
+                  key="wordSelection-mobile"
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  exit={{ opacity: 0 }}
+                  transition={{ duration: 0.3 }}
+                  className="absolute inset-0 bg-background/80 backdrop-blur-sm flex flex-col items-center justify-center z-10 rounded-xl"
+                >
+                  <motion.h2
+                    initial={{ scale: 0.8, opacity: 0 }}
+                    animate={{ scale: 1, opacity: 1 }}
+                    className="text-lg font-bold mb-3 text-white text-center px-4"
+                  >
+                    {currentDrawer?.username} is choosing...
+                  </motion.h2>
+                  <motion.div
+                    animate={{ rotate: 360 }}
+                    transition={{
+                      duration: 2,
+                      repeat: Infinity,
+                      ease: "linear",
+                    }}
+                    className="relative w-12 h-12 mb-2"
+                  >
+                    <div className="absolute inset-0 border-4 border-accent/20 rounded-full"></div>
+                    <div className="absolute inset-0 border-4 border-transparent border-t-accent rounded-full"></div>
+                    <div className="absolute inset-0 flex items-center justify-center text-xl">
+                      🎨
+                    </div>
+                  </motion.div>
+                  <p className="text-white/50 text-xs">Get ready to guess!</p>
+                </motion.div>
+              )}
+
+              {/* Round End Overlay */}
+              {phase === "roundEnd" && (
+                <motion.div
+                  key="roundEnd-mobile"
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  exit={{ opacity: 0 }}
+                  transition={{ duration: 0.3 }}
+                  className="absolute inset-0 bg-background/80 backdrop-blur-sm flex flex-col items-center justify-center z-10 rounded-xl"
+                >
+                  <motion.h2
+                    initial={{ y: -20, opacity: 0 }}
+                    animate={{ y: 0, opacity: 1 }}
+                    className="text-lg font-bold mb-1 text-white"
+                  >
+                    Round Over!
+                  </motion.h2>
+                  <motion.p
+                    initial={{ scale: 0.5, opacity: 0 }}
+                    animate={{ scale: 1, opacity: 1 }}
+                    transition={{ delay: 0.2 }}
+                    className="text-lg text-accent mb-2"
+                  >
+                    The word was:{" "}
+                    <span className="font-bold">{currentWord}</span>
+                  </motion.p>
+                  <div className="flex items-center gap-2 text-white/60 text-sm">
+                    <div className="w-3 h-3 border-2 border-white/30 border-t-white/70 rounded-full animate-spin"></div>
+                    <p>Next round...</p>
+                  </div>
+                </motion.div>
+              )}
+
+              {/* Game End Overlay */}
+              {phase === "gameEnd" && (
+                <motion.div
+                  key="gameEnd-mobile"
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  exit={{ opacity: 0 }}
+                  transition={{ duration: 0.3 }}
+                  className="absolute inset-0 bg-background/90 backdrop-blur-sm flex flex-col items-center justify-center z-10 rounded-xl overflow-auto py-3"
+                >
+                  <motion.h2
+                    initial={{ scale: 0.5, opacity: 0 }}
+                    animate={{ scale: 1, opacity: 1 }}
+                    className="text-xl font-bold mb-2 text-white"
+                  >
+                    🎉 Game Over! 🎉
+                  </motion.h2>
+                  <Podium players={players} />
+
+                  {isHost && (
+                    <motion.button
+                      initial={{ y: 20, opacity: 0 }}
+                      animate={{ y: 0, opacity: 1 }}
+                      transition={{ delay: 2.7 }}
+                      whileHover={{ scale: 1.05 }}
+                      whileTap={{ scale: 0.95 }}
+                      onClick={handleStartGame}
+                      disabled={isStarting}
+                      className="mt-3 px-6 py-2 rounded-lg font-semibold bg-success text-white hover:bg-success-hover border-2 border-success-dark transition-all"
+                    >
+                      {isStarting ? "Starting..." : "Play Again"}
+                    </motion.button>
+                  )}
+                  {!isHost && (
+                    <motion.p
+                      initial={{ opacity: 0 }}
+                      animate={{ opacity: 1 }}
+                      transition={{ delay: 2.5 }}
+                      className="mt-3 text-white/60 text-sm"
+                    >
+                      Waiting for host...
+                    </motion.p>
+                  )}
+                </motion.div>
+              )}
+            </AnimatePresence>
+
+            <WordHint />
+            <GamePhaseIndicator />
+            <div className="flex-1 min-h-0 flex items-center justify-center">
+              <DrawingCanvas disabled={!canDraw} />
+            </div>
+          </div>
+        </div>
+
+        {/* Row 3: Players & Chat side by side */}
+        <div className="grid grid-cols-2 min-h-0 overflow-hidden">
+          <MobilePlayerList
+            players={players}
+            currentUsername={username ?? ""}
+          />
+          <MobileChatMessages />
+        </div>
+
+        {/* Row 4: Chat Input */}
+        <MobileChatInput />
       </div>
     </div>
   );
