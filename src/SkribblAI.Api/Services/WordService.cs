@@ -37,6 +37,31 @@ public class WordService : IWordService
 
     public string RevealLetter(string word, string currentHint)
     {
+        var isMultiWord = word.Contains(' ');
+        if (isMultiWord)
+        {
+            var wordParts = word.Split(' ');
+            var hintParts = currentHint.Split("  ", StringSplitOptions.RemoveEmptyEntries);
+            var newHintParts = new List<string>();
+            var randomWordPart = wordParts.Shuffle().First();
+            var randomWordPartIndex = Array.IndexOf(wordParts, randomWordPart);
+
+            for (var i = 0; i < wordParts.Length; i++)
+            {
+                if (i == randomWordPartIndex)
+                {
+                    var revealedPart = RevealLetter(randomWordPart, hintParts[i]);
+                    newHintParts.Add(revealedPart);
+                }
+                else
+                {
+                    newHintParts.Add(hintParts[i]);
+                }
+            }
+
+            return string.Join("   ", newHintParts);
+        }
+
         var currentHintCharArray = currentHint.Split(" ", StringSplitOptions.RemoveEmptyEntries);
         var concatenatedCurrentHint = string.Join("", currentHintCharArray);
         List<int> underscoreIndexes = [];
