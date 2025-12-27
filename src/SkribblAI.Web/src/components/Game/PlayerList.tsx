@@ -93,6 +93,12 @@ export default function PlayerList({
     };
   }, []);
 
+  useEffect(() => {
+    if (activeVoteKick && selectedPlayer) {
+      setSelectedPlayer(null);
+    }
+  }, [activeVoteKick, selectedPlayer]);
+
   // Get visible popup points for a player
   const getPopupPoints = (username: string): number => {
     return visiblePopups.get(username) ?? 0;
