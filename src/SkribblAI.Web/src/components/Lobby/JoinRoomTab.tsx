@@ -1,4 +1,4 @@
-import { cn } from "@/lib/utils";
+import { Button, Input } from "@/components/ui";
 
 interface JoinRoomTabProps {
   roomCode: string;
@@ -19,43 +19,34 @@ export default function JoinRoomTab({
 }: JoinRoomTabProps) {
   return (
     <form onSubmit={onSubmit} className="flex flex-col gap-4">
-      <div className="flex flex-col gap-2">
-        <label
-          htmlFor="roomCode"
-          className="font-bold text-white text-sm flex items-center gap-2"
-        >
-          <span>🔑</span> ROOM CODE
-        </label>
-        <input
-          type="text"
-          id="roomCode"
-          value={roomCode}
-          onChange={(e) => onRoomCodeChange(e.target.value.toUpperCase())}
-          placeholder="Enter 6-character code..."
-          maxLength={6}
-          required
-          className="px-4 py-4 bg-background border-4 border-card-border rounded-2xl text-lg text-white font-mono font-bold tracking-widest transition-all duration-200 focus:outline-none focus:border-accent focus:ring-4 focus:ring-accent/20 placeholder:text-white/30 placeholder:font-normal placeholder:tracking-normal"
-        />
-      </div>
+      <Input
+        id="roomCode"
+        label="ROOM CODE"
+        leftIcon={<span>🔑</span>}
+        value={roomCode}
+        onChange={(e) => onRoomCodeChange(e.target.value.toUpperCase())}
+        placeholder="Enter 6-character code..."
+        maxLength={6}
+        required
+        className="font-mono font-bold tracking-widest text-lg h-14"
+      />
 
       {error && (
-        <div className="bg-danger/20 border-2 border-danger rounded-xl p-3 text-danger text-sm">
+        <div className="bg-danger/20 border-2 border-danger rounded-xl p-3 text-danger text-sm animate-in slide-in-from-top-2 fade-in-0">
           {error}
         </div>
       )}
 
-      <button
+      <Button
         type="submit"
-        disabled={isJoining || isDisabled}
-        className={cn(
-          "py-4 mt-2 text-white border-4 rounded-2xl text-xl font-black transition-all duration-200 bg-success border-success-dark hover:bg-success-hover",
-          isJoining || isDisabled
-            ? "opacity-70 cursor-not-allowed"
-            : "cursor-pointer hover:-translate-y-1 hover:shadow-xl active:translate-y-0 active:shadow-md"
-        )}
+        variant="success"
+        size="lg"
+        isLoading={isJoining}
+        disabled={isDisabled}
+        className="mt-2 text-xl font-black w-full"
       >
-        {isJoining ? "⏳ Connecting..." : "🚀 JOIN GAME!"}
-      </button>
+        {isJoining ? "Connecting..." : "JOIN GAME!"}
+      </Button>
     </form>
   );
 }

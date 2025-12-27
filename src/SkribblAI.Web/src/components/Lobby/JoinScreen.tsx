@@ -11,6 +11,8 @@ import type { PublicRoom, RoomSettings } from "@/models";
 import { useConnectionStore } from "@/stores/connectionStore";
 import { useRoomStore } from "@/stores/roomStore";
 import { useState } from "react";
+import { Input } from "@/components/ui";
+import { motion, AnimatePresence } from "framer-motion";
 
 interface JoinScreenProps {
   onJoinGame: (
@@ -149,7 +151,12 @@ export default function JoinScreen({
       </div>
 
       {/* Main Container */}
-      <div className="relative z-10 w-full max-w-lg">
+      <motion.div
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.5 }}
+        className="relative z-10 w-full max-w-lg"
+      >
         {/* Logo */}
         <div className="text-center mb-6">
           <h1 className="text-7xl font-black tracking-tight mb-2 drop-shadow-lg">
@@ -197,63 +204,68 @@ export default function JoinScreen({
           </div>
 
           {/* Username Input - Always Visible */}
-          <div className="flex flex-col gap-2 mb-4">
-            <label
-              htmlFor="username"
-              className="font-bold text-white text-sm flex items-center gap-2"
-            >
-              <span>👤</span> YOUR NAME
-            </label>
-            <input
-              type="text"
+          <div className="mb-4">
+            <Input
               id="username"
+              label="YOUR NAME"
+              leftIcon={<span>👤</span>}
               value={username}
               onChange={(e) => setUsername(e.target.value)}
               placeholder="Enter a cool nickname..."
               maxLength={20}
-              className="px-4 py-4 bg-background border-4 border-card-border rounded-2xl text-lg text-white font-medium transition-all duration-200 focus:outline-none focus:border-accent focus:ring-4 focus:ring-accent/20 placeholder:text-white/30"
+              className="text-lg font-medium h-14"
             />
           </div>
 
           {/* Tab Content */}
-          {activeTab === "join" && (
-            <JoinRoomTab
-              roomCode={roomCode}
-              onRoomCodeChange={setRoomCode}
-              onSubmit={handleJoinRoom}
-              isJoining={isJoining}
-              isDisabled={!hasUsername}
-              error={error}
-            />
-          )}
+          <AnimatePresence mode="wait">
+            <motion.div
+              key={activeTab}
+              initial={{ opacity: 0, x: 20 }}
+              animate={{ opacity: 1, x: 0 }}
+              exit={{ opacity: 0, x: -20 }}
+              transition={{ duration: 0.2 }}
+            >
+              {activeTab === "join" && (
+                <JoinRoomTab
+                  roomCode={roomCode}
+                  onRoomCodeChange={setRoomCode}
+                  onSubmit={handleJoinRoom}
+                  isJoining={isJoining}
+                  isDisabled={!hasUsername}
+                  error={error}
+                />
+              )}
 
-          {activeTab === "create" && (
-            <CreateRoomTab
-              isPublicRoom={isPublicRoom}
-              onTogglePublic={() => setIsPublicRoom(!isPublicRoom)}
-              onSubmit={handleCreateRoom}
-              isJoining={isJoining}
-              isDisabled={!hasUsername}
-              error={error}
-            />
-          )}
+              {activeTab === "create" && (
+                <CreateRoomTab
+                  isPublicRoom={isPublicRoom}
+                  onTogglePublic={() => setIsPublicRoom(!isPublicRoom)}
+                  onSubmit={handleCreateRoom}
+                  isJoining={isJoining}
+                  isDisabled={!hasUsername}
+                  error={error}
+                />
+              )}
 
-          {activeTab === "public" && (
-            <PublicRoomsTab
-              publicRooms={publicRooms}
-              isLoadingRooms={isLoadingRooms}
-              onRefresh={refreshPublicRooms}
-              onJoinRoom={handleJoinPublicRoom}
-              isJoining={isJoining}
-              hasUsername={hasUsername}
-              error={error}
-            />
-          )}
+              {activeTab === "public" && (
+                <PublicRoomsTab
+                  publicRooms={publicRooms}
+                  isLoadingRooms={isLoadingRooms}
+                  onRefresh={refreshPublicRooms}
+                  onJoinRoom={handleJoinPublicRoom}
+                  isJoining={isJoining}
+                  hasUsername={hasUsername}
+                  error={error}
+                />
+              )}
+            </motion.div>
+          </AnimatePresence>
         </div>
 
         {/* How to Play */}
         <HowToPlay />
-      </div>
+      </motion.div>
     </div>
   );
 }
