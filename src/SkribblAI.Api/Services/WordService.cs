@@ -41,10 +41,17 @@ public class WordService : IWordService
         if (isMultiWord)
         {
             var wordParts = word.Split(' ');
-            var hintParts = currentHint.Split("  ", StringSplitOptions.RemoveEmptyEntries);
+            var hintParts = currentHint.Split("   ", StringSplitOptions.RemoveEmptyEntries);
+
+            if (hintParts.Length != wordParts.Length)
+            {
+                throw new InvalidOperationException(
+                    $"Hint format mismatch: expected {wordParts.Length} parts but found {hintParts.Length}");
+            }
+
             var newHintParts = new List<string>();
-            var randomWordPart = wordParts.Shuffle().First();
-            var randomWordPartIndex = Array.IndexOf(wordParts, randomWordPart);
+            var randomWordPartIndex = Random.Shared.Next(wordParts.Length);
+            var randomWordPart = wordParts[randomWordPartIndex];
 
             for (var i = 0; i < wordParts.Length; i++)
             {
