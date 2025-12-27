@@ -63,6 +63,9 @@ export default function MobilePlayerList({
     return true;
   };
 
+  // Sort players by score descending
+  const sortedPlayers = [...players].sort((a, b) => b.score - a.score);
+
   return (
     <div className="bg-card rounded-xl p-2 border-4 border-card-border h-full flex flex-col overflow-hidden">
       <h3 className="text-white font-bold text-xs mb-1 flex items-center gap-1 shrink-0">
@@ -70,7 +73,8 @@ export default function MobilePlayerList({
       </h3>
       <div className="space-y-1 flex-1 overflow-y-auto pt-6 -mt-6">
         <AnimatePresence mode="popLayout">
-          {players.map((player) => {
+          {sortedPlayers.map((player, index) => {
+            const rank = index + 1;
             const isCurrentDrawer =
               player.username === currentDrawerUsername && isDrawingPhase;
             const hasGuessedCorrectly =
@@ -157,6 +161,11 @@ export default function MobilePlayerList({
                     </motion.div>
                   )}
                 </AnimatePresence>
+
+                {/* Rank */}
+                <span className="text-white/50 font-bold text-[10px] w-3 text-center">
+                  #{rank}
+                </span>
 
                 {player.isHost && <span className="text-[10px]">👑</span>}
                 <span className="text-white text-sm">

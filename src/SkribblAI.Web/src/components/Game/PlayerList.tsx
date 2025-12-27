@@ -83,6 +83,9 @@ export default function PlayerList({
 
   };
 
+  // Sort players by score descending
+  const sortedPlayers = [...players].sort((a, b) => b.score - a.score);
+
   return (
     <div
       className={cn(
@@ -100,7 +103,8 @@ export default function PlayerList({
       </h3>
       <div className="space-y-2 flex-1 overflow-y-auto pt-12 -mt-12 px-1">
         <AnimatePresence mode="popLayout">
-          {players.map((player) => {
+          {sortedPlayers.map((player, index) => {
+            const rank = index + 1;
             const isCurrentDrawer =
               player.username === currentDrawerUsername && isDrawingPhase;
             const hasGuessedCorrectly =
@@ -191,6 +195,12 @@ export default function PlayerList({
                     </motion.div>
                   )}
                 </AnimatePresence>
+                
+                {/* Rank */}
+                <span className="text-white/50 font-bold text-xs w-5 text-center">
+                  #{rank}
+                </span>
+
                 {player.isHost && (
                   <span className={isDesktop ? "text-sm" : "text-lg"}>👑</span>
                 )}
