@@ -383,7 +383,8 @@ export default function GameScreen() {
                     <div className="text-white/50 text-xs mb-3 text-center">
                       <p>
                         ⏱️ {roomSettings.drawTimeSeconds}s • 🔄{" "}
-                        {roomSettings.totalRounds} rounds • 🎯{" "}
+                        {roomSettings.totalRounds} round
+                        {roomSettings.totalRounds !== 1 ? "s" : ""} • 🎯{" "}
                         {roomSettings.difficulty}
                       </p>
                     </div>
