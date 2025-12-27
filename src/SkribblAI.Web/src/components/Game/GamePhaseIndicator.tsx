@@ -139,15 +139,17 @@ export default function GamePhaseIndicator() {
         </div>
         {content.showTimer && timeRemaining > 0 && (
           <motion.div
-            key={timeRemaining <= dangerThreshold ? "warning" : "normal"}
-            initial={timeRemaining <= dangerThreshold ? { scale: 1.1 } : {}}
             animate={
               timeRemaining <= dangerThreshold
                 ? {
                     scale: [1, 1.1, 1],
-                    transition: { repeat: Infinity, duration: 0.5 },
                   }
                 : { scale: 1 }
+            }
+            transition={
+              timeRemaining <= dangerThreshold
+                ? { repeat: Infinity, duration: 0.5 }
+                : { duration: 0.2 }
             }
             className={cn(
               "px-3 py-1 rounded-lg font-mono font-bold text-lg shadow-lg",
