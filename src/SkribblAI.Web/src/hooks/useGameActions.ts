@@ -12,12 +12,18 @@ export function useGameActions() {
   const [showCopied, setShowCopied] = useState(false);
   const [isStarting, setIsStarting] = useState(false);
   const [isUpdatingSettings, setIsUpdatingSettings] = useState(false);
+  const [isLeaving, setIsLeaving] = useState(false);
 
   const handleLeaveRoom = async () => {
+    if (isLeaving) return;
+    setIsLeaving(true);
+
     try {
       await leaveRoom();
     } catch (error) {
       logger.error("Failed to leave room", error);
+    } finally {
+      setIsLeaving(false);
     }
   };
 
@@ -62,6 +68,7 @@ export function useGameActions() {
     showCopied,
     isStarting,
     isUpdatingSettings,
+    isLeaving,
     handleLeaveRoom,
     handleShareRoom,
     handleStartGame,
