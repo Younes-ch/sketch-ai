@@ -18,6 +18,32 @@ export default function WordHint() {
   // Replace spaces with multiple non-breaking spaces to make word boundaries visible
   const displayText = rawDisplayText.replace(/\s\s/g, "\u00A0\u00A0\u00A0");
 
+  // Calculate word lengths for multi-word hints
+  // Hint format: each letter is separated by a space, words are separated by extra spaces
+  // e.g., "ice cream" becomes "_ _ _   _ _ _ _ _" (letters separated by " ", words by "   ")
+  const getWordLengths = (): string => {
+    const hintToUse = wordHint || "";
+    if (!hintToUse.trim()) return "";
+
+    // Split by 3+ consecutive spaces to find word boundaries
+    // Each word's letters are separated by single spaces
+    const wordParts = hintToUse.split(/\s{3,}/);
+    if (wordParts.length === 0) return "";
+
+    // Count the number of characters in each word (split by single space)
+    const lengths = wordParts
+      .map((part) => {
+        // Each character is separated by space, so split and count non-empty entries
+        const chars = part.split(" ").filter((c) => c.length > 0);
+        return chars.length;
+      })
+      .filter((len) => len > 0);
+
+    return lengths.join(" ");
+  };
+
+  const wordLengthsDisplay = getWordLengths();
+
   // Don't show if there's no word/hint to display
   if (!displayText && phase !== "drawing") {
     return null;
@@ -36,10 +62,8 @@ export default function WordHint() {
       >
         {displayText || "_ _ _ _ _"}
       </p>
-      {isDrawingPhase && !isDrawer && displayText && (
-        <p className="text-white/40 text-xs mt-1">
-          {displayText.replace(/\s/g, "").length} letters
-        </p>
+      {isDrawingPhase && !isDrawer && wordLengthsDisplay && (
+        <p className="text-white/40 text-xs mt-1">{`${wordLengthsDisplay}`}</p>
       )}
     </div>
   );

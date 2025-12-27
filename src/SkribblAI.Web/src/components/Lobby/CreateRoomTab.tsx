@@ -2,6 +2,7 @@ import { cn } from "@/lib/utils";
 import { useState } from "react";
 import { defaultRoomSettings, type RoomSettings } from "@/models";
 import RoomSettingsPanel from "./RoomSettingsPanel";
+import { Button } from "@/components/ui";
 
 interface CreateRoomTabProps {
   isPublicRoom: boolean;
@@ -54,7 +55,7 @@ export default function CreateRoomTab({
           type="button"
           onClick={onTogglePublic}
           className={cn(
-            "relative w-14 h-8 rounded-full transition-colors duration-200",
+            "relative w-14 h-8 rounded-full transition-colors duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent",
             isPublicRoom ? "bg-success" : "bg-card-border"
           )}
         >
@@ -71,7 +72,7 @@ export default function CreateRoomTab({
       <button
         type="button"
         onClick={() => setShowSettings(!showSettings)}
-        className="flex items-center justify-between bg-background rounded-2xl p-4 border-2 border-card-border hover:border-accent transition-colors"
+        className="flex items-center justify-between bg-background rounded-2xl p-4 border-2 border-card-border hover:border-accent transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent"
       >
         <div className="flex items-center gap-2">
           <span className="text-xl">⚙️</span>
@@ -97,7 +98,7 @@ export default function CreateRoomTab({
 
       {/* Expandable Settings Panel */}
       {showSettings && (
-        <div className="bg-background rounded-2xl p-4 border-2 border-card-border">
+        <div className="bg-background rounded-2xl p-4 border-2 border-card-border animate-in slide-in-from-top-2 fade-in-0">
           <RoomSettingsPanel
             settings={settings}
             onChange={handleSettingsChange}
@@ -106,23 +107,21 @@ export default function CreateRoomTab({
       )}
 
       {error && (
-        <div className="bg-danger/20 border-2 border-danger rounded-xl p-3 text-danger text-sm">
+        <div className="bg-danger/20 border-2 border-danger rounded-xl p-3 text-danger text-sm animate-in slide-in-from-top-2 fade-in-0">
           {error}
         </div>
       )}
 
-      <button
+      <Button
         type="submit"
-        disabled={isJoining || isDisabled}
-        className={cn(
-          "py-4 mt-2 text-white border-4 rounded-2xl text-xl font-black transition-all duration-200 bg-info border-info-dark hover:bg-info-hover",
-          isJoining || isDisabled
-            ? "opacity-70 cursor-not-allowed"
-            : "cursor-pointer hover:-translate-y-1 hover:shadow-xl active:translate-y-0 active:shadow-md"
-        )}
+        variant="primary"
+        size="lg"
+        isLoading={isJoining}
+        disabled={isDisabled}
+        className="mt-2 text-xl font-black w-full"
       >
-        {isJoining ? "⏳ Creating..." : "🎮 CREATE & PLAY!"}
-      </button>
+        {isJoining ? "Creating..." : "CREATE & PLAY!"}
+      </Button>
     </form>
   );
 }

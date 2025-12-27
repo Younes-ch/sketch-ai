@@ -1,3 +1,4 @@
+import { motion, AnimatePresence } from "framer-motion";
 import { useGameStore } from "@/stores/gameStore";
 import { useRoomStore } from "@/stores/roomStore";
 import { cn } from "@/lib/utils";
@@ -9,6 +10,7 @@ export default function GamePhaseIndicator() {
   const totalRounds = useGameStore((s) => s.totalRounds);
   const timeRemaining = useGameStore((s) => s.timeRemaining);
   const players = useRoomStore((s) => s.players);
+  const roomSettings = useRoomStore((s) => s.roomSettings);
 
   const getPhaseContent = () => {
     switch (phase) {
@@ -84,36 +86,94 @@ export default function GamePhaseIndicator() {
       : `${secs}s`;
   };
 
+  // Calculate progress percentage
+  const progress =
+    phase === "drawing" && roomSettings.drawTimeSeconds > 0
+      ? Math.max(
+          0,
+          Math.min(100, (timeRemaining / roomSettings.drawTimeSeconds) * 100)
+        )
+      : 0;
+
+  const dangerThreshold = roomSettings.drawTimeSeconds * 0.25;
+  const warningThreshold = roomSettings.drawTimeSeconds * 0.5;
+
   return (
-    <div
-      className={cn(
-        "flex items-center gap-3 px-4 py-2 rounded-xl transition-all duration-300 mb-3",
-        content.bgColor
+    <div className="relative overflow-hidden rounded-xl mb-3">
+      {/* Progress Bar Background */}
+      {content.showTimer && (
+        <div className="absolute inset-0 bg-card-border/50" />
       )}
-    >
-      <span className="text-2xl">{content.icon}</span>
-      <div className="flex-1">
-        <p className={cn("font-bold text-sm", content.color)}>
-          {content.title}
-        </p>
-        {content.subtitle && (
-          <p className="text-white/50 text-xs">{content.subtitle}</p>
+
+      {/* Progress Bar */}
+      {content.showTimer && (
+        <motion.div
+          className={cn(
+            "absolute inset-0 opacity-20",
+            timeRemaining <= dangerThreshold
+              ? "bg-danger"
+              : timeRemaining <= warningThreshold
+              ? "bg-warning"
+              : "bg-success"
+          )}
+          initial={{ width: `${progress}%` }}
+          animate={{ width: `${progress}%` }}
+          transition={{ duration: 1, ease: "linear" }}
+        />
+      )}
+
+      <div
+        className={cn(
+          "relative flex items-center gap-3 px-4 py-2 transition-all duration-300",
+          content.bgColor
+        )}
+      >
+        <span className="text-2xl">{content.icon}</span>
+        <div className="flex-1">
+          <p className={cn("font-bold text-sm", content.color)}>
+            {content.title}
+          </p>
+          {content.subtitle && (
+            <p className="text-white/50 text-xs">{content.subtitle}</p>
+          )}
+        </div>
+        {content.showTimer && timeRemaining > 0 && (
+          <motion.div
+            animate={
+              timeRemaining <= dangerThreshold
+                ? {
+                    scale: [1, 1.1, 1],
+                  }
+                : { scale: 1 }
+            }
+            transition={
+              timeRemaining <= dangerThreshold
+                ? { repeat: Infinity, duration: 0.5 }
+                : { duration: 0.2 }
+            }
+            className={cn(
+              "px-3 py-1 rounded-lg font-mono font-bold text-lg shadow-lg",
+              timeRemaining <= dangerThreshold
+                ? "bg-danger text-white"
+                : timeRemaining <= warningThreshold
+                ? "bg-warning text-background"
+                : "bg-success text-white"
+            )}
+          >
+            <AnimatePresence mode="wait">
+              <motion.span
+                key={timeRemaining}
+                initial={{ opacity: 0, y: -10 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: 10 }}
+                transition={{ duration: 0.15 }}
+              >
+                {formatTime(timeRemaining)}
+              </motion.span>
+            </AnimatePresence>
+          </motion.div>
         )}
       </div>
-      {content.showTimer && timeRemaining > 0 && (
-        <div
-          className={cn(
-            "px-3 py-1 rounded-lg font-mono font-bold text-lg",
-            timeRemaining <= 10
-              ? "bg-danger text-white animate-pulse"
-              : timeRemaining <= 30
-              ? "bg-warning text-background"
-              : "bg-success text-white"
-          )}
-        >
-          {formatTime(timeRemaining)}
-        </div>
-      )}
     </div>
   );
 }

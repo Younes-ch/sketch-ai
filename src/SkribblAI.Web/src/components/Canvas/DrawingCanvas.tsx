@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState, useCallback, useMemo } from "react";
+import { useEffect, useRef, useState, useCallback, useMemo, memo } from "react";
 import simplify from "simplify-js";
 import type { Point, DrawingCommand } from "@/models";
 import { useCanvasStore } from "@/stores/canvasStore";
@@ -60,9 +60,7 @@ interface DrawingCanvasProps {
   disabled?: boolean;
 }
 
-export default function DrawingCanvas({
-  disabled = false,
-}: DrawingCanvasProps) {
+function DrawingCanvasComponent({ disabled = false }: DrawingCanvasProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
   const isDrawingRef = useRef(false);
@@ -188,16 +186,41 @@ export default function DrawingCanvas({
   }, []);
 
   // Handle pending canvas history (for late joiners)
+  // Use a separate effect to ensure canvas is ready before drawing
   useEffect(() => {
-    if (pendingCanvasHistory && pendingCanvasHistory.length > 0) {
-      logger.info(
-        `Drawing pending canvas history: ${pendingCanvasHistory.length} commands`
-      );
-      pendingCanvasHistory.forEach((command) => {
-        drawCommand(command);
+    if (!pendingCanvasHistory || pendingCanvasHistory.length === 0) {
+      return;
+    }
+
+    // Capture the history locally to avoid stale closure issues
+    const historyToProcess = pendingCanvasHistory;
+
+    const canvas = canvasRef.current;
+    if (!canvas) {
+      logger.warn("Canvas ref not ready for pending history, will retry...");
+      // Schedule a retry on next frame when canvas should be ready
+      const frameId = requestAnimationFrame(() => {
+        const retryCanvas = canvasRef.current;
+        if (retryCanvas) {
+          logger.info(
+            `Drawing pending canvas history (retry): ${historyToProcess.length} commands`
+          );
+          historyToProcess.forEach((command) => {
+            drawCommand(command);
+          });
+        }
       });
       clearPendingCanvasHistory();
+      return () => cancelAnimationFrame(frameId);
     }
+
+    logger.info(
+      `Drawing pending canvas history: ${historyToProcess.length} commands`
+    );
+    historyToProcess.forEach((command) => {
+      drawCommand(command);
+    });
+    clearPendingCanvasHistory();
   }, [pendingCanvasHistory, drawCommand, clearPendingCanvasHistory]);
 
   // Initialize SignalR listeners
@@ -455,6 +478,27 @@ export default function DrawingCanvas({
     }
   }, [clearCanvas, signalRClearCanvas]);
 
+  // Keyboard shortcut for clear canvas (Ctrl+X / Cmd+X)
+  useEffect(() => {
+    if (disabled) return;
+
+    const handleKeyDown = (e: KeyboardEvent) => {
+      // Clear canvas with Ctrl+Shift+X (Cmd+Shift+X on Mac)
+      // Using Shift to avoid conflict with cut operation
+      if (
+        (e.ctrlKey || e.metaKey) &&
+        e.shiftKey &&
+        e.key.toLowerCase() === "x"
+      ) {
+        e.preventDefault();
+        handleClearMemo();
+      }
+    };
+
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [disabled, handleClearMemo]);
+
   return (
     <div
       ref={containerRef}
@@ -499,3 +543,7 @@ export default function DrawingCanvas({
     </div>
   );
 }
+
+// Memoize the canvas component to prevent re-renders from parent timer updates
+const DrawingCanvas = memo(DrawingCanvasComponent);
+export default DrawingCanvas;

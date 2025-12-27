@@ -1,7 +1,8 @@
-import { useState, useRef, useEffect } from "react";
+import { useState, useRef, useEffect, useCallback } from "react";
 import { useChatStore } from "@/stores/chatStore";
 import { useGameStore } from "@/stores/gameStore";
 import { useRoomStore } from "@/stores/roomStore";
+import { ChevronDownIcon } from "@/components/ui/Icons";
 import { cn } from "@/lib/utils";
 import { logger } from "@/lib/logger";
 
@@ -22,6 +23,10 @@ export default function ChatPanel({ variant = "desktop" }: ChatPanelProps) {
   const [inputValue, setInputValue] = useState("");
   const [isSending, setIsSending] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  const messagesContainerRef = useRef<HTMLDivElement>(null);
+  const inputRef = useRef<HTMLInputElement>(null);
+  const [isUserScrolledUp, setIsUserScrolledUp] = useState(false);
+  const shouldMaintainFocusRef = useRef(false);
 
   // Check if current user is the drawer
   const isDrawer = currentDrawer?.username === username;
@@ -50,10 +55,42 @@ export default function ChatPanel({ variant = "desktop" }: ChatPanelProps) {
     return "Type your guess...";
   };
 
-  // Auto-scroll to bottom when new messages arrive
+  // Check if user is at the bottom of the scroll container
+  const isAtBottom = useCallback(() => {
+    const container = messagesContainerRef.current;
+    if (!container) return true;
+    const threshold = 50; // pixels from bottom to consider "at bottom"
+    return (
+      container.scrollHeight - container.scrollTop - container.clientHeight <
+      threshold
+    );
+  }, []);
+
+  // Handle scroll events to detect manual scrolling
+  const handleScroll = useCallback(() => {
+    setIsUserScrolledUp(!isAtBottom());
+  }, [isAtBottom]);
+
+  // Auto-scroll to bottom when new messages arrive (only if not manually scrolled up)
   useEffect(() => {
+    if (!isUserScrolledUp) {
+      messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+    }
+  }, [chatMessages, isUserScrolledUp]);
+
+  // Maintain focus on input after sending a message (handles close guess re-renders)
+  useEffect(() => {
+    if (shouldMaintainFocusRef.current && !isInputDisabled) {
+      inputRef.current?.focus();
+      shouldMaintainFocusRef.current = false;
+    }
+  }, [chatMessages, isInputDisabled]);
+
+  // Scroll to bottom helper
+  const scrollToBottom = useCallback(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
-  }, [chatMessages]);
+    setIsUserScrolledUp(false);
+  }, []);
 
   // Handle sending message
   const handleSubmit = async () => {
@@ -61,11 +98,13 @@ export default function ChatPanel({ variant = "desktop" }: ChatPanelProps) {
     if (!trimmedMessage || isSending || isInputDisabled) return;
 
     setIsSending(true);
+    shouldMaintainFocusRef.current = true;
     try {
       await sendGuess(trimmedMessage);
       setInputValue("");
     } catch (error) {
       logger.error("Failed to send message", error);
+      shouldMaintainFocusRef.current = false;
     } finally {
       setIsSending(false);
     }
@@ -104,7 +143,11 @@ export default function ChatPanel({ variant = "desktop" }: ChatPanelProps) {
       </h3>
 
       {/* Messages container */}
-      <div className="flex-1 bg-background rounded-xl p-3 mb-3 border-2 border-card-border overflow-y-auto min-h-0">
+      <div
+        ref={messagesContainerRef}
+        onScroll={handleScroll}
+        className="flex-1 bg-background rounded-xl p-3 mb-3 border-2 border-card-border overflow-y-auto min-h-0 relative"
+      >
         {chatMessages.length === 0 ? (
           <p
             className={cn(
@@ -167,6 +210,17 @@ export default function ChatPanel({ variant = "desktop" }: ChatPanelProps) {
             <div ref={messagesEndRef} />
           </div>
         )}
+
+        {/* Scroll to bottom button */}
+        {isUserScrolledUp && chatMessages.length > 0 && (
+          <button
+            onClick={scrollToBottom}
+            className="absolute bottom-2 right-2 bg-accent hover:bg-accent/80 text-white rounded-full p-2 shadow-lg transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-accent focus:ring-offset-2 focus:ring-offset-background"
+            aria-label="Scroll to bottom"
+          >
+            <ChevronDownIcon size={16} />
+          </button>
+        )}
       </div>
 
       {/* Character count indicator */}
@@ -193,6 +247,7 @@ export default function ChatPanel({ variant = "desktop" }: ChatPanelProps) {
       {/* Input area */}
       <div className="flex gap-2 shrink-0">
         <input
+          ref={inputRef}
           type="text"
           value={inputValue}
           onChange={(e) => setInputValue(e.target.value)}

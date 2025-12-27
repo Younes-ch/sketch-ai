@@ -3,6 +3,7 @@ import { useRoomStore } from "@/stores/roomStore";
 import { useState, useEffect, useRef } from "react";
 import { cn } from "@/lib/utils";
 import { logger } from "@/lib/logger";
+import { useAudio } from "@/hooks/useAudio";
 
 interface WordSelectionProps {
   words: string[];
@@ -13,11 +14,13 @@ export function WordSelection({ words, timeLimit = 15 }: WordSelectionProps) {
   const selectWord = useGameStore((s) => s.selectWord);
   const currentDrawer = useGameStore((s) => s.currentDrawer);
   const username = useRoomStore((s) => s.username);
+  const { play, stop } = useAudio();
 
   const [isSelecting, setIsSelecting] = useState(false);
   const [startTime] = useState(() => Date.now());
   const [elapsed, setElapsed] = useState(0);
   const hasAutoSelectedRef = useRef(false);
+  const lastPlayedSecondRef = useRef<number | null>(null);
 
   const isDrawer = currentDrawer?.username === username;
   const timeRemaining = Math.max(0, timeLimit - Math.floor(elapsed / 1000));
@@ -35,6 +38,17 @@ export function WordSelection({ words, timeLimit = 15 }: WordSelectionProps) {
         0,
         timeLimit - Math.floor(newElapsed / 1000)
       );
+
+      // Play countdown sound in the last 5 seconds
+      if (
+        currentTimeRemaining <= 5 &&
+        currentTimeRemaining > 0 &&
+        currentTimeRemaining !== lastPlayedSecondRef.current
+      ) {
+        lastPlayedSecondRef.current = currentTimeRemaining;
+        play("countdown");
+      }
+
       if (currentTimeRemaining === 0 && !hasAutoSelectedRef.current) {
         hasAutoSelectedRef.current = true;
         clearInterval(interval);
@@ -43,12 +57,12 @@ export function WordSelection({ words, timeLimit = 15 }: WordSelectionProps) {
           logger.error("Failed to auto-select word", error);
           hasAutoSelectedRef.current = false;
         });
+        stop("countdown");
       }
     }, 100);
 
     return () => clearInterval(interval);
-  }, [isDrawer, words, startTime, timeLimit, selectWord]);
-
+  }, [isDrawer, words, startTime, timeLimit, selectWord, play, stop]);
   // Only show if we're the drawer and have word choices
   if (!isDrawer || words.length === 0) {
     return null;
@@ -63,6 +77,8 @@ export function WordSelection({ words, timeLimit = 15 }: WordSelectionProps) {
     } catch (error) {
       logger.error("Failed to select word", error);
       setIsSelecting(false);
+    } finally {
+      stop("countdown");
     }
   };
 

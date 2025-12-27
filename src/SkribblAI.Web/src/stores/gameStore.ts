@@ -205,7 +205,6 @@ export function setupGameEventHandlers() {
     logger.info(`Next turn started, drawer: ${gameStateDto.currentDrawerUsername}`);
     useRoomStore.getState().setPlayers(gameStateDto.players);
     useGameStore.getState().setPlayersWhoGuessed(new Set());
-    useChatStore.getState().reset();
 
     const currentDrawer = gameStateDto.players.find(
       (p) => p.username === gameStateDto.currentDrawerUsername
@@ -227,6 +226,8 @@ export function setupGameEventHandlers() {
   const handleGameEnded = (data: { players: Player[], winnerUsernames: string[] }) => {
     logger.info("Game ended! Winners:", data.winnerUsernames.join(", "));
     useRoomStore.getState().setPlayers(data.players);
+    
+    useChatStore.getState().reset();
     
     useGameStore.getState().setGameState({
       phase: "gameEnd",
@@ -261,6 +262,8 @@ export function setupGameEventHandlers() {
     logger.info(`Game reset to lobby: ${data.reason}`);
     
     useRoomStore.getState().setPlayers(data.players);
+    
+    useChatStore.getState().reset();
     
     useChatStore.getState().addMessage({
       id: crypto.randomUUID(),
