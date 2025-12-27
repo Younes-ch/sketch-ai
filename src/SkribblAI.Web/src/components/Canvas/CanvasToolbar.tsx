@@ -49,7 +49,10 @@ function CanvasToolbarComponent({
   useEffect(() => {
     if (isExpanded) {
       // Save the previously focused element
-      previouslyFocusedRef.current = document.activeElement as HTMLElement;
+      const activeEl = document.activeElement;
+      if (activeEl instanceof HTMLElement) {
+        previouslyFocusedRef.current = activeEl;
+      }
 
       // Focus the first focusable element in the panel
       const panel = panelRef.current;
@@ -62,7 +65,10 @@ function CanvasToolbarComponent({
       }
     } else {
       // Restore focus when closing
-      if (previouslyFocusedRef.current) {
+      if (
+        previouslyFocusedRef.current &&
+        document.contains(previouslyFocusedRef.current)
+      ) {
         previouslyFocusedRef.current.focus();
         previouslyFocusedRef.current = null;
       }
