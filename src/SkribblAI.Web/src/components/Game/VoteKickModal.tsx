@@ -1,11 +1,13 @@
-import { motion, AnimatePresence } from "framer-motion";
-import { useRoomStore } from "@/stores/roomStore";
 import { logger } from "@/lib/logger";
+import { useRoomStore, useToastStore } from "@/stores";
+import { AnimatePresence, motion } from "framer-motion";
+import { useEffect, useState } from "react";
 
 export default function VoteKickModal() {
   const activeVoteKick = useRoomStore((s) => s.activeVoteKick);
   const username = useRoomStore((s) => s.username);
   const castVoteKick = useRoomStore((s) => s.castVoteKick);
+  const addToast = useToastStore((s) => s.addToast);
 
   if (!activeVoteKick) {
     return null;
@@ -21,6 +23,7 @@ export default function VoteKickModal() {
       await castVoteKick(voteToKick);
     } catch (error) {
       logger.error("Failed to cast vote:", error);
+      addToast("Failed to cast vote. Please try again.", "error");
     }
   };
 
