@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useRoomStore } from "@/stores/roomStore";
 import { useGameStore } from "@/stores/gameStore";
 import { logger } from "@/lib/logger";
@@ -14,6 +14,13 @@ export function useGameActions() {
   const [isUpdatingSettings, setIsUpdatingSettings] = useState(false);
   const [isLeaving, setIsLeaving] = useState(false);
 
+  useEffect(() => {
+    if (showCopied) {
+      const timeoutId = setTimeout(() => setShowCopied(false), 2000);
+      return () => clearTimeout(timeoutId);
+    }
+  }, [showCopied]);
+
   const handleLeaveRoom = async () => {
     if (isLeaving) return;
     setIsLeaving(true);
@@ -28,11 +35,15 @@ export function useGameActions() {
   };
 
   const handleShareRoom = async () => {
+    if (!roomCode) {
+      logger.error("Cannot share room: no room code available");
+      return;
+    }
+
     const shareUrl = `${window.location.origin}?room=${roomCode}`;
     try {
       await navigator.clipboard.writeText(shareUrl);
       setShowCopied(true);
-      setTimeout(() => setShowCopied(false), 2000);
     } catch (error) {
       logger.error("Failed to copy link", error);
     }
