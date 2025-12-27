@@ -9,12 +9,21 @@ interface ConfettiProps {
 }
 
 export function useConfetti() {
+  const prefersReducedMotion = useMemo(() => {
+    if (typeof window === "undefined" || !window.matchMedia) {
+      return false;
+    }
+    return window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+  }, []);
+
   const fire = useCallback(
     (options?: {
       particleCount?: number;
       spread?: number;
       origin?: { x: number; y: number };
     }) => {
+      if (prefersReducedMotion) return;
+
       const defaults = {
         particleCount: 100,
         spread: 70,
