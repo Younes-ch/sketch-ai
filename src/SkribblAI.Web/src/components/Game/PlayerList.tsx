@@ -1,12 +1,13 @@
-import { useRef, useEffect, useState, useCallback } from "react";
-import { motion, AnimatePresence } from "framer-motion";
-import type { Player } from "@/models";
-import { useGameStore } from "@/stores/gameStore";
-import { useChatStore } from "@/stores/chatStore";
-import { useRoomStore } from "@/stores/roomStore";
 import { ScorePopup } from "@/components/effects/ScorePopup";
-import { cn } from "@/lib/utils";
 import { logger } from "@/lib/logger";
+import { cn } from "@/lib/utils";
+import type { Player } from "@/models";
+import { useToastStore } from "@/stores";
+import { useChatStore } from "@/stores/chatStore";
+import { useGameStore } from "@/stores/gameStore";
+import { useRoomStore } from "@/stores/roomStore";
+import { AnimatePresence, motion } from "framer-motion";
+import { useCallback, useEffect, useRef, useState } from "react";
 
 interface PlayerListProps {
   players: Player[];
@@ -30,6 +31,7 @@ export default function PlayerList({
   const kickPlayer = useRoomStore((s) => s.kickPlayer);
   const startVoteKick = useRoomStore((s) => s.startVoteKick);
   const activeVoteKick = useRoomStore((s) => s.activeVoteKick);
+  const addToast = useToastStore((s) => s.addToast);
 
   const [selectedPlayer, setSelectedPlayer] = useState<string | null>(null);
   // Track score popups that should be visible (persists for animation duration)
@@ -114,6 +116,7 @@ export default function PlayerList({
       setSelectedPlayer(null);
     } catch (error) {
       logger.error("Failed to kick player:", error);
+      addToast("Failed to kick player", "error");
     }
   };
 
@@ -123,6 +126,7 @@ export default function PlayerList({
       setSelectedPlayer(null);
     } catch (error) {
       logger.error("Failed to start votekick:", error);
+      addToast("Failed to start votekick", "error");
     }
   };
 
