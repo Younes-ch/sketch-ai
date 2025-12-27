@@ -33,8 +33,11 @@ export function useConfetti() {
   const fireMultiple = useCallback(() => {
     const duration = 2000;
     const end = Date.now() + duration;
+    let cancelled = false;
 
     const frame = () => {
+      if (cancelled) return;
+
       confetti({
         particleCount: 3,
         angle: 60,
@@ -56,6 +59,9 @@ export function useConfetti() {
     };
 
     frame();
+
+    // Cleanup function to stop the confetti
+    return () => { cancelled = true; };
   }, []);
 
   const fireFromElement = useCallback(
