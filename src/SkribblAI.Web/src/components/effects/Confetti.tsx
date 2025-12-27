@@ -1,4 +1,4 @@
-import { useEffect, useCallback } from "react";
+import { useEffect, useCallback, useMemo } from "react";
 import confetti from "canvas-confetti";
 
 interface ConfettiProps {
@@ -61,7 +61,9 @@ export function useConfetti() {
     frame();
 
     // Cleanup function to stop the confetti
-    return () => { cancelled = true; };
+    return () => {
+      cancelled = true;
+    };
   }, []);
 
   const fireFromElement = useCallback(
@@ -86,14 +88,36 @@ export function useConfetti() {
 }
 
 // Component wrapper for declarative usage
-export function Confetti({ trigger = false, ...options }: ConfettiProps) {
+export function Confetti({
+  trigger = false,
+  particleCount,
+  spread,
+  origin,
+}: ConfettiProps) {
   const { fire } = useConfetti();
+
+  // Memoize origin coordinates to stable primitives
+  const originX = origin?.x;
+  const originY = origin?.y;
+
+  // Memoize options to prevent useEffect from triggering on every render
+  const memoizedOptions = useMemo(
+    () => ({
+      particleCount,
+      spread,
+      origin:
+        originX !== undefined && originY !== undefined
+          ? { x: originX, y: originY }
+          : undefined,
+    }),
+    [particleCount, spread, originX, originY]
+  );
 
   useEffect(() => {
     if (trigger) {
-      fire(options);
+      fire(memoizedOptions);
     }
-  }, [trigger, fire, options]);
+  }, [trigger, fire, memoizedOptions]);
 
   return null;
 }
