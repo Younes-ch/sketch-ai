@@ -10,6 +10,7 @@ export default function GamePhaseIndicator() {
   const totalRounds = useGameStore((s) => s.totalRounds);
   const timeRemaining = useGameStore((s) => s.timeRemaining);
   const players = useRoomStore((s) => s.players);
+  const roomSettings = useRoomStore((s) => s.roomSettings);
 
   const getPhaseContent = () => {
     switch (phase) {
@@ -85,56 +86,86 @@ export default function GamePhaseIndicator() {
       : `${secs}s`;
   };
 
+  // Calculate progress percentage
+  const progress =
+    phase === "drawing" && roomSettings.drawTimeSeconds > 0
+      ? (timeRemaining / roomSettings.drawTimeSeconds) * 100
+      : 0;
+
   return (
-    <div
-      className={cn(
-        "flex items-center gap-3 px-4 py-2 rounded-xl transition-all duration-300 mb-3",
-        content.bgColor
+    <div className="relative overflow-hidden rounded-xl mb-3">
+      {/* Progress Bar Background */}
+      {content.showTimer && (
+        <div className="absolute inset-0 bg-card-border/50" />
       )}
-    >
-      <span className="text-2xl">{content.icon}</span>
-      <div className="flex-1">
-        <p className={cn("font-bold text-sm", content.color)}>
-          {content.title}
-        </p>
-        {content.subtitle && (
-          <p className="text-white/50 text-xs">{content.subtitle}</p>
+
+      {/* Progress Bar */}
+      {content.showTimer && (
+        <motion.div
+          className={cn(
+            "absolute inset-0 opacity-20",
+            timeRemaining <= 10
+              ? "bg-danger"
+              : timeRemaining <= 30
+              ? "bg-warning"
+              : "bg-success"
+          )}
+          initial={{ width: "100%" }}
+          animate={{ width: `${progress}%` }}
+          transition={{ duration: 1, ease: "linear" }}
+        />
+      )}
+
+      <div
+        className={cn(
+          "relative flex items-center gap-3 px-4 py-2 transition-all duration-300",
+          content.bgColor
+        )}
+      >
+        <span className="text-2xl">{content.icon}</span>
+        <div className="flex-1">
+          <p className={cn("font-bold text-sm", content.color)}>
+            {content.title}
+          </p>
+          {content.subtitle && (
+            <p className="text-white/50 text-xs">{content.subtitle}</p>
+          )}
+        </div>
+        {content.showTimer && timeRemaining > 0 && (
+          <motion.div
+            key={timeRemaining <= 10 ? "warning" : "normal"}
+            initial={timeRemaining <= 10 ? { scale: 1.1 } : {}}
+            animate={
+              timeRemaining <= 10
+                ? {
+                    scale: [1, 1.1, 1],
+                    transition: { repeat: Infinity, duration: 0.5 },
+                  }
+                : { scale: 1 }
+            }
+            className={cn(
+              "px-3 py-1 rounded-lg font-mono font-bold text-lg shadow-lg",
+              timeRemaining <= 10
+                ? "bg-danger text-white"
+                : timeRemaining <= 30
+                ? "bg-warning text-background"
+                : "bg-success text-white"
+            )}
+          >
+            <AnimatePresence mode="wait">
+              <motion.span
+                key={timeRemaining}
+                initial={{ opacity: 0, y: -10 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: 10 }}
+                transition={{ duration: 0.15 }}
+              >
+                {formatTime(timeRemaining)}
+              </motion.span>
+            </AnimatePresence>
+          </motion.div>
         )}
       </div>
-      {content.showTimer && timeRemaining > 0 && (
-        <motion.div
-          key={timeRemaining <= 10 ? "warning" : "normal"}
-          initial={timeRemaining <= 10 ? { scale: 1.1 } : {}}
-          animate={
-            timeRemaining <= 10
-              ? {
-                  scale: [1, 1.1, 1],
-                  transition: { repeat: Infinity, duration: 0.5 },
-                }
-              : { scale: 1 }
-          }
-          className={cn(
-            "px-3 py-1 rounded-lg font-mono font-bold text-lg",
-            timeRemaining <= 10
-              ? "bg-danger text-white"
-              : timeRemaining <= 30
-              ? "bg-warning text-background"
-              : "bg-success text-white"
-          )}
-        >
-          <AnimatePresence mode="wait">
-            <motion.span
-              key={timeRemaining}
-              initial={{ opacity: 0, y: -10 }}
-              animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, y: 10 }}
-              transition={{ duration: 0.15 }}
-            >
-              {formatTime(timeRemaining)}
-            </motion.span>
-          </AnimatePresence>
-        </motion.div>
-      )}
     </div>
   );
 }
