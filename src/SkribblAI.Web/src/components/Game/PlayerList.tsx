@@ -1,8 +1,9 @@
-import { useRef, useEffect, useState } from "react";
+import { useRef, useEffect, useState, useCallback } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import type { Player } from "@/models";
 import { useGameStore } from "@/stores/gameStore";
 import { useChatStore } from "@/stores/chatStore";
+import { ScorePopup } from "@/components/effects/ScorePopup";
 import { cn } from "@/lib/utils";
 
 interface PlayerListProps {
@@ -24,25 +25,62 @@ export default function PlayerList({
   const playersWhoGuessed = useGameStore((s) => s.playersWhoGuessed);
   const playerBubbles = useChatStore((s) => s.playerBubbles);
 
-
+  const [selectedPlayer, setSelectedPlayer] = useState<string | null>(null);
+  // Track score popups that should be visible (persists for animation duration)
+  const [visiblePopups, setVisiblePopups] = useState<Map<string, number>>(
+    new Map()
+  );
   // Track previous scores for animation
   const prevScoresRef = useRef<Map<string, number>>(new Map());
+  // Track pending timeout
+  const popupTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const currentDrawerUsername = currentDrawer?.username;
   const isDrawingPhase = phase === "drawing" || phase === "wordSelection";
 
-  // Update previous scores after render
+  // Callback to show popups - can be called from effect
+  const showPopups = useCallback((changes: Map<string, number>) => {
+    // Clear any existing timeout
+    if (popupTimeoutRef.current) {
+      clearTimeout(popupTimeoutRef.current);
+    }
+
+    setVisiblePopups(changes);
+
+    // Clear after animation duration
+    popupTimeoutRef.current = setTimeout(() => {
+      setVisiblePopups(new Map());
+      popupTimeoutRef.current = null;
+    }, 1200);
+  }, []);
+
+  // Detect score changes and show popups
   useEffect(() => {
+    const changes = new Map<string, number>();
+
+    players.forEach((player) => {
+      const prevScore = prevScoresRef.current.get(player.username);
+      if (prevScore !== undefined && player.score > prevScore) {
+        changes.set(player.username, player.score - prevScore);
+      }
+    });
+
+    // Update previous scores for next comparison
     const newScores = new Map<string, number>();
     players.forEach((p) => newScores.set(p.username, p.score));
     prevScoresRef.current = newScores;
-  }, [players]);
 
-  // Check if a player's score increased
-  const getScoreChange = (player: Player): number => {
-    const prevScore =
-      prevScoresRef.current.get(player.username) ?? player.score;
-    return player.score - prevScore;
+    // Show popups if there are changes
+    if (changes.size > 0) {
+      showPopups(changes);
+    }
+  }, [players, showPopups]);
+
+  // Get visible popup points for a player
+  const getPopupPoints = (username: string): number => {
+    return visiblePopups.get(username) ?? 0;
+  };
+
   };
 
   return (
@@ -60,14 +98,14 @@ export default function PlayerList({
       >
         <span>👥</span> PLAYERS
       </h3>
-      <div className="space-y-2 flex-1 overflow-y-auto pt-8 -mt-8">
+      <div className="space-y-2 flex-1 overflow-y-auto pt-12 -mt-12 px-1">
         <AnimatePresence mode="popLayout">
           {players.map((player) => {
             const isCurrentDrawer =
               player.username === currentDrawerUsername && isDrawingPhase;
             const hasGuessedCorrectly =
               playersWhoGuessed.has(player.username) && isDrawingPhase;
-            const scoreChange = getScoreChange(player);
+            const popupPoints = getPopupPoints(player.username);
             const playerBubble = playerBubbles.get(player.username);
             const isSelected = selectedPlayer === player.username;
             const showActions = canShowActions(player.username);
@@ -181,11 +219,11 @@ export default function PlayerList({
                     <p className="text-white/70 text-xs">Guessed!</p>
                   )}
                 </div>
-                <div className="relative">
+                <div className="relative overflow-visible z-50">
                   <motion.span
                     key={player.score}
                     initial={
-                      scoreChange > 0 ? { scale: 1.3, color: "#22c55e" } : {}
+                      popupPoints > 0 ? { scale: 1.3, color: "#22c55e" } : {}
                     }
                     animate={{ scale: 1, color: "#ffffff" }}
                     transition={{ duration: 0.3 }}
@@ -197,19 +235,9 @@ export default function PlayerList({
                     {player.score}
                   </motion.span>
                   {/* Score popup animation */}
-                  <AnimatePresence>
-                    {scoreChange > 0 && (
-                      <motion.span
-                        initial={{ opacity: 1, y: 0 }}
-                        animate={{ opacity: 0, y: -20 }}
-                        exit={{ opacity: 0 }}
-                        transition={{ duration: 0.8, ease: "easeOut" }}
-                        className="absolute -top-2 right-0 text-success font-bold text-sm pointer-events-none"
-                      >
-                        +{scoreChange}
-                      </motion.span>
-                    )}
-                  </AnimatePresence>
+                  <div className="absolute top-0 left-1/2 -translate-x-1/2 w-0 h-0 overflow-visible z-100">
+                    <ScorePopup show={popupPoints > 0} points={popupPoints} />
+                  </div>
                 </div>
               </motion.div>
             );

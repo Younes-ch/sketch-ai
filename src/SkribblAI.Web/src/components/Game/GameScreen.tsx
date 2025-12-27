@@ -109,7 +109,7 @@ export default function GameScreen() {
         {/* Main Game Area */}
         <div className="flex gap-3 flex-1 min-h-0">
           {/* Left Sidebar - Players */}
-          <div className="w-56 flex flex-col shrink-0 h-full">
+          <div className="w-64 flex flex-col shrink-0 h-full">
             <PlayerList
               players={players}
               currentUsername={username ?? ""}
