@@ -258,11 +258,11 @@ export function setupRoomEventHandlers() {
 
   const handleKicked = (reason: string) => {
     logger.info(`Kicked from room: ${reason}`);
-    useRoomStore.getState().setWasKicked(true, reason);
     useRoomStore.getState().reset();
     useGameStore.getState().reset();
     useChatStore.getState().reset();
     useCanvasStore.getState().reset();
+    useRoomStore.getState().setWasKicked(true, reason);
     useToastStore.getState().addToast(`${reason}`, "error", 10000);
   };
 
