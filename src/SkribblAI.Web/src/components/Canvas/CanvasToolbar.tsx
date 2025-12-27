@@ -45,20 +45,6 @@ function CanvasToolbarComponent({
     [onColorChange, currentTool, onToolChange]
   );
 
-  // Handle Escape key to close overlay
-  useEffect(() => {
-    if (!isExpanded) return;
-
-    const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.key === "Escape") {
-        setIsExpanded(false);
-      }
-    };
-
-    document.addEventListener("keydown", handleKeyDown);
-    return () => document.removeEventListener("keydown", handleKeyDown);
-  }, [isExpanded]);
-
   // Focus trap when expanded
   useEffect(() => {
     if (isExpanded) {
@@ -83,40 +69,44 @@ function CanvasToolbarComponent({
     }
   }, [isExpanded]);
 
-  // Handle focus trap cycling
   useEffect(() => {
     if (!isExpanded) return;
 
-    const handleTabKey = (e: KeyboardEvent) => {
-      if (e.key !== "Tab") return;
+    const handleKeyDown = (e: KeyboardEvent) => {
+      // Handle Escape
+      if (e.key === "Escape") {
+        setIsExpanded(false);
+        return;
+      }
 
-      const panel = panelRef.current;
-      if (!panel) return;
+      // Handle Tab cycling
+      if (e.key === "Tab") {
+        const panel = panelRef.current;
+        if (!panel) return;
 
-      const focusableElements =
-        panel.querySelectorAll<HTMLElement>(FOCUSABLE_SELECTOR);
-      if (focusableElements.length === 0) return;
+        const focusableElements =
+          panel.querySelectorAll<HTMLElement>(FOCUSABLE_SELECTOR);
+        if (focusableElements.length === 0) return;
 
-      const firstElement = focusableElements[0];
-      const lastElement = focusableElements[focusableElements.length - 1];
+        const firstElement = focusableElements[0];
+        const lastElement = focusableElements[focusableElements.length - 1];
 
-      if (e.shiftKey) {
-        // Shift + Tab: if on first element, go to last
-        if (document.activeElement === firstElement) {
-          e.preventDefault();
-          lastElement.focus();
-        }
-      } else {
-        // Tab: if on last element, go to first
-        if (document.activeElement === lastElement) {
-          e.preventDefault();
-          firstElement.focus();
+        if (e.shiftKey) {
+          if (document.activeElement === firstElement) {
+            e.preventDefault();
+            lastElement.focus();
+          }
+        } else {
+          if (document.activeElement === lastElement) {
+            e.preventDefault();
+            firstElement.focus();
+          }
         }
       }
     };
 
-    document.addEventListener("keydown", handleTabKey);
-    return () => document.removeEventListener("keydown", handleTabKey);
+    document.addEventListener("keydown", handleKeyDown);
+    return () => document.removeEventListener("keydown", handleKeyDown);
   }, [isExpanded]);
 
   // Mobile FAB and collapsible toolbar
