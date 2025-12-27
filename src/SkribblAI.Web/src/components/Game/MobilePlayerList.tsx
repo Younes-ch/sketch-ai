@@ -1,9 +1,10 @@
-import { useState } from "react";
+import { useState, useRef, useEffect, useCallback } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import type { Player } from "@/models";
 import { useGameStore } from "@/stores/gameStore";
 import { useChatStore } from "@/stores/chatStore";
 import { useRoomStore } from "@/stores/roomStore";
+import { ScorePopup } from "@/components/effects/ScorePopup";
 import { cn } from "@/lib/utils";
 import { logger } from "@/lib/logger";
 
@@ -26,9 +27,60 @@ export default function MobilePlayerList({
   const activeVoteKick = useRoomStore((s) => s.activeVoteKick);
 
   const [selectedPlayer, setSelectedPlayer] = useState<string | null>(null);
+  // Track score popups that should be visible (persists for animation duration)
+  const [visiblePopups, setVisiblePopups] = useState<Map<string, number>>(
+    new Map()
+  );
+  // Track previous scores for animation
+  const prevScoresRef = useRef<Map<string, number>>(new Map());
+  // Track pending timeout
+  const popupTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const currentDrawerUsername = currentDrawer?.username;
   const isDrawingPhase = phase === "drawing" || phase === "wordSelection";
+
+  // Callback to show popups - can be called from effect
+  const showPopups = useCallback((changes: Map<string, number>) => {
+    // Clear any existing timeout
+    if (popupTimeoutRef.current) {
+      clearTimeout(popupTimeoutRef.current);
+    }
+
+    setVisiblePopups(changes);
+
+    // Clear after animation duration
+    popupTimeoutRef.current = setTimeout(() => {
+      setVisiblePopups(new Map());
+      popupTimeoutRef.current = null;
+    }, 1200);
+  }, []);
+
+  // Detect score changes and show popups
+  useEffect(() => {
+    const changes = new Map<string, number>();
+
+    players.forEach((player) => {
+      const prevScore = prevScoresRef.current.get(player.username);
+      if (prevScore !== undefined && player.score > prevScore) {
+        changes.set(player.username, player.score - prevScore);
+      }
+    });
+
+    // Update previous scores for next comparison
+    const newScores = new Map<string, number>();
+    players.forEach((p) => newScores.set(p.username, p.score));
+    prevScoresRef.current = newScores;
+
+    // Show popups if there are changes
+    if (changes.size > 0) {
+      showPopups(changes);
+    }
+  }, [players, showPopups]);
+
+  // Get visible popup points for a player
+  const getPopupPoints = (username: string): number => {
+    return visiblePopups.get(username) ?? 0;
+  };
 
   const handlePlayerClick = (playerUsername: string) => {
     if (playerUsername === currentUsername) return;
@@ -84,6 +136,8 @@ export default function MobilePlayerList({
             const isSelected = selectedPlayer === player.username;
             const showActions = canShowActions(player.username);
 
+            const popupPoints = getPopupPoints(player.username);
+
             return (
               <motion.div
                 key={player.username}
@@ -101,13 +155,14 @@ export default function MobilePlayerList({
                   showActions && handlePlayerClick(player.username)
                 }
                 className={cn(
-                  "rounded-lg p-1.5 flex items-center gap-1 relative",
+                  "rounded-lg p-1.5 flex items-center gap-1.5 relative",
                   isCurrentDrawer
                     ? "bg-success"
                     : hasGuessedCorrectly
                     ? "bg-success/60"
                     : "bg-card-border",
-                  showActions && "cursor-pointer"
+                  showActions &&
+                    "cursor-pointer hover:ring-2 hover:ring-accent/50 transition-all"
                 )}
               >
                 {/* Player Actions Menu */}
@@ -123,19 +178,17 @@ export default function MobilePlayerList({
                       {isHost ? (
                         <button
                           onClick={() => handleKick(player.username)}
-                          className="px-2 py-1 bg-danger rounded text-white text-[10px] font-bold hover:bg-danger-hover transition-colors flex items-center gap-0.5"
+                          className="px-2 py-1 bg-danger rounded-lg text-white text-[10px] font-bold hover:bg-danger-hover transition-colors flex items-center gap-0.5"
                         >
-                          <span>🚫</span> Kick
+                          <span>👢</span> Kick
                         </button>
                       ) : (
-                        players.length >= 3 && (
-                          <button
-                            onClick={() => handleVoteKick(player.username)}
-                            className="px-2 py-1 bg-warning rounded text-background text-[10px] font-bold hover:bg-warning/80 transition-colors flex items-center gap-0.5"
-                          >
-                            <span>🗳️</span> Vote
-                          </button>
-                        )
+                        <button
+                          onClick={() => handleVoteKick(player.username)}
+                          className="px-2 py-1 bg-warning rounded-lg text-white text-[10px] font-bold hover:bg-warning-hover transition-colors flex items-center gap-0.5"
+                        >
+                          <span>🗳️</span> Vote
+                        </button>
                       )}
                     </motion.div>
                   )}
@@ -155,7 +208,7 @@ export default function MobilePlayerList({
                       }}
                       className="absolute -top-6 left-1/2 -translate-x-1/2 z-10 max-w-[90%]"
                     >
-                      <div className="bg-accent text-background text-[10px] font-medium px-1.5 py-0.5 rounded shadow-lg whitespace-nowrap overflow-hidden text-ellipsis max-w-[100px]">
+                      <div className="bg-accent text-background text-[10px] font-medium px-1.5 py-0.5 rounded-lg shadow-lg whitespace-nowrap overflow-hidden text-ellipsis max-w-[100px]">
                         {playerBubble.message}
                       </div>
                       <div className="absolute left-1/2 -translate-x-1/2 -bottom-0.5 w-1.5 h-1.5 bg-accent rotate-45" />
@@ -164,23 +217,63 @@ export default function MobilePlayerList({
                 </AnimatePresence>
 
                 {/* Rank */}
-                <span className="text-white/50 font-bold text-[10px] w-3 text-center">
+                <span className="font-mono font-bold text-white/50 w-4 text-center text-[10px]">
                   #{rank}
                 </span>
 
-                {player.isHost && <span className="text-[10px]">👑</span>}
-                <span className="text-white text-sm">
-                  {isCurrentDrawer ? "🎨" : hasGuessedCorrectly ? "✓" : "👤"}
-                </span>
+                {/* Avatar/Name */}
                 <div className="flex-1 min-w-0">
-                  <span className="text-white font-bold text-[11px] truncate block">
-                    {player.username}
-                    {player.username === currentUsername && " (You)"}
-                  </span>
+                  <div className="flex items-center gap-1">
+                    <p className="font-bold text-white truncate text-[11px]">
+                      {player.username}
+                    </p>
+                    {player.isHost && (
+                      <span
+                        className="text-[8px] bg-accent text-background px-1 py-0.5 rounded font-bold"
+                        title="Room Host"
+                      >
+                        HOST
+                      </span>
+                    )}
+                    {player.username === currentUsername && (
+                      <span className="text-[8px] bg-white/20 text-white px-1 py-0.5 rounded font-bold">
+                        YOU
+                      </span>
+                    )}
+                  </div>
+                  <div className="flex items-center gap-1">
+                    <p className="text-white/70 text-[10px]">
+                      {player.score} pts
+                    </p>
+                    {isCurrentDrawer && (
+                      <span className="text-[9px] animate-pulse">
+                        ✏️ Drawing
+                      </span>
+                    )}
+                    {hasGuessedCorrectly && (
+                      <span className="text-[9px]">✓ Guessed</span>
+                    )}
+                  </div>
                 </div>
-                <span className="text-white font-bold text-xs">
-                  {player.score}
-                </span>
+
+                {/* Score with popup animation */}
+                <div className="relative overflow-visible z-50">
+                  <motion.span
+                    key={player.score}
+                    initial={
+                      popupPoints > 0 ? { scale: 1.3, color: "#22c55e" } : {}
+                    }
+                    animate={{ scale: 1, color: "#ffffff" }}
+                    transition={{ duration: 0.3 }}
+                    className="text-white font-bold text-sm"
+                  >
+                    {player.score}
+                  </motion.span>
+                  {/* Score popup animation */}
+                  <div className="absolute top-0 left-1/2 -translate-x-1/2 w-0 h-0 overflow-visible z-100">
+                    <ScorePopup show={popupPoints > 0} points={popupPoints} />
+                  </div>
+                </div>
               </motion.div>
             );
           })}
