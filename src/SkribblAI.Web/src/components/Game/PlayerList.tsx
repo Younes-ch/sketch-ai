@@ -121,6 +121,10 @@ export default function PlayerList({
   };
 
   const handleVoteKick = async (playerUsername: string) => {
+    if (activeVoteKick) {
+      addToast("A votekick is already in progress", "warning");
+      return;
+    }
     try {
       await startVoteKick(playerUsername);
       setSelectedPlayer(null);
