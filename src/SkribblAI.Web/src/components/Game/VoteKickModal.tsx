@@ -8,6 +8,11 @@ export default function VoteKickModal() {
   const username = useRoomStore((s) => s.username);
   const castVoteKick = useRoomStore((s) => s.castVoteKick);
   const addToast = useToastStore((s) => s.addToast);
+  const [hasVoted, setHasVoted] = useState(false);
+
+  useEffect(() => {
+    setHasVoted(false);
+  }, [activeVoteKick?.targetUsername]);
 
   if (!activeVoteKick) {
     return null;
@@ -21,6 +26,7 @@ export default function VoteKickModal() {
   const handleVote = async (voteToKick: boolean) => {
     try {
       await castVoteKick(voteToKick);
+      setHasVoted(true);
     } catch (error) {
       logger.error("Failed to cast vote:", error);
       addToast("Failed to cast vote. Please try again.", "error");
@@ -102,7 +108,7 @@ export default function VoteKickModal() {
             </div>
 
             {/* Vote Buttons */}
-            {!isTarget && !isInitiator && !hasEveryoneVoted && (
+            {!isTarget && !isInitiator && !hasEveryoneVoted && !hasVoted && (
               <div className="flex gap-2">
                 <button
                   onClick={() => handleVote(false)}
@@ -119,7 +125,7 @@ export default function VoteKickModal() {
               </div>
             )}
 
-            {(isInitiator || hasEveryoneVoted || isTarget) && (
+            {(isInitiator || hasEveryoneVoted || isTarget || hasVoted) && (
               <p className="text-white/50 text-center text-xs">
                 {hasEveryoneVoted
                   ? "Vote complete. Processing..."
