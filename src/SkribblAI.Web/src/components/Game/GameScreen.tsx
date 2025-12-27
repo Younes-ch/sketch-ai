@@ -1,4 +1,3 @@
-import { useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { DrawingCanvas } from "@/components/Canvas";
 import {
@@ -17,77 +16,35 @@ import {
 import { RoomSettingsPanel } from "@/components/Lobby";
 import { useRoomStore } from "@/stores/roomStore";
 import { useGameStore } from "@/stores/gameStore";
-import { logger } from "@/lib/logger";
 import { cn } from "@/lib/utils";
+import { useGameActions } from "@/hooks/useGameActions";
 
 export default function GameScreen() {
   const roomCode = useRoomStore((s) => s.roomCode);
   const username = useRoomStore((s) => s.username);
   const isHost = useRoomStore((s) => s.isHost);
   const players = useRoomStore((s) => s.players);
-  const leaveRoom = useRoomStore((s) => s.leaveRoom);
   const roomSettings = useRoomStore((s) => s.roomSettings);
-  const updateRoomSettings = useRoomStore((s) => s.updateRoomSettings);
 
   const phase = useGameStore((s) => s.phase);
   const currentDrawer = useGameStore((s) => s.currentDrawer);
   const wordChoices = useGameStore((s) => s.wordChoices);
   const currentWord = useGameStore((s) => s.currentWord);
-  const startGame = useGameStore((s) => s.startGame);
 
-  const [showCopied, setShowCopied] = useState(false);
-  const [isStarting, setIsStarting] = useState(false);
-  const [isUpdatingSettings, setIsUpdatingSettings] = useState(false);
+  const {
+    showCopied,
+    isStarting,
+    isUpdatingSettings,
+    handleLeaveRoom,
+    handleShareRoom,
+    handleStartGame,
+    handleSettingsChange,
+  } = useGameActions();
 
   const isDrawer = currentDrawer?.username === username;
   const canDraw = phase === "drawing" && isDrawer;
   const showWordSelection =
     phase === "wordSelection" && isDrawer && wordChoices;
-
-  const handleLeaveRoom = async () => {
-    try {
-      await leaveRoom();
-    } catch (error) {
-      logger.error("Failed to leave room", error);
-    }
-  };
-
-  const handleShareRoom = async () => {
-    const shareUrl = `${window.location.origin}?room=${roomCode}`;
-    try {
-      await navigator.clipboard.writeText(shareUrl);
-      setShowCopied(true);
-      setTimeout(() => setShowCopied(false), 2000);
-    } catch (error) {
-      logger.error("Failed to copy link", error);
-    }
-  };
-
-  const handleStartGame = async () => {
-    if (isStarting) return;
-    setIsStarting(true);
-    try {
-      await startGame();
-    } catch (error) {
-      logger.error("Failed to start game", error);
-    } finally {
-      setIsStarting(false);
-    }
-  };
-
-  const handleSettingsChange = async (
-    updates: Partial<typeof roomSettings>
-  ) => {
-    if (isUpdatingSettings) return;
-    setIsUpdatingSettings(true);
-    try {
-      await updateRoomSettings(updates);
-    } catch (error) {
-      logger.error("Failed to update room settings", error);
-    } finally {
-      setIsUpdatingSettings(false);
-    }
-  };
 
   return (
     <div className="h-screen bg-background p-2 sm:p-3 flex flex-col overflow-hidden">
