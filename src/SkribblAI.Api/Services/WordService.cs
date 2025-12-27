@@ -40,7 +40,7 @@ public class WordService : IWordService
         var isMultiWord = word.Contains(' ');
         if (isMultiWord)
         {
-            var wordParts = word.Split(' ');
+            var wordParts = word.Split(' ', StringSplitOptions.RemoveEmptyEntries);
             var hintParts = currentHint.Split("   ", StringSplitOptions.RemoveEmptyEntries);
 
             if (hintParts.Length != wordParts.Length)
