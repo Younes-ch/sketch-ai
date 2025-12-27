@@ -298,7 +298,7 @@ export function setupRoomEventHandlers() {
   }) => {
     logger.info(`Votekick updated: ${data.votesToKick} kick, ${data.votesToKeep} keep`);
     const current = useRoomStore.getState().activeVoteKick;
-    if (current) {
+    if (current && current.targetUsername === data.targetUsername) {
       useRoomStore.getState().setActiveVoteKick({
         ...current,
         votesToKick: data.votesToKick,
