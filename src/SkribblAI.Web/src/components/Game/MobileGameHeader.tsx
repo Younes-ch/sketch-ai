@@ -1,5 +1,6 @@
 import { useState } from "react";
 import ConnectionStatus from "@/components/Common/ConnectionStatus";
+import { MuteButton } from "@/components/Common/MuteButton";
 import { SettingsIcon } from "@/components/ui/Icons";
 import SettingsModal from "./SettingsModal";
 
@@ -38,6 +39,9 @@ export default function MobileGameHeader({
               {roomCode}
             </span>
           </div>
+
+          {/* Mute Button */}
+          <MuteButton />
 
           {/* Settings Button */}
           <button
