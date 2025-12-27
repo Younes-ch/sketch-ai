@@ -328,13 +328,26 @@ public class DrawingHub : Hub
                                    room.Phase == GamePhase.Drawing &&
                                    _wordService.IsCloseGuess(room.CurrentWord, message);
 
-                await Clients.Client(Context.ConnectionId).SendAsync("ChatMessage", new
+                if (isCloseGuess)
                 {
-                    player.Username,
-                    Message = message,
-                    Timestamp = DateTime.UtcNow,
-                    IsCloseGuess = isCloseGuess
-                });
+                    await Clients.Caller.SendAsync("ChatMessage", new
+                    {
+                        player.Username,
+                        Message = message,
+                        Timestamp = DateTime.UtcNow,
+                        IsCloseGuess = true
+                    });
+                }
+                else
+                {
+                    await Clients.Group(roomCode).SendAsync("ChatMessage", new
+                    {
+                        player.Username,
+                        Message = message,
+                        Timestamp = DateTime.UtcNow,
+                    });
+                }
+
             }
         }
     }
