@@ -39,6 +39,14 @@ export default function MobilePlayerList({
   const currentDrawerUsername = currentDrawer?.username;
   const isDrawingPhase = phase === "drawing" || phase === "wordSelection";
 
+  useEffect(() => {
+    return () => {
+      if (popupTimeoutRef.current) {
+        clearTimeout(popupTimeoutRef.current);
+      }
+    };
+  }, []);
+
   // Callback to show popups - can be called from effect
   const showPopups = useCallback((changes: Map<string, number>) => {
     // Clear any existing timeout
