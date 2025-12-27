@@ -177,7 +177,10 @@ function CanvasToolbarComponent({
                 {/* Tool Buttons */}
                 <div className="flex items-center gap-1 bg-card rounded-xl p-2 border-2 border-card-border">
                   <button
-                    onClick={() => onToolChange("brush")}
+                    onClick={() => {
+                      onToolChange("brush");
+                      setIsExpanded(false);
+                    }}
                     className={cn(
                       "px-3 py-2 rounded-lg font-bold text-sm transition-all duration-150 flex items-center gap-1",
                       currentTool === "brush"
@@ -188,7 +191,10 @@ function CanvasToolbarComponent({
                     <span>🖌️</span> Brush
                   </button>
                   <button
-                    onClick={() => onToolChange("eraser")}
+                    onClick={() => {
+                      onToolChange("eraser");
+                      setIsExpanded(false);
+                    }}
                     className={cn(
                       "px-3 py-2 rounded-lg font-bold text-sm transition-all duration-150 flex items-center gap-1",
                       currentTool === "eraser"
@@ -206,7 +212,10 @@ function CanvasToolbarComponent({
                   currentSize={currentWidth}
                   currentColor={currentColor}
                   currentTool={currentTool}
-                  onSizeSelect={onWidthChange}
+                  onSizeSelect={(width) => {
+                    onWidthChange(width);
+                    setIsExpanded(false);
+                  }}
                 />
 
                 {/* Clear Button */}
