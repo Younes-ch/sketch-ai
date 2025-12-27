@@ -77,6 +77,15 @@ export default function PlayerList({
     }
   }, [players, showPopups]);
 
+  // Cleanup timeout on unmount
+  useEffect(() => {
+    return () => {
+      if (popupTimeoutRef.current) {
+        clearTimeout(popupTimeoutRef.current);
+      }
+    };
+  }, []);
+
   // Get visible popup points for a player
   const getPopupPoints = (username: string): number => {
     return visiblePopups.get(username) ?? 0;
