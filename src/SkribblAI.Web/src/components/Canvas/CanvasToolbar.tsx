@@ -1,4 +1,4 @@
-import { useState, memo } from "react";
+import { useState, memo, useEffect, useRef, useCallback } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { ColorPalette, BrushSizeSelector } from "@/components/Canvas";
 import { MinusIcon } from "@/components/ui/Icons";
@@ -28,13 +28,95 @@ function CanvasToolbarComponent({
   onClear,
 }: CanvasToolbarProps) {
   const [isExpanded, setIsExpanded] = useState(false);
+  const panelRef = useRef<HTMLDivElement>(null);
+  const previouslyFocusedRef = useRef<HTMLElement | null>(null);
 
-  const handleColorSelect = (color: string) => {
-    onColorChange(color);
-    if (currentTool === "eraser") {
-      onToolChange("brush");
+  const handleColorSelect = useCallback(
+    (color: string) => {
+      onColorChange(color);
+      if (currentTool === "eraser") {
+        onToolChange("brush");
+      }
+      setIsExpanded(false);
+    },
+    [onColorChange, currentTool, onToolChange]
+  );
+
+  // Handle Escape key to close overlay
+  useEffect(() => {
+    if (!isExpanded) return;
+
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === "Escape") {
+        setIsExpanded(false);
+      }
+    };
+
+    document.addEventListener("keydown", handleKeyDown);
+    return () => document.removeEventListener("keydown", handleKeyDown);
+  }, [isExpanded]);
+
+  // Focus trap when expanded
+  useEffect(() => {
+    if (isExpanded) {
+      // Save the previously focused element
+      previouslyFocusedRef.current = document.activeElement as HTMLElement;
+
+      // Focus the first focusable element in the panel
+      const panel = panelRef.current;
+      if (panel) {
+        const focusableElements = panel.querySelectorAll<HTMLElement>(
+          'button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])'
+        );
+        if (focusableElements.length > 0) {
+          focusableElements[0].focus();
+        }
+      }
+    } else {
+      // Restore focus when closing
+      if (previouslyFocusedRef.current) {
+        previouslyFocusedRef.current.focus();
+        previouslyFocusedRef.current = null;
+      }
     }
-  };
+  }, [isExpanded]);
+
+  // Handle focus trap cycling
+  useEffect(() => {
+    if (!isExpanded) return;
+
+    const handleTabKey = (e: KeyboardEvent) => {
+      if (e.key !== "Tab") return;
+
+      const panel = panelRef.current;
+      if (!panel) return;
+
+      const focusableElements = panel.querySelectorAll<HTMLElement>(
+        'button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])'
+      );
+      if (focusableElements.length === 0) return;
+
+      const firstElement = focusableElements[0];
+      const lastElement = focusableElements[focusableElements.length - 1];
+
+      if (e.shiftKey) {
+        // Shift + Tab: if on first element, go to last
+        if (document.activeElement === firstElement) {
+          e.preventDefault();
+          lastElement.focus();
+        }
+      } else {
+        // Tab: if on last element, go to first
+        if (document.activeElement === lastElement) {
+          e.preventDefault();
+          firstElement.focus();
+        }
+      }
+    };
+
+    document.addEventListener("keydown", handleTabKey);
+    return () => document.removeEventListener("keydown", handleTabKey);
+  }, [isExpanded]);
 
   // Mobile FAB and collapsible toolbar
   const MobileToolbar = () => (
@@ -42,6 +124,8 @@ function CanvasToolbarComponent({
       {/* Floating Action Button */}
       <button
         onClick={() => setIsExpanded(!isExpanded)}
+        aria-label="Open drawing tools"
+        aria-expanded={isExpanded}
         className={cn(
           "fixed bottom-4 right-4 z-50 w-14 h-14 rounded-full shadow-lg flex items-center justify-center transition-all duration-200",
           isExpanded ? "bg-card-border" : "bg-accent hover:bg-accent/80"
@@ -75,6 +159,9 @@ function CanvasToolbarComponent({
 
             {/* Toolbar Panel */}
             <motion.div
+              ref={panelRef}
+              role="dialog"
+              aria-modal="true"
               initial={{ opacity: 0, y: 50 }}
               animate={{ opacity: 1, y: 0 }}
               exit={{ opacity: 0, y: 50 }}
