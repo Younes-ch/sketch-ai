@@ -89,8 +89,14 @@ export default function GamePhaseIndicator() {
   // Calculate progress percentage
   const progress =
     phase === "drawing" && roomSettings.drawTimeSeconds > 0
-      ? (timeRemaining / roomSettings.drawTimeSeconds) * 100
+      ? Math.max(
+          0,
+          Math.min(100, (timeRemaining / roomSettings.drawTimeSeconds) * 100)
+        )
       : 0;
+
+  const dangerThreshold = roomSettings.drawTimeSeconds * 0.25;
+  const warningThreshold = roomSettings.drawTimeSeconds * 0.5;
 
   return (
     <div className="relative overflow-hidden rounded-xl mb-3">
@@ -104,13 +110,13 @@ export default function GamePhaseIndicator() {
         <motion.div
           className={cn(
             "absolute inset-0 opacity-20",
-            timeRemaining <= 10
+            timeRemaining <= dangerThreshold
               ? "bg-danger"
-              : timeRemaining <= 30
+              : timeRemaining <= warningThreshold
               ? "bg-warning"
               : "bg-success"
           )}
-          initial={{ width: "100%" }}
+          initial={{ width: `${progress}%` }}
           animate={{ width: `${progress}%` }}
           transition={{ duration: 1, ease: "linear" }}
         />
@@ -133,10 +139,10 @@ export default function GamePhaseIndicator() {
         </div>
         {content.showTimer && timeRemaining > 0 && (
           <motion.div
-            key={timeRemaining <= 10 ? "warning" : "normal"}
-            initial={timeRemaining <= 10 ? { scale: 1.1 } : {}}
+            key={timeRemaining <= dangerThreshold ? "warning" : "normal"}
+            initial={timeRemaining <= dangerThreshold ? { scale: 1.1 } : {}}
             animate={
-              timeRemaining <= 10
+              timeRemaining <= dangerThreshold
                 ? {
                     scale: [1, 1.1, 1],
                     transition: { repeat: Infinity, duration: 0.5 },
@@ -145,9 +151,9 @@ export default function GamePhaseIndicator() {
             }
             className={cn(
               "px-3 py-1 rounded-lg font-mono font-bold text-lg shadow-lg",
-              timeRemaining <= 10
+              timeRemaining <= dangerThreshold
                 ? "bg-danger text-white"
-                : timeRemaining <= 30
+                : timeRemaining <= warningThreshold
                 ? "bg-warning text-background"
                 : "bg-success text-white"
             )}
