@@ -5,6 +5,7 @@ import { useGameStore } from "@/stores/gameStore";
 import { useChatStore } from "@/stores/chatStore";
 import { useRoomStore } from "@/stores/roomStore";
 import { cn } from "@/lib/utils";
+import { logger } from "@/lib/logger";
 
 interface MobilePlayerListProps {
   players: Player[];
@@ -43,7 +44,7 @@ export default function MobilePlayerList({
       await kickPlayer(playerUsername);
       setSelectedPlayer(null);
     } catch (error) {
-      console.error("Failed to kick player:", error);
+      logger.error("Failed to kick player:", error);
     }
   };
 
@@ -52,7 +53,7 @@ export default function MobilePlayerList({
       await startVoteKick(playerUsername);
       setSelectedPlayer(null);
     } catch (error) {
-      console.error("Failed to start votekick:", error);
+      logger.error("Failed to start votekick:", error);
     }
   };
 

@@ -1,5 +1,6 @@
 import { useCallback, useEffect } from "react";
 import { useAudioStore, type SoundName } from "@/stores/audioStore";
+import { logger } from "@/lib/logger";
 
 // Sound file paths
 const SOUND_PATHS: Record<SoundName, string> = {
@@ -58,7 +59,7 @@ export function useAudio() {
 
       const cachedAudio = audioCache.get(soundName);
       if (!cachedAudio) {
-        console.warn(`Sound not found: ${soundName}`);
+        logger.warn(`Sound not found: ${soundName}`);
         return;
       }
 
@@ -74,7 +75,7 @@ export function useAudio() {
 
       audio.play().catch((err) => {
         // Autoplay might be blocked by browser
-        console.debug(`Could not play sound ${soundName}:`, err);
+        logger.debug(`Could not play sound ${soundName}:`, err);
       });
 
       // Clean up when done
@@ -123,15 +124,4 @@ export function useAudio() {
     toggleMute,
     setVolume,
   };
-}
-
-// Singleton hook for use outside of React components
-let globalAudioInstance: ReturnType<typeof useAudio> | null = null;
-
-export function getAudioInstance() {
-  return globalAudioInstance;
-}
-
-export function setAudioInstance(instance: ReturnType<typeof useAudio>) {
-  globalAudioInstance = instance;
 }

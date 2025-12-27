@@ -5,6 +5,7 @@ import { useGameStore } from "@/stores/gameStore";
 import { useChatStore } from "@/stores/chatStore";
 import { ScorePopup } from "@/components/effects/ScorePopup";
 import { cn } from "@/lib/utils";
+import { logger } from "@/lib/logger";
 
 interface PlayerListProps {
   players: Player[];
@@ -203,7 +204,9 @@ export default function PlayerList({
                       {player.score} points
                     </p>
                     {isCurrentDrawer && (
-                      <span className="text-[10px] animate-pulse">✏️ Drawing</span>
+                      <span className="text-[10px] animate-pulse">
+                        ✏️ Drawing
+                      </span>
                     )}
                     {hasGuessedCorrectly && (
                       <span className="text-[10px]">✓ Guessed</span>
