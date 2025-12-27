@@ -173,6 +173,44 @@ export default function PlayerList({
                   )}
                 </AnimatePresence>
 
+                {/* Rank */}
+                <span className="font-mono font-bold text-white/50 w-4 text-center text-sm">
+                  #{rank}
+                </span>
+
+                {/* Avatar/Name */}
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center gap-1">
+                    <p className="font-bold text-white truncate text-sm">
+                      {player.username}
+                    </p>
+                    {player.isHost && (
+                      <span
+                        className="text-[10px] bg-accent text-background px-1.5 py-0.5 rounded-md font-bold"
+                        title="Room Host"
+                      >
+                        HOST
+                      </span>
+                    )}
+                    {player.username === currentUsername && (
+                      <span className="text-[10px] bg-white/20 text-white px-1.5 py-0.5 rounded-md font-bold">
+                        YOU
+                      </span>
+                    )}
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <p className="text-white/70 text-xs">
+                      {player.score} points
+                    </p>
+                    {isCurrentDrawer && (
+                      <span className="text-[10px] animate-pulse">✏️ Drawing</span>
+                    )}
+                    {hasGuessedCorrectly && (
+                      <span className="text-[10px]">✓ Guessed</span>
+                    )}
+                  </div>
+                </div>
+
                 {/* Chat bubble */}
                 <AnimatePresence>
                   {playerBubble && (
@@ -195,40 +233,7 @@ export default function PlayerList({
                     </motion.div>
                   )}
                 </AnimatePresence>
-                
-                {/* Rank */}
-                <span className="text-white/50 font-bold text-xs w-5 text-center">
-                  #{rank}
-                </span>
 
-                {player.isHost && (
-                  <span className={isDesktop ? "text-sm" : "text-lg"}>👑</span>
-                )}
-                <span
-                  className={cn(
-                    "text-white",
-                    isDesktop ? "text-xl" : "text-2xl"
-                  )}
-                >
-                  {isCurrentDrawer ? "🎨" : hasGuessedCorrectly ? "✓" : "👤"}
-                </span>
-                <div className="flex-1 min-w-0">
-                  <span
-                    className={cn(
-                      "text-white font-bold truncate block",
-                      isDesktop ? "text-sm" : ""
-                    )}
-                  >
-                    {player.username}
-                    {player.username === currentUsername && " (You)"}
-                  </span>
-                  {isCurrentDrawer && (
-                    <p className="text-white/70 text-xs">Drawing...</p>
-                  )}
-                  {hasGuessedCorrectly && !isCurrentDrawer && (
-                    <p className="text-white/70 text-xs">Guessed!</p>
-                  )}
-                </div>
                 <div className="relative overflow-visible z-50">
                   <motion.span
                     key={player.score}
