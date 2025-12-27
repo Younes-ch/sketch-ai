@@ -17,6 +17,9 @@ interface CanvasToolbarProps {
   onClear: () => void;
 }
 
+const FOCUSABLE_SELECTOR =
+  'button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])';
+
 function CanvasToolbarComponent({
   currentColor,
   currentTool,
@@ -65,9 +68,8 @@ function CanvasToolbarComponent({
       // Focus the first focusable element in the panel
       const panel = panelRef.current;
       if (panel) {
-        const focusableElements = panel.querySelectorAll<HTMLElement>(
-          'button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])'
-        );
+        const focusableElements =
+          panel.querySelectorAll<HTMLElement>(FOCUSABLE_SELECTOR);
         if (focusableElements.length > 0) {
           focusableElements[0].focus();
         }
@@ -91,9 +93,8 @@ function CanvasToolbarComponent({
       const panel = panelRef.current;
       if (!panel) return;
 
-      const focusableElements = panel.querySelectorAll<HTMLElement>(
-        'button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])'
-      );
+      const focusableElements =
+        panel.querySelectorAll<HTMLElement>(FOCUSABLE_SELECTOR);
       if (focusableElements.length === 0) return;
 
       const firstElement = focusableElements[0];
@@ -172,9 +173,7 @@ function CanvasToolbarComponent({
               <ColorPalette
                 currentColor={currentColor}
                 currentTool={currentTool}
-                onColorSelect={(color) => {
-                  handleColorSelect(color);
-                }}
+                onColorSelect={handleColorSelect}
               />
 
               {/* Tools Row */}
