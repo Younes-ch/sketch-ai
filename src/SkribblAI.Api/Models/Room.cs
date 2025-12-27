@@ -18,4 +18,5 @@ public class Room
     public HashSet<string> PlayersWhoGuessed { get; set; } = [];
     public DateTime CreatedAt { get; set; }
     public DateTime LastActivityAt { get; set; }
+    public VoteKick? ActiveVoteKick { get; set; }
 }

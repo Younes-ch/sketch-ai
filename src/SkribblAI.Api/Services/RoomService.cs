@@ -387,4 +387,176 @@ public class RoomService : IRoomService
 
         _logger.LogDebug("Room {RoomCode} removed from drawing phase tracking", roomCode);
     }
+
+    public async Task<(Player? KickedPlayer, string? ErrorMessage)> KickPlayerAsync(string roomCode, string hostConnectionId, string targetUsername)
+    {
+        var room = await GetRoomAsync(roomCode);
+        if (room is null)
+        {
+            return (null, "Room not found");
+        }
+
+        if (room.HostConnectionId != hostConnectionId)
+        {
+            return (null, "Only the host can kick players");
+        }
+
+        var targetPlayer = room.Players.FirstOrDefault(p => p.Username == targetUsername);
+        if (targetPlayer is null)
+        {
+            return (null, "Player not found");
+        }
+
+        if (targetPlayer.IsHost)
+        {
+            return (null, "Cannot kick the host");
+        }
+
+        return (targetPlayer, null);
+    }
+
+    public async Task<(bool Success, string? ErrorMessage)> StartVoteKickAsync(string roomCode, string initiatorConnectionId, string targetUsername)
+    {
+        var room = await GetRoomAsync(roomCode);
+        if (room is null)
+        {
+            return (false, "Room not found");
+        }
+
+        if (room.ActiveVoteKick is not null)
+        {
+            return (false, "A votekick is already in progress");
+        }
+
+        var initiator = room.Players.FirstOrDefault(p => p.ConnectionId == initiatorConnectionId);
+        if (initiator is null)
+        {
+            return (false, "You are not in this room");
+        }
+
+        var targetPlayer = room.Players.FirstOrDefault(p => p.Username == targetUsername);
+        if (targetPlayer is null)
+        {
+            return (false, "Player not found");
+        }
+
+        if (targetPlayer.ConnectionId == initiatorConnectionId)
+        {
+            return (false, "You cannot votekick yourself");
+        }
+
+        if (targetPlayer.IsHost)
+        {
+            return (false, "Cannot votekick the host");
+        }
+
+        if (room.Players.Count < 3)
+        {
+            return (false, "Need at least 3 players to start a votekick");
+        }
+
+        room.ActiveVoteKick = new VoteKick
+        {
+            TargetUsername = targetUsername,
+            TargetConnectionId = targetPlayer.ConnectionId,
+            InitiatorUsername = initiator.Username,
+            StartedAt = DateTime.UtcNow,
+            TotalVotersNeeded = room.Players.Count - 1
+        };
+
+        // Initiator automatically votes to kick
+        room.ActiveVoteKick.VotesToKick.Add(initiatorConnectionId);
+
+        await SaveRoomAsync(room);
+
+        _logger.LogInformation("Votekick started in room {RoomCode} by {Initiator} against {Target}",
+            roomCode, initiator.Username, targetUsername);
+
+        return (true, null);
+    }
+
+    public async Task<(VoteKickResult? Result, string? ErrorMessage)> CastVoteKickAsync(string roomCode, string voterConnectionId, bool voteToKick)
+    {
+        var room = await GetRoomAsync(roomCode);
+        if (room is null)
+        {
+            return (null, "Room not found");
+        }
+
+        if (room.ActiveVoteKick is null)
+        {
+            return (null, "No active votekick");
+        }
+
+        var voter = room.Players.FirstOrDefault(p => p.ConnectionId == voterConnectionId);
+        if (voter is null)
+        {
+            return (null, "You are not in this room");
+        }
+
+        if (room.ActiveVoteKick.VotesToKick.Contains(voterConnectionId) ||
+            room.ActiveVoteKick.VotesToKeep.Contains(voterConnectionId))
+        {
+            return (null, "You have already voted");
+        }
+
+        if (voterConnectionId == room.ActiveVoteKick.TargetConnectionId)
+        {
+            return (null, "You cannot vote on your own votekick");
+        }
+
+        if (voteToKick)
+        {
+            room.ActiveVoteKick.VotesToKick.Add(voterConnectionId);
+        }
+        else
+        {
+            room.ActiveVoteKick.VotesToKeep.Add(voterConnectionId);
+        }
+
+        await SaveRoomAsync(room);
+
+        var totalVotes = room.ActiveVoteKick.VotesToKick.Count + room.ActiveVoteKick.VotesToKeep.Count;
+
+        if (totalVotes >= room.ActiveVoteKick.TotalVotersNeeded)
+        {
+            var kickVotes = room.ActiveVoteKick.VotesToKick.Count;
+            var keepVotes = room.ActiveVoteKick.VotesToKeep.Count;
+            var shouldKick = kickVotes > keepVotes;
+
+            var result = new VoteKickResult
+            {
+                TargetUsername = room.ActiveVoteKick.TargetUsername,
+                TargetConnectionId = room.ActiveVoteKick.TargetConnectionId,
+                ShouldKick = shouldKick,
+                VotesToKick = kickVotes,
+                VotesToKeep = keepVotes
+            };
+
+            // Clear the votekick
+            room.ActiveVoteKick = null;
+            await SaveRoomAsync(room);
+
+            _logger.LogInformation("Votekick completed in room {RoomCode}: {Result} ({KickVotes} kick, {KeepVotes} keep)",
+                roomCode, shouldKick ? "KICKED" : "KEPT", kickVotes, keepVotes);
+
+            return (result, null);
+        }
+
+        return (null, null); // More votes needed
+    }
+
+    public async Task CancelVoteKickAsync(string roomCode)
+    {
+        var room = await GetRoomAsync(roomCode);
+        if (room?.ActiveVoteKick is null)
+        {
+            return;
+        }
+
+        room.ActiveVoteKick = null;
+        await SaveRoomAsync(room);
+
+        _logger.LogInformation("Votekick cancelled in room {RoomCode}", roomCode);
+    }
 }

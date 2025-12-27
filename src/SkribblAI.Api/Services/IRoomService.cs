@@ -128,4 +128,37 @@ public interface IRoomService
     /// <param name="room">The room to save.</param>
     /// </summary>
     Task SaveRoomAsync(Room room);
+
+    /// <summary>
+    /// Kicks a player from the room. Only the host can kick players.
+    /// </summary>
+    /// <param name="roomCode">The room code.</param>
+    /// <param name="hostConnectionId">The connection ID of the host requesting the kick.</param>
+    /// <param name="targetUsername">The username of the player to kick.</param>
+    /// <returns>The kicked player if successful, null otherwise, and an error message if failed.</returns>
+    Task<(Player? KickedPlayer, string? ErrorMessage)> KickPlayerAsync(string roomCode, string hostConnectionId, string targetUsername);
+
+    /// <summary>
+    /// Starts a votekick against a player.
+    /// </summary>
+    /// <param name="roomCode">The room code.</param>
+    /// <param name="initiatorConnectionId">The connection ID of the player starting the votekick.</param>
+    /// <param name="targetUsername">The username of the player to votekick.</param>
+    /// <returns>Success status and error message if failed.</returns>
+    Task<(bool Success, string? ErrorMessage)> StartVoteKickAsync(string roomCode, string initiatorConnectionId, string targetUsername);
+
+    /// <summary>
+    /// Casts a vote in an active votekick.
+    /// </summary>
+    /// <param name="roomCode">The room code.</param>
+    /// <param name="voterConnectionId">The connection ID of the voting player.</param>
+    /// <param name="voteToKick">True to vote to kick, false to vote to keep.</param>
+    /// <returns>The vote result if voting is complete, null if more votes needed.</returns>
+    Task<(VoteKickResult? Result, string? ErrorMessage)> CastVoteKickAsync(string roomCode, string voterConnectionId, bool voteToKick);
+
+    /// <summary>
+    /// Cancels an active votekick (if target leaves or timeout).
+    /// </summary>
+    /// <param name="roomCode">The room code.</param>
+    Task CancelVoteKickAsync(string roomCode);
 }

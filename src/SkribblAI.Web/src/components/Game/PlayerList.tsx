@@ -3,6 +3,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import type { Player } from "@/models";
 import { useGameStore } from "@/stores/gameStore";
 import { useChatStore } from "@/stores/chatStore";
+import { useRoomStore } from "@/stores/roomStore";
 import { ScorePopup } from "@/components/effects/ScorePopup";
 import { cn } from "@/lib/utils";
 import { logger } from "@/lib/logger";
@@ -25,6 +26,10 @@ export default function PlayerList({
   const currentDrawer = useGameStore((s) => s.currentDrawer);
   const playersWhoGuessed = useGameStore((s) => s.playersWhoGuessed);
   const playerBubbles = useChatStore((s) => s.playerBubbles);
+  const isHost = useRoomStore((s) => s.isHost);
+  const kickPlayer = useRoomStore((s) => s.kickPlayer);
+  const startVoteKick = useRoomStore((s) => s.startVoteKick);
+  const activeVoteKick = useRoomStore((s) => s.activeVoteKick);
 
   const [selectedPlayer, setSelectedPlayer] = useState<string | null>(null);
   // Track score popups that should be visible (persists for animation duration)
@@ -91,6 +96,42 @@ export default function PlayerList({
     return visiblePopups.get(username) ?? 0;
   };
 
+  const handlePlayerClick = (playerUsername: string) => {
+    // Don't allow actions on yourself
+    if (playerUsername === currentUsername) return;
+    // Don't allow actions on host
+    const clickedPlayer = players.find((p) => p.username === playerUsername);
+    if (clickedPlayer?.isHost) return;
+    // Toggle selection
+    setSelectedPlayer(
+      selectedPlayer === playerUsername ? null : playerUsername
+    );
+  };
+
+  const handleKick = async (playerUsername: string) => {
+    try {
+      await kickPlayer(playerUsername);
+      setSelectedPlayer(null);
+    } catch (error) {
+      logger.error("Failed to kick player:", error);
+    }
+  };
+
+  const handleVoteKick = async (playerUsername: string) => {
+    try {
+      await startVoteKick(playerUsername);
+      setSelectedPlayer(null);
+    } catch (error) {
+      logger.error("Failed to start votekick:", error);
+    }
+  };
+
+  // Can show player actions if not self, not host, and has enough players
+  const canShowActions = (playerUsername: string) => {
+    if (playerUsername === currentUsername) return false;
+    const player = players.find((p) => p.username === playerUsername);
+    if (player?.isHost) return false;
+    return true;
   };
 
   // Sort players by score descending
@@ -167,17 +208,15 @@ export default function PlayerList({
                           onClick={() => handleKick(player.username)}
                           className="px-3 py-1.5 bg-danger rounded-lg text-white text-xs font-bold hover:bg-danger-hover transition-colors flex items-center gap-1"
                         >
-                          <span>🚫</span> Kick
+                          <span>👢</span> Kick
                         </button>
                       ) : (
-                        players.length >= 3 && (
-                          <button
-                            onClick={() => handleVoteKick(player.username)}
-                            className="px-3 py-1.5 bg-warning rounded-lg text-background text-xs font-bold hover:bg-warning/80 transition-colors flex items-center gap-1"
-                          >
-                            <span>🗳️</span> Vote Kick
-                          </button>
-                        )
+                        <button
+                          onClick={() => handleVoteKick(player.username)}
+                          className="px-3 py-1.5 bg-warning rounded-lg text-white text-xs font-bold hover:bg-warning-hover transition-colors flex items-center gap-1"
+                        >
+                          <span>🗳️</span> Vote Kick
+                        </button>
                       )}
                     </motion.div>
                   )}

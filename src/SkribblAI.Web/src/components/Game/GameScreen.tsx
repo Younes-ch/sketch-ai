@@ -11,7 +11,7 @@ import {
   WordHint,
   GamePhaseIndicator,
   WordSelection,
-  Podium,
+  VoteKickModal,
 } from "@/components/Game";
 import {
   LobbyOverlay,
@@ -55,6 +55,8 @@ export default function GameScreen() {
       {/* Word Selection Modal */}
       {showWordSelection && <WordSelection words={wordChoices!} />}
 
+      {/* Vote Kick Modal */}
+      <VoteKickModal />
 
       {/* Desktop Layout */}
       <div className="hidden lg:flex w-full flex-1 flex-col min-h-0">
