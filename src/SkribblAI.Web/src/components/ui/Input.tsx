@@ -12,6 +12,7 @@ export interface InputProps
 const Input = forwardRef<HTMLInputElement, InputProps>(
   ({ className, label, error, leftIcon, rightIcon, id, ...props }, ref) => {
     const generatedId = useId();
+    const errorId = useId();
     const inputId = id || generatedId;
     return (
       <div className="flex flex-col gap-1.5 w-full">
@@ -43,6 +44,8 @@ const Input = forwardRef<HTMLInputElement, InputProps>(
             )}
             ref={ref}
             id={inputId}
+            aria-invalid={error ? "true" : undefined}
+            aria-describedby={error ? errorId : undefined}
             {...props}
           />
           {rightIcon && (
@@ -55,7 +58,10 @@ const Input = forwardRef<HTMLInputElement, InputProps>(
           )}
         </div>
         {error && (
-          <p className="text-xs text-danger font-medium ml-1 animate-in slide-in-from-top-1 fade-in-0">
+          <p
+            id={errorId}
+            className="text-xs text-danger font-medium ml-1 animate-in slide-in-from-top-1 fade-in-0"
+          >
             {error}
           </p>
         )}
