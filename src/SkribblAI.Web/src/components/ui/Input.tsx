@@ -1,4 +1,4 @@
-import { forwardRef } from "react";
+import { forwardRef, useId } from "react";
 import { cn } from "@/lib/utils";
 
 export interface InputProps
@@ -10,12 +10,14 @@ export interface InputProps
 }
 
 const Input = forwardRef<HTMLInputElement, InputProps>(
-  ({ className, label, error, leftIcon, rightIcon, ...props }, ref) => {
+  ({ className, label, error, leftIcon, rightIcon, id, ...props }, ref) => {
+    const generatedId = useId();
+    const inputId = id || generatedId;
     return (
       <div className="flex flex-col gap-1.5 w-full">
         {label && (
           <label
-            htmlFor={props.id}
+            htmlFor={inputId}
             className="text-sm font-bold text-white/90 ml-1"
           >
             {label}
@@ -37,6 +39,7 @@ const Input = forwardRef<HTMLInputElement, InputProps>(
               className
             )}
             ref={ref}
+            id={inputId}
             {...props}
           />
           {rightIcon && (
