@@ -36,7 +36,7 @@ export function useConfetti() {
         colors: ["#22c55e", "#3b82f6", "#eab308", "#ef4444", "#a855f7"],
       });
     },
-    []
+    [prefersReducedMotion]
   );
 
   const fireMultiple = useCallback(() => {
@@ -112,12 +112,12 @@ export function Confetti({
   // Memoize options to prevent useEffect from triggering on every render
   const memoizedOptions = useMemo(
     () => ({
-      particleCount,
-      spread,
-      origin:
-        originX !== undefined && originY !== undefined
-          ? { x: originX, y: originY }
-          : undefined,
+      ...(particleCount !== undefined && { particleCount }),
+      ...(spread !== undefined && { spread }),
+      ...(originX !== undefined &&
+        originY !== undefined && {
+          origin: { x: originX, y: originY },
+        }),
     }),
     [particleCount, spread, originX, originY]
   );
