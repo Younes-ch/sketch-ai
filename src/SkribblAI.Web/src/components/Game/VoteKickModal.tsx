@@ -1,7 +1,84 @@
 import { logger } from "@/lib/logger";
 import { useRoomStore, useToastStore } from "@/stores";
 import { AnimatePresence, motion } from "framer-motion";
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
+
+interface VoteProgressProps {
+  votesToKeep: number;
+  votesToKick: number;
+  totalVotes: number;
+  totalVotersNeeded: number;
+}
+
+function VoteProgress({
+  votesToKeep,
+  votesToKick,
+  totalVotes,
+  totalVotersNeeded,
+}: VoteProgressProps) {
+  return (
+    <div className="bg-background rounded-lg p-2 border-2 border-card-border">
+      <div className="flex justify-between text-xs mb-1">
+        <span className="text-success font-bold">👍 Keep: {votesToKeep}</span>
+        <span className="text-danger font-bold">👎 Kick: {votesToKick}</span>
+      </div>
+      <div className="flex gap-1 h-2 rounded-full overflow-hidden bg-card-border">
+        {votesToKeep > 0 && (
+          <div
+            className="bg-success transition-all duration-500"
+            style={{ flex: votesToKeep }}
+          />
+        )}
+        {votesToKick > 0 && (
+          <div
+            className="bg-danger transition-all duration-500"
+            style={{ flex: votesToKick }}
+          />
+        )}
+      </div>
+      <p className="text-white/50 text-[10px] text-center mt-1">
+        {totalVotes} of {totalVotersNeeded} votes cast
+      </p>
+    </div>
+  );
+}
+
+interface VoteButtonsProps {
+  onVote: (voteToKick: boolean) => void;
+}
+
+function VoteButtons({ onVote }: VoteButtonsProps) {
+  return (
+    <div className="flex gap-2">
+      <button
+        onClick={() => onVote(false)}
+        className="flex-1 py-2 rounded-lg text-white text-sm font-bold transition-all duration-200 flex items-center justify-center gap-1 bg-success border-b-4 border-success-dark hover:bg-success-hover active:border-b-0 active:translate-y-1"
+      >
+        <span>👍</span> Keep
+      </button>
+      <button
+        onClick={() => onVote(true)}
+        className="flex-1 py-2 rounded-lg text-white text-sm font-bold transition-all duration-200 flex items-center justify-center gap-1 bg-danger border-b-4 border-danger-dark hover:bg-danger-hover active:border-b-0 active:translate-y-1"
+      >
+        <span>👎</span> Kick
+      </button>
+    </div>
+  );
+}
+
+interface WaitingMessageProps {
+  hasEveryoneVoted: boolean;
+}
+
+function WaitingMessage({ hasEveryoneVoted }: WaitingMessageProps) {
+  return (
+    <p className="text-white/50 text-center text-xs">
+      {hasEveryoneVoted
+        ? "Vote complete. Processing..."
+        : "Waiting for votes..."}
+    </p>
+  );
+}
 
 export default function VoteKickModal() {
   const activeVoteKick = useRoomStore((s) => s.activeVoteKick);
@@ -14,24 +91,35 @@ export default function VoteKickModal() {
     setHasVoted(false);
   }, [activeVoteKick?.targetUsername]);
 
+  const derivedState = useMemo(
+    () => ({
+      isTarget: activeVoteKick?.targetUsername === username,
+      isInitiator: activeVoteKick?.initiatorUsername === username,
+      totalVotes:
+        (activeVoteKick?.votesToKick ?? 0) + (activeVoteKick?.votesToKeep ?? 0),
+    }),
+    [activeVoteKick, username]
+  );
+
+  const handleVote = useCallback(
+    async (voteToKick: boolean) => {
+      try {
+        await castVoteKick(voteToKick);
+        setHasVoted(true);
+      } catch (error) {
+        logger.error("Failed to cast vote:", error);
+        addToast("Failed to cast vote. Please try again.", "error");
+      }
+    },
+    [castVoteKick, addToast]
+  );
+
   if (!activeVoteKick) {
     return null;
   }
 
-  const isTarget = activeVoteKick.targetUsername === username;
-  const isInitiator = activeVoteKick.initiatorUsername === username;
-  const totalVotes = activeVoteKick.votesToKick + activeVoteKick.votesToKeep;
+  const { isTarget, isInitiator, totalVotes } = derivedState;
   const hasEveryoneVoted = totalVotes >= activeVoteKick.totalVotersNeeded;
-
-  const handleVote = async (voteToKick: boolean) => {
-    try {
-      await castVoteKick(voteToKick);
-      setHasVoted(true);
-    } catch (error) {
-      logger.error("Failed to cast vote:", error);
-      addToast("Failed to cast vote. Please try again.", "error");
-    }
-  };
 
   return (
     <AnimatePresence>
@@ -78,59 +166,19 @@ export default function VoteKickModal() {
               </p>
             )}
 
-            {/* Vote Progress */}
-            <div className="bg-background rounded-lg p-2 border-2 border-card-border">
-              <div className="flex justify-between text-xs mb-1">
-                <span className="text-success font-bold">
-                  👍 Keep: {activeVoteKick.votesToKeep}
-                </span>
-                <span className="text-danger font-bold">
-                  👎 Kick: {activeVoteKick.votesToKick}
-                </span>
-              </div>
-              <div className="flex gap-1 h-2 rounded-full overflow-hidden bg-card-border">
-                {activeVoteKick.votesToKeep > 0 && (
-                  <div
-                    className="bg-success transition-all duration-500"
-                    style={{ flex: activeVoteKick.votesToKeep }}
-                  />
-                )}
-                {activeVoteKick.votesToKick > 0 && (
-                  <div
-                    className="bg-danger transition-all duration-500"
-                    style={{ flex: activeVoteKick.votesToKick }}
-                  />
-                )}
-              </div>
-              <p className="text-white/50 text-[10px] text-center mt-1">
-                {totalVotes} of {activeVoteKick.totalVotersNeeded} votes cast
-              </p>
-            </div>
+            <VoteProgress
+              votesToKeep={activeVoteKick.votesToKeep}
+              votesToKick={activeVoteKick.votesToKick}
+              totalVotes={totalVotes}
+              totalVotersNeeded={activeVoteKick.totalVotersNeeded}
+            />
 
-            {/* Vote Buttons */}
             {!isTarget && !isInitiator && !hasEveryoneVoted && !hasVoted && (
-              <div className="flex gap-2">
-                <button
-                  onClick={() => handleVote(false)}
-                  className="flex-1 py-2 rounded-lg text-white text-sm font-bold transition-all duration-200 flex items-center justify-center gap-1 bg-success border-b-4 border-success-dark hover:bg-success-hover active:border-b-0 active:translate-y-1"
-                >
-                  <span>👍</span> Keep
-                </button>
-                <button
-                  onClick={() => handleVote(true)}
-                  className="flex-1 py-2 rounded-lg text-white text-sm font-bold transition-all duration-200 flex items-center justify-center gap-1 bg-danger border-b-4 border-danger-dark hover:bg-danger-hover active:border-b-0 active:translate-y-1"
-                >
-                  <span>👎</span> Kick
-                </button>
-              </div>
+              <VoteButtons onVote={handleVote} />
             )}
 
             {(isInitiator || hasEveryoneVoted || isTarget || hasVoted) && (
-              <p className="text-white/50 text-center text-xs">
-                {hasEveryoneVoted
-                  ? "Vote complete. Processing..."
-                  : "Waiting for votes..."}
-              </p>
+              <WaitingMessage hasEveryoneVoted={hasEveryoneVoted} />
             )}
           </div>
         </div>

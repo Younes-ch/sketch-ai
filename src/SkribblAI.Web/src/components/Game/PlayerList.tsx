@@ -97,7 +97,8 @@ export default function PlayerList({
     if (activeVoteKick && selectedPlayer) {
       setSelectedPlayer(null);
     }
-  }, [activeVoteKick, selectedPlayer]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [activeVoteKick]);
 
   // Get visible popup points for a player
   const getPopupPoints = (username: string): number => {
