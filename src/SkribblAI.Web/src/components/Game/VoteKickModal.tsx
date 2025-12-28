@@ -119,12 +119,8 @@ export default function VoteKickModal() {
     [castVoteKick, addToast, isVoting]
   );
 
-  if (!activeVoteKick) {
-    return null;
-  }
-
   const { isTarget, isInitiator, totalVotes } = derivedState;
-  const hasEveryoneVoted = totalVotes >= activeVoteKick.totalVotersNeeded;
+  const hasEveryoneVoted = totalVotes >= (activeVoteKick?.totalVotersNeeded ?? 0);
 
   return (
     <AnimatePresence>
