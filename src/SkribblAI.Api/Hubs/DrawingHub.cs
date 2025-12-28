@@ -398,6 +398,119 @@ public class DrawingHub : Hub
         await HandlePlayerLeaving(roomCode, player);
     }
 
+    /// <summary>
+    /// Kicks a player from the room. Only the host can do this.
+    /// </summary>
+    public async Task KickPlayer(string targetUsername)
+    {
+        var roomCode = await _roomService.GetRoomCodeByConnectionIdAsync(Context.ConnectionId)
+                       ?? throw new HubException("You are not in a room");
+
+        var (kickedPlayer, errorMessage) = await _roomService.KickPlayerAsync(roomCode, Context.ConnectionId, targetUsername);
+
+        if (errorMessage is not null)
+        {
+            throw new HubException(errorMessage);
+        }
+
+        if (kickedPlayer is null)
+        {
+            throw new HubException("Failed to kick player");
+        }
+
+        await Clients.Client(kickedPlayer.ConnectionId).SendAsync("Kicked", "You have been kicked by the host");
+
+        await HandlePlayerLeaving(roomCode, kickedPlayer);
+
+        _logger.LogInformation("Player {Username} was kicked from room {RoomCode} by host",
+            targetUsername, roomCode);
+    }
+
+    /// <summary>
+    /// Starts a votekick against a player.
+    /// </summary>
+    public async Task StartVoteKick(string targetUsername)
+    {
+        var roomCode = await _roomService.GetRoomCodeByConnectionIdAsync(Context.ConnectionId)
+                       ?? throw new HubException("You are not in a room");
+
+        var (success, errorMessage) = await _roomService.StartVoteKickAsync(roomCode, Context.ConnectionId, targetUsername);
+
+        if (!success)
+        {
+            throw new HubException(errorMessage ?? "Failed to start votekick");
+        }
+
+        var room = await _roomService.GetRoomAsync(roomCode);
+        if (room?.ActiveVoteKick is null)
+        {
+            throw new HubException("Failed to start votekick");
+        }
+
+        var initiator = room.Players.FirstOrDefault(p => p.ConnectionId == Context.ConnectionId);
+
+        // Notify all players about the votekick
+        await Clients.Group(roomCode).SendAsync("VoteKickStarted", new
+        {
+            TargetUsername = targetUsername,
+            InitiatorUsername = initiator?.Username ?? "Unknown",
+            VotesToKick = room.ActiveVoteKick.VotesToKick.Count,
+            VotesToKeep = room.ActiveVoteKick.VotesToKeep.Count,
+            room.ActiveVoteKick.TotalVotersNeeded
+        });
+    }
+
+    /// <summary>
+    /// Casts a vote in an active votekick.
+    /// </summary>
+    public async Task CastVoteKick(bool voteToKick)
+    {
+        var roomCode = await _roomService.GetRoomCodeByConnectionIdAsync(Context.ConnectionId)
+                       ?? throw new HubException("You are not in a room");
+
+        var (result, errorMessage) = await _roomService.CastVoteKickAsync(roomCode, Context.ConnectionId, voteToKick);
+
+        if (errorMessage is not null)
+        {
+            throw new HubException(errorMessage);
+        }
+
+        var room = await _roomService.GetRoomAsync(roomCode);
+
+        if (result is not null)
+        {
+            if (result.ShouldKick)
+            {
+                await Clients.Client(result.TargetConnectionId).SendAsync("Kicked", "You have been kicked by vote");
+
+                var kickedPlayer = room?.Players.FirstOrDefault(p => p.ConnectionId == result.TargetConnectionId);
+                if (kickedPlayer is not null)
+                {
+                    await HandlePlayerLeaving(roomCode, kickedPlayer);
+                }
+            }
+
+            await Clients.Group(roomCode).SendAsync("VoteKickEnded", new
+            {
+                result.TargetUsername,
+                result.ShouldKick,
+                result.VotesToKick,
+                result.VotesToKeep
+            });
+        }
+        else if (room?.ActiveVoteKick is not null)
+        {
+            // Update vote counts for all players
+            await Clients.Group(roomCode).SendAsync("VoteKickUpdated", new
+            {
+                room.ActiveVoteKick.TargetUsername,
+                VotesToKick = room.ActiveVoteKick.VotesToKick.Count,
+                VotesToKeep = room.ActiveVoteKick.VotesToKeep.Count,
+                TotalVotersNeeded = room.ActiveVoteKick.TotalVotersNeeded
+            });
+        }
+    }
+
     public override async Task OnConnectedAsync()
     {
         _logger.LogInformation("Client connected: {ConnectionId}", Context.ConnectionId);
@@ -515,10 +628,25 @@ public class DrawingHub : Hub
         if (roomBeforeLeave is not null)
         {
             wasDrawer = roomBeforeLeave.CurrentDrawerConnectionId == player.ConnectionId;
+
+            // Cancel any active votekick involving this player
+            if (roomBeforeLeave.ActiveVoteKick is not null)
+            {
+                var wasVoteKickTarget = roomBeforeLeave.ActiveVoteKick.TargetConnectionId == player.ConnectionId;
+                await _roomService.CancelVoteKickAsync(roomCode);
+
+                if (wasVoteKickTarget)
+                {
+                    await Clients.Group(roomCode).SendAsync("VoteKickCancelled", new
+                    {
+                        Reason = $"{username} left the room"
+                    });
+                }
+            }
         }
 
-        await _roomService.RemovePlayerFromRoomAsync(roomCode, Context.ConnectionId);
-        await Groups.RemoveFromGroupAsync(Context.ConnectionId, roomCode);
+        await _roomService.RemovePlayerFromRoomAsync(roomCode, player.ConnectionId);
+        await Groups.RemoveFromGroupAsync(player.ConnectionId, roomCode);
 
         // Check if room still exists (might have been deleted if empty)
         var room = await _roomService.GetRoomAsync(roomCode);

@@ -1,11 +1,13 @@
-import { useRef, useEffect, useState, useCallback } from "react";
-import { motion, AnimatePresence } from "framer-motion";
-import type { Player } from "@/models";
-import { useGameStore } from "@/stores/gameStore";
-import { useChatStore } from "@/stores/chatStore";
 import { ScorePopup } from "@/components/effects/ScorePopup";
-import { cn } from "@/lib/utils";
 import { logger } from "@/lib/logger";
+import { cn } from "@/lib/utils";
+import type { Player } from "@/models";
+import { useToastStore } from "@/stores";
+import { useChatStore } from "@/stores/chatStore";
+import { useGameStore } from "@/stores/gameStore";
+import { useRoomStore } from "@/stores/roomStore";
+import { AnimatePresence, motion } from "framer-motion";
+import { useCallback, useEffect, useRef, useState } from "react";
 
 interface PlayerListProps {
   players: Player[];
@@ -25,6 +27,11 @@ export default function PlayerList({
   const currentDrawer = useGameStore((s) => s.currentDrawer);
   const playersWhoGuessed = useGameStore((s) => s.playersWhoGuessed);
   const playerBubbles = useChatStore((s) => s.playerBubbles);
+  const isHost = useRoomStore((s) => s.isHost);
+  const kickPlayer = useRoomStore((s) => s.kickPlayer);
+  const startVoteKick = useRoomStore((s) => s.startVoteKick);
+  const activeVoteKick = useRoomStore((s) => s.activeVoteKick);
+  const addToast = useToastStore((s) => s.addToast);
 
   const [selectedPlayer, setSelectedPlayer] = useState<string | null>(null);
   // Track score popups that should be visible (persists for animation duration)
@@ -86,11 +93,69 @@ export default function PlayerList({
     };
   }, []);
 
+  useEffect(() => {
+    if (activeVoteKick && selectedPlayer) {
+      setSelectedPlayer(null);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [activeVoteKick]);
+
   // Get visible popup points for a player
   const getPopupPoints = (username: string): number => {
     return visiblePopups.get(username) ?? 0;
   };
 
+  const handlePlayerClick = useCallback(
+    (playerUsername: string) => {
+      // Don't allow actions on yourself
+      if (playerUsername === currentUsername) return;
+      // Don't allow actions on host
+      const clickedPlayer = players.find((p) => p.username === playerUsername);
+      if (clickedPlayer?.isHost) return;
+      // Toggle selection
+      setSelectedPlayer(
+        selectedPlayer === playerUsername ? null : playerUsername
+      );
+    },
+    [currentUsername, players, selectedPlayer]
+  );
+
+  const handleKick = useCallback(
+    async (playerUsername: string) => {
+      try {
+        await kickPlayer(playerUsername);
+        setSelectedPlayer(null);
+      } catch (error) {
+        logger.error("Failed to kick player:", error);
+        addToast("Failed to kick player", "error");
+      }
+    },
+    [kickPlayer, addToast]
+  );
+
+  const handleVoteKick = useCallback(
+    async (playerUsername: string) => {
+      if (activeVoteKick) {
+        addToast("A votekick is already in progress", "warning");
+        return;
+      }
+      try {
+        await startVoteKick(playerUsername);
+        setSelectedPlayer(null);
+      } catch (error) {
+        logger.error("Failed to start votekick:", error);
+        addToast("Failed to start votekick", "error");
+      }
+    },
+    [activeVoteKick, startVoteKick, addToast]
+  );
+
+  // Can show player actions if not self, not host, and has enough players
+  const canShowActions = (playerUsername: string) => {
+    if (playerUsername === currentUsername) return false;
+    const player = players.find((p) => p.username === playerUsername);
+    if (player?.isHost) return false;
+    return true;
   };
 
   // Sort players by score descending
@@ -137,6 +202,15 @@ export default function PlayerList({
                   damping: 30,
                   opacity: { duration: 0.2 },
                 }}
+                tabIndex={showActions ? 0 : -1}
+                onKeyDown={(e) => {
+                  if (showActions && (e.key === "Enter" || e.key === " ")) {
+                    e.preventDefault();
+                    handlePlayerClick(player.username);
+                  }
+                }}
+                role="button"
+                aria-label={`Actions for ${player.username}`}
                 onClick={() =>
                   showActions && handlePlayerClick(player.username)
                 }
@@ -167,17 +241,15 @@ export default function PlayerList({
                           onClick={() => handleKick(player.username)}
                           className="px-3 py-1.5 bg-danger rounded-lg text-white text-xs font-bold hover:bg-danger-hover transition-colors flex items-center gap-1"
                         >
-                          <span>🚫</span> Kick
+                          <span>👢</span> Kick
                         </button>
                       ) : (
-                        players.length >= 3 && (
-                          <button
-                            onClick={() => handleVoteKick(player.username)}
-                            className="px-3 py-1.5 bg-warning rounded-lg text-background text-xs font-bold hover:bg-warning/80 transition-colors flex items-center gap-1"
-                          >
-                            <span>🗳️</span> Vote Kick
-                          </button>
-                        )
+                        <button
+                          onClick={() => handleVoteKick(player.username)}
+                          className="px-3 py-1.5 bg-warning rounded-lg text-white text-xs font-bold hover:bg-warning-hover transition-colors flex items-center gap-1"
+                        >
+                          <span>🗳️</span> Vote Kick
+                        </button>
                       )}
                     </motion.div>
                   )}

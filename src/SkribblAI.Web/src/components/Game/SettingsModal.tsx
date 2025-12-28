@@ -53,7 +53,7 @@ export default function SettingsModal({
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
             onClick={onClose}
-            className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50"
+            className="fixed inset-0 bg-black/60 backdrop-blur-sm z-200"
           />
 
           {/* Modal */}
@@ -62,7 +62,7 @@ export default function SettingsModal({
             animate={{ opacity: 1, scale: 1, y: 0 }}
             exit={{ opacity: 0, scale: 0.9, y: 20 }}
             transition={{ type: "spring", stiffness: 300, damping: 25 }}
-            className="fixed left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 z-50 w-[90%] max-w-sm"
+            className="fixed left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 z-200 w-[90%] max-w-sm"
           >
             <div className="bg-card rounded-2xl border-4 border-card-border shadow-xl overflow-hidden">
               {/* Header */}
