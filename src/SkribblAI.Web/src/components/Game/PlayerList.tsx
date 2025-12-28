@@ -97,7 +97,7 @@ export default function PlayerList({
     if (activeVoteKick && selectedPlayer) {
       setSelectedPlayer(null);
     }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [activeVoteKick]);
 
   // Get visible popup points for a player
@@ -105,41 +105,50 @@ export default function PlayerList({
     return visiblePopups.get(username) ?? 0;
   };
 
-  const handlePlayerClick = (playerUsername: string) => {
-    // Don't allow actions on yourself
-    if (playerUsername === currentUsername) return;
-    // Don't allow actions on host
-    const clickedPlayer = players.find((p) => p.username === playerUsername);
-    if (clickedPlayer?.isHost) return;
-    // Toggle selection
-    setSelectedPlayer(
-      selectedPlayer === playerUsername ? null : playerUsername
-    );
-  };
+  const handlePlayerClick = useCallback(
+    (playerUsername: string) => {
+      // Don't allow actions on yourself
+      if (playerUsername === currentUsername) return;
+      // Don't allow actions on host
+      const clickedPlayer = players.find((p) => p.username === playerUsername);
+      if (clickedPlayer?.isHost) return;
+      // Toggle selection
+      setSelectedPlayer(
+        selectedPlayer === playerUsername ? null : playerUsername
+      );
+    },
+    [currentUsername, players, selectedPlayer]
+  );
 
-  const handleKick = async (playerUsername: string) => {
-    try {
-      await kickPlayer(playerUsername);
-      setSelectedPlayer(null);
-    } catch (error) {
-      logger.error("Failed to kick player:", error);
-      addToast("Failed to kick player", "error");
-    }
-  };
+  const handleKick = useCallback(
+    async (playerUsername: string) => {
+      try {
+        await kickPlayer(playerUsername);
+        setSelectedPlayer(null);
+      } catch (error) {
+        logger.error("Failed to kick player:", error);
+        addToast("Failed to kick player", "error");
+      }
+    },
+    [kickPlayer, addToast]
+  );
 
-  const handleVoteKick = async (playerUsername: string) => {
-    if (activeVoteKick) {
-      addToast("A votekick is already in progress", "warning");
-      return;
-    }
-    try {
-      await startVoteKick(playerUsername);
-      setSelectedPlayer(null);
-    } catch (error) {
-      logger.error("Failed to start votekick:", error);
-      addToast("Failed to start votekick", "error");
-    }
-  };
+  const handleVoteKick = useCallback(
+    async (playerUsername: string) => {
+      if (activeVoteKick) {
+        addToast("A votekick is already in progress", "warning");
+        return;
+      }
+      try {
+        await startVoteKick(playerUsername);
+        setSelectedPlayer(null);
+      } catch (error) {
+        logger.error("Failed to start votekick:", error);
+        addToast("Failed to start votekick", "error");
+      }
+    },
+    [activeVoteKick, startVoteKick, addToast]
+  );
 
   // Can show player actions if not self, not host, and has enough players
   const canShowActions = (playerUsername: string) => {
