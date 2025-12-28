@@ -202,6 +202,15 @@ export default function PlayerList({
                   damping: 30,
                   opacity: { duration: 0.2 },
                 }}
+                tabIndex={showActions ? 0 : -1}
+                onKeyDown={(e) => {
+                  if (showActions && (e.key === "Enter" || e.key === " ")) {
+                    e.preventDefault();
+                    handlePlayerClick(player.username);
+                  }
+                }}
+                role="button"
+                aria-label={`Actions for ${player.username}`}
                 onClick={() =>
                   showActions && handlePlayerClick(player.username)
                 }
