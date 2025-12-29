@@ -112,6 +112,15 @@ export function setupGameEventHandlers() {
       wordChoices: null,
       currentWord: null,
     });
+
+    // Add round start message for round 1
+    useChatStore.getState().addMessage({
+      id: crypto.randomUUID(),
+      username: "System",
+      message: `Round ${gameStateDto.roundNumber || 1} has started!`,
+      timestamp: new Date(),
+      type: "round-start",
+    });
   };
 
   const handleWordChoices = (words: string[]) => {
@@ -192,7 +201,7 @@ export function setupGameEventHandlers() {
       username: "System",
       message: `The word was: ${data.word}`,
       timestamp: new Date(),
-      type: "system",
+      type: "round-end",
     });
   };
 
@@ -205,6 +214,10 @@ export function setupGameEventHandlers() {
     logger.info(`Next turn started, drawer: ${gameStateDto.currentDrawerUsername}`);
     useRoomStore.getState().setPlayers(gameStateDto.players);
     useGameStore.getState().setPlayersWhoGuessed(new Set());
+
+    // Check if new round or just next turn in same round
+    const currentRound = useGameStore.getState().roundNumber;
+    const isNewRound = gameStateDto.roundNumber !== currentRound;
 
     const currentDrawer = gameStateDto.players.find(
       (p) => p.username === gameStateDto.currentDrawerUsername
@@ -221,6 +234,25 @@ export function setupGameEventHandlers() {
       currentWord: null,
       timeRemaining: gameStateDto.drawTimeSeconds,
     });
+
+    // Add round start message if round changed
+    if (isNewRound) {
+      useChatStore.getState().addMessage({
+        id: crypto.randomUUID(),
+        username: "System",
+        message: `Round ${gameStateDto.roundNumber} has started!`,
+        timestamp: new Date(),
+        type: "round-start",
+      });
+    }
+
+    useChatStore.getState().addMessage({
+        id: crypto.randomUUID(),
+        username: "System",
+        message: `${gameStateDto.currentDrawerUsername}'s turn to draw!`,
+        timestamp: new Date(),
+        type: "turn-start",
+      });
   };
 
   const handleGameEnded = (data: { players: Player[], winnerUsernames: string[] }) => {
@@ -246,7 +278,7 @@ export function setupGameEventHandlers() {
       username: "System",
       message: `${drawerUsername} left. Moving to next turn...`,
       timestamp: new Date(),
-      type: "system",
+      type: "leave",
     });
 
     // Set a transitional state while waiting for next turn

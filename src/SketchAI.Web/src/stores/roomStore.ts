@@ -227,9 +227,9 @@ export function setupRoomEventHandlers() {
     useChatStore.getState().addMessage({
       id: crypto.randomUUID(),
       username: "System",
-      message: `${player.username} has joined the room.`,
+      message: `${player.username} has joined the game!`,
       timestamp: new Date(),
-      type: "system",
+      type: "join",
     })
   };
 
@@ -239,15 +239,22 @@ export function setupRoomEventHandlers() {
     useChatStore.getState().addMessage({
       id: crypto.randomUUID(),
       username: "System",
-      message: `${leftUsername} has left the room.`,
+      message: `${leftUsername} has left the game.`,
       timestamp: new Date(),
-      type: "system",
+      type: "leave",
     })
   };
 
   const handleHostChanged = (newHostUsername: string) => {
     logger.info(`Host changed to ${newHostUsername}`);
     useRoomStore.getState().updateHostStatus(newHostUsername);
+    useChatStore.getState().addMessage({
+      id: crypto.randomUUID(),
+      username: "System",
+      message: `${newHostUsername} is now the host!`,
+      timestamp: new Date(),
+      type: "owner-change",
+    })
   };
 
   const handleReceivePublicRooms = (rooms: PublicRoom[]) => {

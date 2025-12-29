@@ -173,12 +173,59 @@ export default function ChatPanel({ variant = "desktop" }: ChatPanelProps) {
                   msg.type === "correct-guess" &&
                     "bg-success/20 -mx-3 px-3 py-1.5 rounded",
                   msg.type === "close-guess" &&
-                    "bg-orange-500/20 -mx-3 px-3 py-1.5 rounded"
+                    "bg-orange-500/20 -mx-3 px-3 py-1.5 rounded",
+                  // System message specialized backgrounds
+                  msg.type === "join" && "bg-blue-500/10 -mx-3 px-3 py-1.5 rounded",
+                  msg.type === "leave" && "bg-red-500/10 -mx-3 px-3 py-1.5 rounded",
+                  msg.type === "owner-change" && "bg-orange-400/10 -mx-3 px-3 py-1.5 rounded",
+                  msg.type === "round-start" && "bg-purple-500/10 -mx-3 px-3 py-1.5 rounded mt-4 mb-2 border-t border-purple-500/30",
+                  msg.type === "round-end" && "bg-indigo-500/10 -mx-3 px-3 py-1.5 rounded mb-4 border-b border-indigo-500/30",
+                  msg.type === "turn-start" && "bg-cyan-500/10 -mx-3 px-3 py-1.5 rounded my-1",
                 )}
               >
-                {msg.type === "system" ? (
-                  <p className="text-white/50 italic text-xs">{msg.message}</p>
-                ) : msg.type === "correct-guess" ? (
+                {/* Generic System Message */}
+                {msg.type === "system" && (
+                   <p className="text-white/50 italic text-xs">{msg.message}</p>
+                )}
+
+                {/* Specialized System Messages */}
+                {msg.type === "join" && (
+                  <p className="text-blue-400 text-xs font-semibold flex items-center gap-2">
+                    <span>👋</span> {msg.message}
+                  </p>
+                )}
+                {msg.type === "leave" && (
+                  <p className="text-red-400 text-xs font-semibold flex items-center gap-2">
+                    <span>🚪</span> {msg.message}
+                  </p>
+                )}
+                {msg.type === "owner-change" && (
+                  <p className="text-orange-400 text-xs font-semibold flex items-center gap-2">
+                    <span>👑</span> {msg.message}
+                  </p>
+                )}
+                {msg.type === "round-start" && (
+                  <div className="text-center py-1">
+                    <p className="text-purple-400 font-bold text-sm uppercase tracking-wider">
+                      {msg.message}
+                    </p>
+                  </div>
+                )}
+                {msg.type === "round-end" && (
+                  <div className="text-center py-1">
+                    <p className="text-indigo-400 font-bold text-sm">
+                      {msg.message}
+                    </p>
+                  </div>
+                )}
+                {msg.type === "turn-start" && (
+                  <p className="text-cyan-400 text-xs font-semibold flex items-center gap-2">
+                    <span>✏️</span> {msg.message}
+                  </p>
+                )}
+
+                {/* Game Logic Messages */}
+                {msg.type === "correct-guess" ? (
                   <p className="text-success font-medium flex items-center gap-1">
                     <span>✓</span>
                     {msg.message}
@@ -193,7 +240,7 @@ export default function ChatPanel({ variant = "desktop" }: ChatPanelProps) {
                       (close!)
                     </span>
                   </p>
-                ) : (
+                ) : msg.type === "chat" ? (
                   <p className="text-white">
                     <span className="font-bold text-accent">
                       {msg.username}:
@@ -203,7 +250,7 @@ export default function ChatPanel({ variant = "desktop" }: ChatPanelProps) {
                       {formatTime(msg.timestamp)}
                     </span>
                   </p>
-                )}
+                ) : null}
               </div>
             ))}
             {/* Scroll anchor */}
