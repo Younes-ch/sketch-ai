@@ -40,15 +40,11 @@ export default function MobileChatMessages() {
   }, []);
 
   return (
-    <div className="bg-card rounded-xl p-2 border-4 border-card-border h-full flex flex-col overflow-hidden">
-      <h3 className="text-white font-bold text-xs mb-1 flex items-center gap-1 shrink-0">
-        <span>💬</span> CHAT
-      </h3>
-
+    <div className="bg-card h-full w-full flex flex-col overflow-hidden">
       <div
         ref={messagesContainerRef}
         onScroll={handleScroll}
-        className="flex-1 bg-background rounded-lg p-2 border-2 border-card-border overflow-y-auto min-h-0 relative"
+        className="flex-1 bg-background p-2 overflow-y-auto min-h-0 relative"
       >
         {chatMessages.length === 0 ? (
           <p className="text-white/40 text-center text-[10px]">
@@ -67,11 +63,51 @@ export default function MobileChatMessages() {
                     "bg-orange-500/20 -mx-2 px-2 py-0.5 rounded"
                 )}
               >
-                {msg.type === "system" ? (
+                {/* Generic System Message */}
+                {msg.type === "system" && (
                   <p className="text-white/50 italic text-[10px]">
                     {msg.message}
                   </p>
-                ) : msg.type === "correct-guess" ? (
+                )}
+
+                {/* Specialized System Messages */}
+                {msg.type === "join" && (
+                  <p className="text-blue-400 text-[10px] font-semibold flex items-center gap-1">
+                    <span>👋</span> {msg.message}
+                  </p>
+                )}
+                {msg.type === "leave" && (
+                  <p className="text-red-400 text-[10px] font-semibold flex items-center gap-1">
+                    <span>🚪</span> {msg.message}
+                  </p>
+                )}
+                {msg.type === "owner-change" && (
+                  <p className="text-orange-400 text-[10px] font-semibold flex items-center gap-1">
+                    <span>👑</span> {msg.message}
+                  </p>
+                )}
+                {msg.type === "round-start" && (
+                  <div className="text-center py-1 my-1 border-t border-purple-500/30 bg-purple-500/10 rounded">
+                    <p className="text-purple-400 font-bold text-[10px] uppercase tracking-wider">
+                      {msg.message}
+                    </p>
+                  </div>
+                )}
+                {msg.type === "round-end" && (
+                  <div className="text-center py-1 my-1 border-b border-indigo-500/30 bg-indigo-500/10 rounded">
+                    <p className="text-indigo-400 font-bold text-[10px]">
+                      {msg.message}
+                    </p>
+                  </div>
+                )}
+                {msg.type === "turn-start" && (
+                  <p className="text-cyan-400 text-[10px] font-semibold flex items-center gap-1">
+                    <span>✏️</span> {msg.message}
+                  </p>
+                )}
+
+                {/* Game Logic Messages */}
+                {msg.type === "correct-guess" ? (
                   <p className="text-success font-medium flex items-center gap-1">
                     <span>✓</span>
                     {msg.message}
@@ -86,14 +122,14 @@ export default function MobileChatMessages() {
                       (close!)
                     </span>
                   </p>
-                ) : (
+                ) : msg.type === "chat" ? (
                   <p className="text-white">
                     <span className="font-bold text-accent">
                       {msg.username}:
                     </span>{" "}
                     {msg.message}
                   </p>
-                )}
+                ) : null}
               </div>
             ))}
             <div ref={messagesEndRef} />

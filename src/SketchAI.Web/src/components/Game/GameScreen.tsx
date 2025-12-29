@@ -70,7 +70,7 @@ export default function GameScreen() {
         <GamePhaseIndicator />
 
         {/* Main Game Area */}
-        <div className="flex gap-3 flex-1 min-h-0">
+        <div className="flex gap-4 flex-1 min-h-0 pt-2">
           {/* Left Sidebar - Players */}
           <div className="w-64 flex flex-col shrink-0 h-full">
             <PlayerList
@@ -82,7 +82,7 @@ export default function GameScreen() {
 
           {/* Center - Canvas */}
           <div className="flex-1 min-w-0 min-h-0 flex flex-col">
-            <div className="bg-card rounded-2xl p-4 border-4 border-card-border shadow-lg h-full flex flex-col overflow-hidden relative">
+            <div className="bg-card rounded-2xl p-1 border-4 border-card-border shadow-lg h-full flex flex-col overflow-hidden relative">
               <AnimatePresence mode="wait">
                 {/* Lobby Overlay */}
                 {phase === "lobby" && (
@@ -130,32 +130,44 @@ export default function GameScreen() {
               </AnimatePresence>
 
               <WordHint />
-              <div className="flex-1 min-h-0 flex items-center justify-center">
+              <div className="flex-1 min-h-0 flex items-center justify-center bg-white/5 rounded-lg overflow-hidden m-1">
+                 {/* Canvas Container */}
                 <DrawingCanvas disabled={!canDraw} />
               </div>
             </div>
           </div>
 
           {/* Right Sidebar - Chat */}
-          <div className="w-72 flex flex-col shrink-0 h-full">
+          <div className="w-80 flex flex-col shrink-0 h-full">
             <ChatPanel variant="desktop" />
           </div>
         </div>
       </div>
 
-      {/* Mobile Layout - Grid */}
-      <div className="lg:hidden grid grid-rows-[auto_1fr_minmax(100px,180px)_auto] gap-2 h-full w-full">
+      {/* Mobile Layout - Grid-based */}
+      <div className="lg:hidden flex flex-col h-full w-full overflow-hidden bg-background">
         {/* Row 1: Header */}
-        <MobileGameHeader
-          roomCode={roomCode ?? ""}
-          onShare={handleShareRoom}
-          onLeave={handleLeaveRoom}
-          showCopied={showCopied}
-        />
+        <div className="shrink-0 w-full">
+          <MobileGameHeader
+            roomCode={roomCode ?? ""}
+            onShare={handleShareRoom}
+            onLeave={handleLeaveRoom}
+            showCopied={showCopied}
+          />
+        </div>
 
-        {/* Row 2: Canvas */}
-        <div className="min-h-0 overflow-hidden">
-          <div className="bg-card rounded-xl p-2 border-4 border-card-border shadow-lg h-full flex flex-col overflow-hidden relative">
+        {/* Row 2: Phase Indicator */}
+        <div className="shrink-0 w-full">
+          <GamePhaseIndicator />
+        </div>
+
+        {/* Row 3: Word Hint */}
+        <div className="shrink-0 w-full">
+          <WordHint />
+        </div>
+
+        {/* Row 4: Canvas (Flexible Height) */}
+        <div className="flex-1 min-h-0 flex flex-col relative overflow-hidden">
             <AnimatePresence mode="wait">
               {/* Lobby Overlay */}
               {phase === "lobby" && (
@@ -198,17 +210,15 @@ export default function GameScreen() {
                 />
               )}
             </AnimatePresence>
-
-            <WordHint />
-            <GamePhaseIndicator />
-            <div className="flex-1 min-h-0 flex items-center justify-center">
+            
+            {/* Canvas */}
+            <div className="w-full h-full flex items-center justify-center border-t-2 border-card-border">
               <DrawingCanvas disabled={!canDraw} />
             </div>
-          </div>
         </div>
 
-        {/* Row 3: Players & Chat side by side */}
-        <div className="grid grid-cols-2 min-h-0 overflow-hidden">
+        {/* Row 5: Players & Chat (Fixed Height, Equal Columns) */}
+        <div className="h-[180px] shrink-0 grid grid-cols-2 overflow-hidden border-t-2 border-card-border">
           <MobilePlayerList
             players={players}
             currentUsername={username ?? ""}
@@ -216,8 +226,10 @@ export default function GameScreen() {
           <MobileChatMessages />
         </div>
 
-        {/* Row 4: Chat Input */}
-        <MobileChatInput />
+        {/* Row 6: Chat Input */}
+        <div className="shrink-0 bg-card">
+          <MobileChatInput />
+        </div>
       </div>
     </div>
   );

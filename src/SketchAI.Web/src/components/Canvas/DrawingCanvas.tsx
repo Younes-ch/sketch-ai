@@ -8,8 +8,8 @@ import { DRAWING_COLORS } from "@/constants/colors";
 import { CanvasToolbar, type ToolType } from "@/components/Canvas";
 
 // Canvas dimensions - drawing commands use normalized coordinates (0-1)
-const CANVAS_WIDTH = 800;
-const CANVAS_HEIGHT = 500;
+const CANVAS_WIDTH = 1920;
+const CANVAS_HEIGHT = 1080;
 const CANVAS_ASPECT_RATIO = CANVAS_WIDTH / CANVAS_HEIGHT;
 
 // Batching configuration for network optimization
@@ -87,8 +87,11 @@ function DrawingCanvasComponent({ disabled = false }: DrawingCanvasProps) {
     const updateSize = () => {
       if (containerRef.current) {
         const containerWidth = containerRef.current.offsetWidth - 16;
+        // On mobile (< 1024px), toolbar is a floating FAB, so don't reserve height
+        const isMobile = window.innerWidth < 1024;
+        const toolbarReserve = isMobile ? 0 : TOOLBAR_RESERVED_HEIGHT;
         const containerHeight =
-          containerRef.current.offsetHeight - TOOLBAR_RESERVED_HEIGHT;
+          containerRef.current.offsetHeight - toolbarReserve;
 
         let displayWidth = Math.min(containerWidth, CANVAS_WIDTH);
         let displayHeight = displayWidth / CANVAS_ASPECT_RATIO;

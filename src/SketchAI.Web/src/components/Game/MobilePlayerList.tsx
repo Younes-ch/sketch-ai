@@ -128,11 +128,8 @@ export default function MobilePlayerList({
   const sortedPlayers = [...players].sort((a, b) => b.score - a.score);
 
   return (
-    <div className="bg-card rounded-xl p-2 border-4 border-card-border h-full flex flex-col overflow-hidden">
-      <h3 className="text-white font-bold text-xs mb-1 flex items-center gap-1 shrink-0">
-        <span>👥</span> PLAYERS
-      </h3>
-      <div className="space-y-1 flex-1 overflow-y-auto pt-6 -mt-6">
+    <div className="bg-card h-full w-full flex flex-col overflow-hidden">
+      <div className="space-y-1 flex-1 overflow-y-auto overflow-x-visible pt-8 px-1">
         <AnimatePresence mode="popLayout">
           {sortedPlayers.map((player, index) => {
             const rank = index + 1;
@@ -163,7 +160,7 @@ export default function MobilePlayerList({
                   showActions && handlePlayerClick(player.username)
                 }
                 className={cn(
-                  "rounded-lg p-1.5 flex items-center gap-1.5 relative",
+                  "p-1.5 flex items-center gap-1.5 relative",
                   isCurrentDrawer
                     ? "bg-success"
                     : hasGuessedCorrectly

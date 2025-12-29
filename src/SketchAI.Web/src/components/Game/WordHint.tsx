@@ -50,7 +50,7 @@ export default function WordHint() {
   }
 
   return (
-    <div className="bg-background rounded-xl p-2 sm:p-3 mb-2 sm:mb-3 text-center border-2 border-card-border shrink-0">
+    <div className="bg-background sm:rounded-xl p-2 sm:p-3 sm:mb-3 text-center sm:border-2 sm:border-card-border shrink-0 w-full">
       <p className="text-white/60 text-xs sm:text-sm">
         {isDrawer ? "DRAW THIS:" : "GUESS THE WORD:"}
       </p>

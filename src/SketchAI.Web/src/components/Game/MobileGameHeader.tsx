@@ -21,7 +21,7 @@ export default function MobileGameHeader({
 
   return (
     <>
-      <div className="bg-card rounded-2xl p-2 flex justify-between items-center border-4 border-card-border shadow-lg">
+      <div className="bg-card w-full p-2 flex justify-between items-center border-b-2 border-card-border">
         {/* Logo */}
         <div className="flex items-center gap-2">
           <h1 className="text-lg font-black">

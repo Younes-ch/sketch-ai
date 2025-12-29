@@ -70,7 +70,7 @@ export default function MobileChatInput() {
   };
 
   return (
-    <div className="bg-card rounded-2xl p-2 border-4 border-card-border shadow-lg">
+    <div className="bg-card w-full p-2 border-t-2 border-card-border">
       {/* Character count indicator */}
       {showCharacterCount && (
         <div className="flex items-center justify-end gap-1 mb-1 px-1">
