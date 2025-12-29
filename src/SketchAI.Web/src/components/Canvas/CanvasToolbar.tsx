@@ -163,7 +163,7 @@ function CanvasToolbarComponent({
               animate={{ opacity: 1, y: 0 }}
               exit={{ opacity: 0, y: 50 }}
               transition={{ duration: 0.2, ease: "easeOut" }}
-              className="fixed bottom-20 left-4 right-4 z-50 bg-background rounded-2xl p-4 border-4 border-card-border shadow-xl"
+              className="fixed bottom-20 left-4 right-4 z-200 bg-background rounded-2xl p-4 border-4 border-card-border shadow-xl"
             >
               {/* Color Palette */}
               <ColorPalette

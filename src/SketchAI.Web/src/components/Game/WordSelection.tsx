@@ -83,7 +83,7 @@ export function WordSelection({ words, timeLimit = 15 }: WordSelectionProps) {
   };
 
   return (
-    <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+    <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-200">
       <div className="bg-card border border-border rounded-xl p-6 max-w-md w-full mx-4 shadow-2xl">
         <h2 className="text-2xl font-bold text-center mb-2 text-white">
           Choose a Word
