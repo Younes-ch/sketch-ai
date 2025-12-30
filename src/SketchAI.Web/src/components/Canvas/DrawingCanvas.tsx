@@ -495,6 +495,9 @@ function DrawingCanvasComponent({ disabled = false }: DrawingCanvasProps) {
         width: 0, // Not used for fill
       };
 
+      // Track in local history for undo
+      commandHistoryRef.current.push(fillCommand);
+
       sendFillCommand(fillCommand).catch((error) => {
         logger.error("Failed to send fill command", error);
       });
