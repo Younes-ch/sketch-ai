@@ -171,7 +171,7 @@ export const floodFill = (
   };
   
   // Scanline flood fill using span-based approach
-  const stack: [number, number, number, number][] = []; // [x1, x2, y, direction]
+  const stack: [number, number, number][] = []; // [x1, x2, y]
   
   // Find initial span
   let x1 = startX;
@@ -189,11 +189,11 @@ export const floodFill = (
   }
   
   // Add spans above and below
-  if (startY > 0) stack.push([x1, x2, startY - 1, -1]);
-  if (startY < height - 1) stack.push([x1, x2, startY + 1, 1]);
+  if (startY > 0) stack.push([x1, x2, startY - 1]);
+  if (startY < height - 1) stack.push([x1, x2, startY + 1]);
   
   while (stack.length > 0) {
-    const [parentX1, parentX2, y, _dir] = stack.pop()!;
+    const [parentX1, parentX2, y] = stack.pop()!;
     
     let x = parentX1;
     
@@ -226,8 +226,8 @@ export const floodFill = (
       }
       
       // Add spans above and below
-      if (y > 0) stack.push([spanX1, spanX2, y - 1, -1]);
-      if (y < height - 1) stack.push([spanX1, spanX2, y + 1, 1]);
+      if (y > 0) stack.push([spanX1, spanX2, y - 1]);
+      if (y < height - 1) stack.push([spanX1, spanX2, y + 1]);
       
       // Move past this span
       x = spanX2 + 1;
