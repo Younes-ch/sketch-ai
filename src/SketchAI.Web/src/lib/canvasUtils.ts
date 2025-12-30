@@ -39,7 +39,9 @@ type RGBA = [number, number, number, number];
 
 // Convert hex color to RGBA tuple
 export const hexToRgb = (hex: string): RGBA => {
-  const result = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(hex);
+  // Expand shorthand (#FFF -> #FFFFFF)
+  let normalized = hex.replace(/^#?([a-f\d])([a-f\d])([a-f\d])$/i, '#$1$1$2$2$3$3');
+  const result = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(normalized);
   return result
     ? [parseInt(result[1], 16), parseInt(result[2], 16), parseInt(result[3], 16), 255]
     : [0, 0, 0, 255];
