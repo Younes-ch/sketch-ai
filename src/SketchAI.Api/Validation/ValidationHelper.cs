@@ -125,10 +125,8 @@ public static partial class ValidationHelper
             return false;
 
         // Validate normalized coordinates with tolerance for floating-point precision
-        return point.X >= NormalizedMin - NormalizedTolerance &&
-               point.X <= NormalizedMax + NormalizedTolerance &&
-               point.Y >= NormalizedMin - NormalizedTolerance &&
-               point.Y <= NormalizedMax + NormalizedTolerance;
+        return point.X is >= NormalizedMin - NormalizedTolerance and <= NormalizedMax + NormalizedTolerance &&
+               point.Y is >= NormalizedMin - NormalizedTolerance and <= NormalizedMax + NormalizedTolerance;
     }
 
     // Regex patterns using source generators for performance

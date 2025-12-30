@@ -4,10 +4,11 @@ import {
   BORDER_COLORS,
 } from "@/constants/colors";
 import { cn } from "@/lib/utils";
+import type { ToolType } from "./CanvasToolbar";
 
 interface ColorPaletteProps {
   currentColor: string;
-  currentTool: "brush" | "eraser";
+  currentTool: ToolType;
   onColorSelect: (color: string) => void;
 }
 

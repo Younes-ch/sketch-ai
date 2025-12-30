@@ -4,13 +4,18 @@ import type { Point, DrawingCommand } from "@/models";
 import { useCanvasStore } from "@/stores/canvasStore";
 import { logger } from "@/lib/logger";
 import { cn } from "@/lib/utils";
+import {
+  CANVAS_WIDTH,
+  CANVAS_HEIGHT,
+  CANVAS_ASPECT_RATIO,
+  clampPoint,
+  normalizePoint,
+  denormalizePoint,
+  getClientCoords,
+  floodFill,
+} from "@/lib/canvasUtils";
 import { DRAWING_COLORS } from "@/constants/colors";
 import { CanvasToolbar, type ToolType } from "@/components/Canvas";
-
-// Canvas dimensions - drawing commands use normalized coordinates (0-1)
-const CANVAS_WIDTH = 1920;
-const CANVAS_HEIGHT = 1080;
-const CANVAS_ASPECT_RATIO = CANVAS_WIDTH / CANVAS_HEIGHT;
 
 // Batching configuration for network optimization
 // Points are accumulated and sent every BATCH_INTERVAL_MS to reduce network traffic
@@ -27,35 +32,6 @@ const TOOLBAR_RESERVED_HEIGHT = 160;
 const MIN_CANVAS_WIDTH = 200;
 const MIN_CANVAS_HEIGHT = 125;
 
-// Clamp a point to canvas bounds to prevent out-of-bounds coordinates
-const clampPoint = (point: Point): Point => ({
-  x: Math.max(0, Math.min(CANVAS_WIDTH, point.x)),
-  y: Math.max(0, Math.min(CANVAS_HEIGHT, point.y)),
-});
-
-// Normalize a point from canvas coordinates to 0-1 range for network transmission
-const normalizePoint = (point: Point): Point => ({
-  x: point.x / CANVAS_WIDTH,
-  y: point.y / CANVAS_HEIGHT,
-});
-
-// Denormalize a point from 0-1 range to canvas coordinates for rendering
-const denormalizePoint = (point: Point): Point => ({
-  x: Math.max(0, Math.min(1, point.x)) * CANVAS_WIDTH,
-  y: Math.max(0, Math.min(1, point.y)) * CANVAS_HEIGHT,
-});
-
-// Extract client coordinates from mouse or touch event
-const getClientCoords = (
-  e: React.MouseEvent | React.TouchEvent
-): { clientX: number; clientY: number } | null => {
-  if ("touches" in e) {
-    if (e.touches.length === 0) return null;
-    return { clientX: e.touches[0].clientX, clientY: e.touches[0].clientY };
-  }
-  return { clientX: e.clientX, clientY: e.clientY };
-};
-
 interface DrawingCanvasProps {
   disabled?: boolean;
 }
@@ -71,12 +47,21 @@ function DrawingCanvasComponent({ disabled = false }: DrawingCanvasProps) {
   const pointBufferRef = useRef<Point[]>([]); // Accumulates points between batches
   const batchTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const currentColorRef = useRef<string>(DRAWING_COLORS.DEFAULT); // Track color during batch
+  
+  // Local command history for undo functionality
+  const commandHistoryRef = useRef<DrawingCommand[]>([]);
+  
+  // Replay cancellation - AbortController allows cancelling in-progress async replays
+  const replayAbortRef = useRef<AbortController | null>(null);
+  // Track if undo is pending to prevent rapid fire
+  const undoPendingRef = useRef(false);
 
   const [currentColor, setCurrentColor] = useState<string>(
     DRAWING_COLORS.DEFAULT
   );
   const [currentWidth, setCurrentWidth] = useState(8);
   const [currentTool, setCurrentTool] = useState<ToolType>("brush");
+  const [localStrokeCount, setLocalStrokeCount] = useState(0);  // Track local strokes for undo
   const [displaySize, setDisplaySize] = useState({
     width: CANVAS_WIDTH,
     height: CANVAS_HEIGHT,
@@ -118,6 +103,8 @@ function DrawingCanvasComponent({ disabled = false }: DrawingCanvasProps) {
   }, []);
 
   const sendDrawingCommand = useCanvasStore((s) => s.sendDrawingCommand);
+  const sendFillCommand = useCanvasStore((s) => s.sendFillCommand);
+  const undoLastDrawCommand = useCanvasStore((s) => s.undoLastDrawCommand);
   const signalRClearCanvas = useCanvasStore((s) => s.clearCanvas);
   const onReceiveDrawingCommand = useCanvasStore(
     (s) => s.onReceiveDrawingCommand
@@ -126,6 +113,8 @@ function DrawingCanvasComponent({ disabled = false }: DrawingCanvasProps) {
     (s) => s.onReceiveCanvasHistory
   );
   const onCanvasCleared = useCanvasStore((s) => s.onCanvasCleared);
+  const onReceiveUndo = useCanvasStore((s) => s.onReceiveUndo);
+  const onReceiveFillCommand = useCanvasStore((s) => s.onReceiveFillCommand);
   const pendingCanvasHistory = useCanvasStore((s) => s.pendingCanvasHistory);
   const clearPendingCanvasHistory = useCanvasStore(
     (s) => s.clearPendingCanvasHistory
@@ -172,6 +161,12 @@ function DrawingCanvasComponent({ disabled = false }: DrawingCanvasProps) {
           }
           ctx.stroke();
         }
+      } else if (command.type === "fill" && command.points.length === 1) {
+        // Execute flood fill at the specified point
+        const point = isLocal
+          ? command.points[0]
+          : denormalizePoint(command.points[0]);
+        floodFill(ctx, point.x, point.y, command.color);
       }
     },
     []
@@ -187,6 +182,55 @@ function DrawingCanvasComponent({ disabled = false }: DrawingCanvasProps) {
 
     ctx.clearRect(0, 0, canvas.width, canvas.height);
   }, []);
+
+  // Async chunked replay - prevents UI freeze by yielding between batches
+  // Supports cancellation via AbortController to handle rapid undo sequences
+  const replayHistoryAsync = useCallback(
+    async (history: DrawingCommand[], onComplete?: () => void) => {
+      // Cancel any in-progress replay before starting a new one
+      if (replayAbortRef.current) {
+        replayAbortRef.current.abort();
+      }
+      
+      // For short histories (e.g., after undos), use synchronous replay
+      // This avoids race conditions and is fast enough to not cause jank
+      const SYNC_THRESHOLD = 50;
+      if (history.length <= SYNC_THRESHOLD) {
+        history.forEach((cmd) => drawCommand(cmd));
+        onComplete?.();
+        return;
+      }
+      
+      // For longer histories, use async chunked replay with cancellation
+      const abortController = new AbortController();
+      replayAbortRef.current = abortController;
+      
+      const CHUNK_SIZE = 25; // Commands per frame
+      
+      for (let i = 0; i < history.length; i += CHUNK_SIZE) {
+        // Check if this replay was cancelled
+        if (abortController.signal.aborted) {
+          return;
+        }
+        
+        const chunk = history.slice(i, i + CHUNK_SIZE);
+        chunk.forEach((cmd) => drawCommand(cmd));
+        
+        // Yield to browser between chunks to prevent freeze
+        if (i + CHUNK_SIZE < history.length) {
+          await new Promise((resolve) => requestAnimationFrame(resolve));
+        }
+      }
+      
+      // Clear the ref if this replay completed without being cancelled
+      if (replayAbortRef.current === abortController) {
+        replayAbortRef.current = null;
+      }
+      
+      onComplete?.();
+    },
+    [drawCommand]
+  );
 
   // Handle pending canvas history (for late joiners)
   // Use a separate effect to ensure canvas is ready before drawing
@@ -208,9 +252,7 @@ function DrawingCanvasComponent({ disabled = false }: DrawingCanvasProps) {
           logger.info(
             `Drawing pending canvas history (retry): ${historyToProcess.length} commands`
           );
-          historyToProcess.forEach((command) => {
-            drawCommand(command);
-          });
+          replayHistoryAsync(historyToProcess);
         }
       });
       clearPendingCanvasHistory();
@@ -220,44 +262,70 @@ function DrawingCanvasComponent({ disabled = false }: DrawingCanvasProps) {
     logger.info(
       `Drawing pending canvas history: ${historyToProcess.length} commands`
     );
-    historyToProcess.forEach((command) => {
-      drawCommand(command);
-    });
+    replayHistoryAsync(historyToProcess);
     clearPendingCanvasHistory();
-  }, [pendingCanvasHistory, drawCommand, clearPendingCanvasHistory]);
+  }, [pendingCanvasHistory, replayHistoryAsync, clearPendingCanvasHistory]);
 
   // Initialize SignalR listeners
   useEffect(() => {
     // Subscribe to drawing commands from other clients
     const unsubDrawing = onReceiveDrawingCommand((command: DrawingCommand) => {
+      commandHistoryRef.current.push(command);
       drawCommand(command);
     });
 
     // Subscribe to canvas history (sent when late joiner joins)
     const unsubHistory = onReceiveCanvasHistory((history: DrawingCommand[]) => {
       logger.info(`Received canvas history with ${history.length} commands`);
-      // Replay all commands to reconstruct the canvas
-      history.forEach((command) => {
-        drawCommand(command);
-      });
+      // Replace local history with server history
+      commandHistoryRef.current = [...history];
+      // Replay all commands asynchronously to prevent UI freeze
+      replayHistoryAsync(history);
     });
 
     // Subscribe to clear canvas events
     const unsubClear = onCanvasCleared(() => {
       clearCanvas();
+      commandHistoryRef.current = [];
+      setLocalStrokeCount(0);
+    });
+
+    // Subscribe to undo events - clear and replay without last command
+    const unsubUndo = onReceiveUndo(() => {
+      logger.info("Received undo command - replaying canvas");
+      // Remove last command from local history
+      if (commandHistoryRef.current.length > 0) {
+        commandHistoryRef.current.pop();
+      }
+      // Clear canvas and replay remaining history asynchronously
+      clearCanvas();
+      replayHistoryAsync(commandHistoryRef.current);
+      setLocalStrokeCount((prev) => Math.max(0, prev - 1));
+    });
+
+    // Subscribe to fill command events from other clients
+    const unsubFill = onReceiveFillCommand((command: DrawingCommand) => {
+      logger.info("Received fill command");
+      commandHistoryRef.current.push(command);
+      drawCommand(command);
     });
 
     return () => {
       unsubDrawing();
       unsubHistory();
       unsubClear();
+      unsubUndo();
+      unsubFill();
     };
   }, [
     onReceiveDrawingCommand,
     onReceiveCanvasHistory,
     onCanvasCleared,
+    onReceiveUndo,
+    onReceiveFillCommand,
     drawCommand,
     clearCanvas,
+    replayHistoryAsync,
   ]);
 
   // Cleanup batch timer on unmount
@@ -324,6 +392,10 @@ function DrawingCanvasComponent({ disabled = false }: DrawingCanvasProps) {
         width: currentWidth,
       };
 
+      // Track in local history for undo
+      commandHistoryRef.current.push(networkCommand);
+      setLocalStrokeCount((prev) => prev + 1);
+
       sendDrawingCommand(networkCommand).catch((error) => {
         logger.error("Failed to send drawing command", error);
       });
@@ -367,6 +439,11 @@ function DrawingCanvasComponent({ disabled = false }: DrawingCanvasProps) {
           color: effectiveColor,
           width: currentWidth,
         };
+        
+        // Track in local history for undo
+        commandHistoryRef.current.push(networkCommand);
+        setLocalStrokeCount((prev) => prev + 1);
+        
         sendDrawingCommand(networkCommand).catch((error) => {
           logger.error("Failed to send drawing command", error);
         });
@@ -432,6 +509,38 @@ function DrawingCanvasComponent({ disabled = false }: DrawingCanvasProps) {
     [currentWidth, drawCommand, flushBatch, getEffectiveColor]
   );
 
+  // Handle fill tool click
+  const handleFillClick = useCallback(
+    (point: Point) => {
+      const canvas = canvasRef.current;
+      if (!canvas) return;
+
+      const ctx = canvas.getContext("2d");
+      if (!ctx) return;
+
+      // Execute fill locally
+      floodFill(ctx, point.x, point.y, currentColor);
+
+      // Send fill command to server with normalized coordinates
+      const fillCommand: DrawingCommand = {
+        type: "fill",
+        points: [normalizePoint(point)],
+        color: currentColor,
+        width: 0, // Not used for fill
+      };
+
+      // Track in local history for undo
+      commandHistoryRef.current.push(fillCommand);
+
+      sendFillCommand(fillCommand).catch((error) => {
+        logger.error("Failed to send fill command", error);
+      });
+
+      setLocalStrokeCount((prev) => prev + 1);
+    },
+    [currentColor, sendFillCommand]
+  );
+
   // Unified pointer down handler
   const handlePointerDown = useCallback(
     (e: React.MouseEvent | React.TouchEvent) => {
@@ -442,9 +551,18 @@ function DrawingCanvasComponent({ disabled = false }: DrawingCanvasProps) {
       if (!coords) return;
 
       const point = getCanvasPoint(coords.clientX, coords.clientY);
-      if (point) startDrawing(point);
+      if (!point) return;
+
+      // Handle fill tool separately - single click fills
+      if (currentTool === "fill") {
+        handleFillClick(point);
+        return;
+      }
+
+      // Normal drawing behavior
+      startDrawing(point);
     },
-    [disabled, getCanvasPoint, startDrawing]
+    [disabled, getCanvasPoint, startDrawing, currentTool, handleFillClick]
   );
 
   // Unified pointer move handler
@@ -474,6 +592,7 @@ function DrawingCanvasComponent({ disabled = false }: DrawingCanvasProps) {
   // Memoize clear handler
   const handleClearMemo = useCallback(async () => {
     clearCanvas();
+    setLocalStrokeCount(0);
     try {
       await signalRClearCanvas();
     } catch (error) {
@@ -481,7 +600,27 @@ function DrawingCanvasComponent({ disabled = false }: DrawingCanvasProps) {
     }
   }, [clearCanvas, signalRClearCanvas]);
 
-  // Keyboard shortcut for clear canvas (Ctrl+X / Cmd+X)
+  // Undo handler with debounce protection
+  // Uses undoPendingRef to prevent rapid fire while request is in-flight
+  const handleUndo = useCallback(async () => {
+    // Prevent firing if an undo is already in progress
+    if (undoPendingRef.current) return;
+    
+    undoPendingRef.current = true;
+    try {
+      await undoLastDrawCommand();
+    } catch (error) {
+      logger.error("Failed to undo", error);
+    } finally {
+      // Small delay before allowing next undo to prevent rapid fire
+      // This acts as a debounce for held keys (OS key repeat ~30-50ms)
+      setTimeout(() => {
+        undoPendingRef.current = false;
+      }, 150);
+    }
+  }, [undoLastDrawCommand]);
+
+  // Keyboard shortcuts
   useEffect(() => {
     if (disabled) return;
 
@@ -496,11 +635,19 @@ function DrawingCanvasComponent({ disabled = false }: DrawingCanvasProps) {
         e.preventDefault();
         handleClearMemo();
       }
+      
+      // Undo with Ctrl+Z (Cmd+Z on Mac)
+      if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "z" && !e.shiftKey) {
+        e.preventDefault();
+        if (localStrokeCount > 0) {
+          handleUndo();
+        }
+      }
     };
 
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [disabled, handleClearMemo]);
+  }, [disabled, handleClearMemo, handleUndo, localStrokeCount]);
 
   return (
     <div
@@ -541,6 +688,8 @@ function DrawingCanvasComponent({ disabled = false }: DrawingCanvasProps) {
           onToolChange={setCurrentTool}
           onWidthChange={setCurrentWidth}
           onClear={handleClearMemo}
+          onUndo={handleUndo}
+          canUndo={localStrokeCount > 0}
         />
       )}
     </div>
