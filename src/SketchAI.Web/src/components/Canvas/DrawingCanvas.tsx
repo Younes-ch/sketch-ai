@@ -50,6 +50,11 @@ function DrawingCanvasComponent({ disabled = false }: DrawingCanvasProps) {
   
   // Local command history for undo functionality
   const commandHistoryRef = useRef<DrawingCommand[]>([]);
+  
+  // Replay cancellation - AbortController allows cancelling in-progress async replays
+  const replayAbortRef = useRef<AbortController | null>(null);
+  // Track if undo is pending to prevent rapid fire
+  const undoPendingRef = useRef(false);
 
   const [currentColor, setCurrentColor] = useState<string>(
     DRAWING_COLORS.DEFAULT
@@ -179,11 +184,35 @@ function DrawingCanvasComponent({ disabled = false }: DrawingCanvasProps) {
   }, []);
 
   // Async chunked replay - prevents UI freeze by yielding between batches
+  // Supports cancellation via AbortController to handle rapid undo sequences
   const replayHistoryAsync = useCallback(
     async (history: DrawingCommand[], onComplete?: () => void) => {
+      // Cancel any in-progress replay before starting a new one
+      if (replayAbortRef.current) {
+        replayAbortRef.current.abort();
+      }
+      
+      // For short histories (e.g., after undos), use synchronous replay
+      // This avoids race conditions and is fast enough to not cause jank
+      const SYNC_THRESHOLD = 50;
+      if (history.length <= SYNC_THRESHOLD) {
+        history.forEach((cmd) => drawCommand(cmd));
+        onComplete?.();
+        return;
+      }
+      
+      // For longer histories, use async chunked replay with cancellation
+      const abortController = new AbortController();
+      replayAbortRef.current = abortController;
+      
       const CHUNK_SIZE = 25; // Commands per frame
       
       for (let i = 0; i < history.length; i += CHUNK_SIZE) {
+        // Check if this replay was cancelled
+        if (abortController.signal.aborted) {
+          return;
+        }
+        
         const chunk = history.slice(i, i + CHUNK_SIZE);
         chunk.forEach((cmd) => drawCommand(cmd));
         
@@ -191,6 +220,11 @@ function DrawingCanvasComponent({ disabled = false }: DrawingCanvasProps) {
         if (i + CHUNK_SIZE < history.length) {
           await new Promise((resolve) => requestAnimationFrame(resolve));
         }
+      }
+      
+      // Clear the ref if this replay completed without being cancelled
+      if (replayAbortRef.current === abortController) {
+        replayAbortRef.current = null;
       }
       
       onComplete?.();
@@ -566,12 +600,23 @@ function DrawingCanvasComponent({ disabled = false }: DrawingCanvasProps) {
     }
   }, [clearCanvas, signalRClearCanvas]);
 
-  // Undo handler
+  // Undo handler with debounce protection
+  // Uses undoPendingRef to prevent rapid fire while request is in-flight
   const handleUndo = useCallback(async () => {
+    // Prevent firing if an undo is already in progress
+    if (undoPendingRef.current) return;
+    
+    undoPendingRef.current = true;
     try {
       await undoLastDrawCommand();
     } catch (error) {
       logger.error("Failed to undo", error);
+    } finally {
+      // Small delay before allowing next undo to prevent rapid fire
+      // This acts as a debounce for held keys (OS key repeat ~30-50ms)
+      setTimeout(() => {
+        undoPendingRef.current = false;
+      }, 150);
     }
   }, [undoLastDrawCommand]);
 
