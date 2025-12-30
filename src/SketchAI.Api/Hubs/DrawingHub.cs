@@ -273,7 +273,7 @@ public class DrawingHub : Hub
         var room = await _roomService.GetRoomAsync(roomCode);
         if (room?.CurrentDrawerConnectionId != Context.ConnectionId)
         {
-            _logger.LogWarning("Non-drawer attempted fill in room {RoomCode}", roomCode);
+            _logger.LogWarning("Non-drawer attempted drawing command in room {RoomCode}", roomCode);
             return;
         }
 

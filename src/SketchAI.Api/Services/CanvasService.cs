@@ -37,12 +37,16 @@ public class CanvasService : ICanvasService
     {
         var key = RedisKeys.CanvasHistory(roomCode);
 
-        var lastCommand = await _db.ListRightPopAsync(key);
+        var lastCommand = await RedisHelper.SafeExecuteAsync(
+            () => _db.ListRightPopAsync(key),
+            _logger,
+            $"UndoLastStroke:{roomCode}",
+            RedisValue.Null);
 
         if (lastCommand.IsNullOrEmpty)
             return null;
 
-        _logger.LogInformation("Undo: removed last command from room {RoomCode}", roomCode);
+        _logger.LogDebug("Undo: removed last command from room {RoomCode}", roomCode);
         return JsonSerializer.Deserialize<DrawingCommandDto>(lastCommand.ToString(), JsonOptions);
     }
 
