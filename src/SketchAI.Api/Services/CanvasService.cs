@@ -33,6 +33,19 @@ public class CanvasService : ICanvasService
         }
     }
 
+    public async Task<DrawingCommandDto?> UndoLastStrokeAsync(string roomCode)
+    {
+        var key = RedisKeys.CanvasHistory(roomCode);
+
+        var lastCommand = await _db.ListRightPopAsync(key);
+
+        if (lastCommand.IsNullOrEmpty)
+            return null;
+
+        _logger.LogInformation("Undo: removed last command from room {RoomCode}", roomCode);
+        return JsonSerializer.Deserialize<DrawingCommandDto>(lastCommand.ToString(), JsonOptions);
+    }
+
     public async Task<List<DrawingCommandDto>> GetCanvasHistoryAsync(string roomCode)
     {
         var key = RedisKeys.CanvasHistory(roomCode);

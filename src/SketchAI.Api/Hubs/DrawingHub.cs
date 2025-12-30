@@ -270,6 +270,13 @@ public class DrawingHub : Hub
             return;
         }
 
+        var room = await _roomService.GetRoomAsync(roomCode);
+        if (room?.CurrentDrawerConnectionId != Context.ConnectionId)
+        {
+            _logger.LogWarning("Non-drawer attempted fill in room {RoomCode}", roomCode);
+            return;
+        }
+
         // Store in canvas history
         await _canvasService.AddDrawingCommandAsync(roomCode, command);
 
@@ -277,6 +284,34 @@ public class DrawingHub : Hub
         await Clients.OthersInGroup(roomCode).SendAsync("ReceiveDrawingCommand", command);
 
         // Update room activity
+        await _roomService.UpdateLastActivityAsync(roomCode);
+    }
+
+    public async Task SendFillCommand(DrawingCommandDto command, string roomCode)
+    {
+        if (!ValidationHelper.IsValidRoomCode(roomCode))
+        {
+            _logger.LogWarning("Invalid room code in SendFillCommand: {RoomCode}", roomCode);
+            return;
+        }
+
+        var room = await _roomService.GetRoomAsync(roomCode);
+        if (room?.CurrentDrawerConnectionId != Context.ConnectionId)
+        {
+            _logger.LogWarning("Non-drawer attempted fill in room {RoomCode}", roomCode);
+            return;
+        }
+
+        if (command.Type != "fill" || command.Points.Count != 1)
+        {
+            _logger.LogWarning("Invalid fill command from {ConnectionId}", Context.ConnectionId);
+            return;
+        }
+
+        await _canvasService.AddDrawingCommandAsync(roomCode, command);
+
+        await Clients.OthersInGroup(roomCode).SendAsync("ReceiveFillCommand", command);
+
         await _roomService.UpdateLastActivityAsync(roomCode);
     }
 
@@ -349,6 +384,30 @@ public class DrawingHub : Hub
                 }
 
             }
+        }
+    }
+
+    public async Task UndoLastStroke(string roomCode)
+    {
+        if (!ValidationHelper.IsValidRoomCode(roomCode))
+        {
+            _logger.LogWarning("Invalid room code in UndoLastStroke: {RoomCode}", roomCode);
+            return;
+        }
+
+        var room = await _roomService.GetRoomAsync(roomCode);
+        if (room?.CurrentDrawerConnectionId != Context.ConnectionId)
+        {
+            _logger.LogWarning("Non-drawer attempted undo in room {RoomCode}", roomCode);
+            return;
+        }
+
+        var undoneCommand = await _canvasService.UndoLastStrokeAsync(roomCode);
+
+        if (undoneCommand is not null)
+        {
+            await Clients.Group(roomCode).SendAsync("ReceiveUndo");
+            _logger.LogDebug("Undo sent to room {RoomCode}", roomCode);
         }
     }
 

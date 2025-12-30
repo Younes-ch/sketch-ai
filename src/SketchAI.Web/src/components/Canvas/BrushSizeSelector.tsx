@@ -1,11 +1,12 @@
 import { cn } from "@/lib/utils";
 import { DRAWING_COLORS, BORDER_COLORS } from "@/constants/colors";
+import type { ToolType } from "./CanvasToolbar";
 
 interface BrushSizeSelectorProps {
   sizes: number[];
   currentSize: number;
   currentColor: string;
-  currentTool: "brush" | "eraser";
+  currentTool: ToolType;
   onSizeSelect: (size: number) => void;
 }
 

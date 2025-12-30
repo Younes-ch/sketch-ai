@@ -4,7 +4,7 @@ import { ColorPalette, BrushSizeSelector } from "@/components/Canvas";
 import { MinusIcon } from "@/components/ui/Icons";
 import { cn } from "@/lib/utils";
 
-export type ToolType = "brush" | "eraser";
+export type ToolType = "brush" | "eraser" | "fill";
 
 interface CanvasToolbarProps {
   currentColor: string;
@@ -15,6 +15,8 @@ interface CanvasToolbarProps {
   onToolChange: (tool: ToolType) => void;
   onWidthChange: (width: number) => void;
   onClear: () => void;
+  onUndo: () => void;
+  canUndo: boolean;
 }
 
 const FOCUSABLE_SELECTOR =
@@ -29,6 +31,8 @@ function CanvasToolbarComponent({
   onToolChange,
   onWidthChange,
   onClear,
+  onUndo,
+  canUndo,
 }: CanvasToolbarProps) {
   const [isExpanded, setIsExpanded] = useState(false);
   const panelRef = useRef<HTMLDivElement>(null);
@@ -204,6 +208,20 @@ function CanvasToolbarComponent({
                   >
                     <span>🧽</span> Eraser
                   </button>
+                  <button
+                    onClick={() => {
+                      onToolChange("fill");
+                      setIsExpanded(false);
+                    }}
+                    className={cn(
+                      "px-3 py-2 rounded-lg font-bold text-sm transition-all duration-150 flex items-center gap-1",
+                      currentTool === "fill"
+                        ? "bg-info text-white"
+                        : "bg-transparent text-white/60"
+                    )}
+                  >
+                    <span>🪣</span> Fill
+                  </button>
                 </div>
 
                 {/* Brush Sizes */}
@@ -227,6 +245,23 @@ function CanvasToolbarComponent({
                   className="px-4 py-2.5 text-white rounded-xl font-bold cursor-pointer hover:-translate-y-0.5 transition-all duration-200 flex items-center gap-2 bg-danger border-4 border-danger-dark hover:bg-danger-hover"
                 >
                   <span>🗑️</span> Clear
+                </button>
+
+                {/* Undo Button */}
+                <button
+                  onClick={() => {
+                    onUndo();
+                    setIsExpanded(false);
+                  }}
+                  disabled={!canUndo}
+                  className={cn(
+                    "px-4 py-2.5 text-white rounded-xl font-bold cursor-pointer transition-all duration-200 flex items-center gap-2 border-4",
+                    canUndo
+                      ? "bg-accent border-accent-dark hover:bg-accent/80 hover:-translate-y-0.5"
+                      : "bg-card-border border-card-border opacity-50 cursor-not-allowed"
+                  )}
+                >
+                  <span>↩️</span> Undo
                 </button>
               </div>
             </motion.div>
@@ -272,6 +307,17 @@ function CanvasToolbarComponent({
           >
             <span>🧽</span> Eraser
           </button>
+          <button
+            onClick={() => onToolChange("fill")}
+            className={cn(
+              "px-3 py-2 rounded-lg font-bold text-sm transition-all duration-150 flex items-center gap-1",
+              currentTool === "fill"
+                ? "bg-info text-white"
+                : "bg-transparent text-white/60"
+            )}
+          >
+            <span>🪣</span> Fill
+          </button>
         </div>
 
         {/* Brush Sizes */}
@@ -300,6 +346,20 @@ function CanvasToolbarComponent({
           className="px-4 py-2.5 text-white rounded-xl font-bold cursor-pointer hover:-translate-y-0.5 transition-all duration-200 flex items-center gap-2 bg-danger border-4 border-danger-dark hover:bg-danger-hover"
         >
           <span>🗑️</span> Clear
+        </button>
+
+        {/* Undo Button */}
+        <button
+          onClick={onUndo}
+          disabled={!canUndo}
+          className={cn(
+            "px-4 py-2.5 text-white rounded-xl font-bold cursor-pointer transition-all duration-200 flex items-center gap-2 border-4",
+            canUndo
+              ? "bg-accent border-accent-dark hover:bg-accent/80 hover:-translate-y-0.5"
+              : "bg-card-border border-card-border opacity-50 cursor-not-allowed"
+          )}
+        >
+          <span>↩️</span> Undo
         </button>
       </div>
     </div>

@@ -8,6 +8,8 @@ import { useRoomStore } from "./roomStore";
 type DrawingCommandCallback = (command: DrawingCommand) => void;
 type CanvasHistoryCallback = (history: DrawingCommand[]) => void;
 type ClearCanvasCallback = () => void;
+type UndoCallback = () => void;
+type FillCommandCallback = (command: DrawingCommand) => void;
 
 interface CanvasStore {
   pendingCanvasHistory: DrawingCommand[] | null;
@@ -16,6 +18,8 @@ interface CanvasStore {
   drawingCommandCallback: DrawingCommandCallback | null;
   historyCallback: CanvasHistoryCallback | null;
   clearCallback: ClearCanvasCallback | null;
+  undoCallback: UndoCallback | null;
+  fillCommandCallback: FillCommandCallback | null;
 
   // Actions
   setPendingCanvasHistory: (history: DrawingCommand[] | null) => void;
@@ -23,12 +27,16 @@ interface CanvasStore {
 
   // SignalR actions
   sendDrawingCommand: (command: DrawingCommand) => Promise<void>;
+  sendFillCommand: (command: DrawingCommand) => Promise<void>;
+  undoLastStroke: () => Promise<void>;
   clearCanvas: () => Promise<void>;
 
   // Event subscription methods
   onReceiveDrawingCommand: (callback: DrawingCommandCallback) => () => void;
   onReceiveCanvasHistory: (callback: CanvasHistoryCallback) => () => void;
   onCanvasCleared: (callback: ClearCanvasCallback) => () => void;
+  onReceiveUndo: (callback: UndoCallback) => () => void;
+  onReceiveFillCommand: (callback: FillCommandCallback) => () => void;
 
   // Reset
   reset: () => void;
@@ -39,6 +47,8 @@ export const useCanvasStore = create<CanvasStore>((set) => ({
   drawingCommandCallback: null,
   historyCallback: null,
   clearCallback: null,
+  undoCallback: null,
+  fillCommandCallback: null,
 
   setPendingCanvasHistory: (history) => set({ pendingCanvasHistory: history }),
   clearPendingCanvasHistory: () => set({ pendingCanvasHistory: null }),
@@ -50,6 +60,24 @@ export const useCanvasStore = create<CanvasStore>((set) => ({
     if (!isConnected() || !connection || !roomCode) return;
 
     await connection.invoke("SendDrawingCommand", command, roomCode);
+  },
+
+  sendFillCommand: async (command) => {
+    const { connection, isConnected } = useConnectionStore.getState();
+    const { roomCode } = useRoomStore.getState();
+    
+    if (!isConnected() || !connection || !roomCode) return;
+
+    await connection.invoke("SendFillCommand", command, roomCode);
+  },
+
+  undoLastStroke: async () => {
+    const { connection, isConnected } = useConnectionStore.getState();
+    const { roomCode } = useRoomStore.getState();
+
+    if (!isConnected() || !connection || !roomCode) return;
+
+    await connection.invoke("UndoLastStroke", roomCode);
   },
 
   clearCanvas: async () => {
@@ -85,12 +113,32 @@ export const useCanvasStore = create<CanvasStore>((set) => ({
     return () => {};
   },
 
+  onReceiveUndo: (callback) => {
+    const connection = useConnectionStore.getState().connection;
+    if (connection) {
+      connection.on("ReceiveUndo", callback);
+      return () => connection.off("ReceiveUndo", callback);
+    }
+    return () => {};
+  },
+
+  onReceiveFillCommand: (callback) => {
+    const connection = useConnectionStore.getState().connection;
+    if (connection) {
+      connection.on("ReceiveFillCommand", callback);
+      return () => connection.off("ReceiveFillCommand", callback);
+    }
+    return () => {};
+  },
+
   reset: () =>
     set({
       pendingCanvasHistory: null,
       drawingCommandCallback: null,
       historyCallback: null,
       clearCallback: null,
+      undoCallback: null,
+      fillCommandCallback: null,
     }),
 }));
 
