@@ -1,7 +1,7 @@
 import type { Point } from "./point";
 
 export interface DrawingCommand {
-  type: "stroke" | "clear" | "undo" | "fill";
+  type: "stroke" | "clear" | "fill";
   points: Point[];
   color: string;
   width: number;

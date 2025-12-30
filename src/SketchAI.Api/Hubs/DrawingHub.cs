@@ -387,11 +387,11 @@ public class DrawingHub : Hub
         }
     }
 
-    public async Task UndoLastStroke(string roomCode)
+    public async Task UndoLastDrawCommand(string roomCode)
     {
         if (!ValidationHelper.IsValidRoomCode(roomCode))
         {
-            _logger.LogWarning("Invalid room code in UndoLastStroke: {RoomCode}", roomCode);
+            _logger.LogWarning("Invalid room code in UndoLastDrawCommand: {RoomCode}", roomCode);
             return;
         }
 
@@ -402,7 +402,7 @@ public class DrawingHub : Hub
             return;
         }
 
-        var undoneCommand = await _canvasService.UndoLastStrokeAsync(roomCode);
+        var undoneCommand = await _canvasService.UndoLastDrawCommandAsync(roomCode);
 
         if (undoneCommand is not null)
         {

@@ -28,7 +28,7 @@ interface CanvasStore {
   // SignalR actions
   sendDrawingCommand: (command: DrawingCommand) => Promise<void>;
   sendFillCommand: (command: DrawingCommand) => Promise<void>;
-  undoLastStroke: () => Promise<void>;
+  undoLastDrawCommand: () => Promise<void>;
   clearCanvas: () => Promise<void>;
 
   // Event subscription methods
@@ -71,13 +71,13 @@ export const useCanvasStore = create<CanvasStore>((set) => ({
     await connection.invoke("SendFillCommand", command, roomCode);
   },
 
-  undoLastStroke: async () => {
+  undoLastDrawCommand: async () => {
     const { connection, isConnected } = useConnectionStore.getState();
     const { roomCode } = useRoomStore.getState();
 
     if (!isConnected() || !connection || !roomCode) return;
 
-    await connection.invoke("UndoLastStroke", roomCode);
+    await connection.invoke("UndoLastDrawCommand", roomCode);
   },
 
   clearCanvas: async () => {

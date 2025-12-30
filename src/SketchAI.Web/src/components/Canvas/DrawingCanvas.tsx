@@ -99,7 +99,7 @@ function DrawingCanvasComponent({ disabled = false }: DrawingCanvasProps) {
 
   const sendDrawingCommand = useCanvasStore((s) => s.sendDrawingCommand);
   const sendFillCommand = useCanvasStore((s) => s.sendFillCommand);
-  const undoLastStroke = useCanvasStore((s) => s.undoLastStroke);
+  const undoLastDrawCommand = useCanvasStore((s) => s.undoLastDrawCommand);
   const signalRClearCanvas = useCanvasStore((s) => s.clearCanvas);
   const onReceiveDrawingCommand = useCanvasStore(
     (s) => s.onReceiveDrawingCommand
@@ -566,11 +566,11 @@ function DrawingCanvasComponent({ disabled = false }: DrawingCanvasProps) {
   // Undo handler
   const handleUndo = useCallback(async () => {
     try {
-      await undoLastStroke();
+      await undoLastDrawCommand();
     } catch (error) {
       logger.error("Failed to undo", error);
     }
-  }, [undoLastStroke]);
+  }, [undoLastDrawCommand]);
 
   // Keyboard shortcuts
   useEffect(() => {

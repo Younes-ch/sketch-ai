@@ -16,7 +16,7 @@ public interface ICanvasService
     /// Removes the last stroke command from history (for undo).
     /// Returns the removed command, or null if history is empty.
     /// </summary>
-    Task<DrawingCommandDto?> UndoLastStrokeAsync(string roomCode);
+    Task<DrawingCommandDto?> UndoLastDrawCommandAsync(string roomCode);
 
     /// <summary>
     /// Retrieves all drawing commands for a room's canvas.
