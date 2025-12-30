@@ -18,8 +18,6 @@ interface CanvasStore {
   drawingCommandCallback: DrawingCommandCallback | null;
   historyCallback: CanvasHistoryCallback | null;
   clearCallback: ClearCanvasCallback | null;
-  undoCallback: UndoCallback | null;
-  fillCommandCallback: FillCommandCallback | null;
 
   // Actions
   setPendingCanvasHistory: (history: DrawingCommand[] | null) => void;
@@ -137,8 +135,6 @@ export const useCanvasStore = create<CanvasStore>((set) => ({
       drawingCommandCallback: null,
       historyCallback: null,
       clearCallback: null,
-      undoCallback: null,
-      fillCommandCallback: null,
     }),
 }));
 
