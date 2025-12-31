@@ -47,10 +47,10 @@ function DrawingCanvasComponent({ disabled = false }: DrawingCanvasProps) {
   const pointBufferRef = useRef<Point[]>([]); // Accumulates points between batches
   const batchTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const currentColorRef = useRef<string>(DRAWING_COLORS.DEFAULT); // Track color during batch
-  
+
   // Local command history for undo functionality
   const commandHistoryRef = useRef<DrawingCommand[]>([]);
-  
+
   // Replay cancellation - AbortController allows cancelling in-progress async replays
   const replayAbortRef = useRef<AbortController | null>(null);
   // Track if undo is pending to prevent rapid fire
@@ -61,7 +61,7 @@ function DrawingCanvasComponent({ disabled = false }: DrawingCanvasProps) {
   );
   const [currentWidth, setCurrentWidth] = useState(8);
   const [currentTool, setCurrentTool] = useState<ToolType>("brush");
-  const [localStrokeCount, setLocalStrokeCount] = useState(0);  // Track local strokes for undo
+  const [localStrokeCount, setLocalStrokeCount] = useState(0); // Track local strokes for undo
   const [displaySize, setDisplaySize] = useState({
     width: CANVAS_WIDTH,
     height: CANVAS_HEIGHT,
@@ -131,7 +131,7 @@ function DrawingCanvasComponent({ disabled = false }: DrawingCanvasProps) {
       const canvas = canvasRef.current;
       if (!canvas) return;
 
-      const ctx = canvas.getContext("2d");
+      const ctx = canvas.getContext("2d", { willReadFrequently: true });
       if (!ctx) return;
 
       ctx.strokeStyle = command.color;
@@ -177,7 +177,7 @@ function DrawingCanvasComponent({ disabled = false }: DrawingCanvasProps) {
     const canvas = canvasRef.current;
     if (!canvas) return;
 
-    const ctx = canvas.getContext("2d");
+    const ctx = canvas.getContext("2d", { willReadFrequently: true });
     if (!ctx) return;
 
     ctx.clearRect(0, 0, canvas.width, canvas.height);
@@ -191,7 +191,7 @@ function DrawingCanvasComponent({ disabled = false }: DrawingCanvasProps) {
       if (replayAbortRef.current) {
         replayAbortRef.current.abort();
       }
-      
+
       // For short histories (e.g., after undos), use synchronous replay
       // This avoids race conditions and is fast enough to not cause jank
       const SYNC_THRESHOLD = 50;
@@ -200,33 +200,33 @@ function DrawingCanvasComponent({ disabled = false }: DrawingCanvasProps) {
         onComplete?.();
         return;
       }
-      
+
       // For longer histories, use async chunked replay with cancellation
       const abortController = new AbortController();
       replayAbortRef.current = abortController;
-      
+
       const CHUNK_SIZE = 25; // Commands per frame
-      
+
       for (let i = 0; i < history.length; i += CHUNK_SIZE) {
         // Check if this replay was cancelled
         if (abortController.signal.aborted) {
           return;
         }
-        
+
         const chunk = history.slice(i, i + CHUNK_SIZE);
         chunk.forEach((cmd) => drawCommand(cmd));
-        
+
         // Yield to browser between chunks to prevent freeze
         if (i + CHUNK_SIZE < history.length) {
           await new Promise((resolve) => requestAnimationFrame(resolve));
         }
       }
-      
+
       // Clear the ref if this replay completed without being cancelled
       if (replayAbortRef.current === abortController) {
         replayAbortRef.current = null;
       }
-      
+
       onComplete?.();
     },
     [drawCommand]
@@ -439,11 +439,11 @@ function DrawingCanvasComponent({ disabled = false }: DrawingCanvasProps) {
           color: effectiveColor,
           width: currentWidth,
         };
-        
+
         // Track in local history for undo
         commandHistoryRef.current.push(networkCommand);
         setLocalStrokeCount((prev) => prev + 1);
-        
+
         sendDrawingCommand(networkCommand).catch((error) => {
           logger.error("Failed to send drawing command", error);
         });
@@ -515,7 +515,7 @@ function DrawingCanvasComponent({ disabled = false }: DrawingCanvasProps) {
       const canvas = canvasRef.current;
       if (!canvas) return;
 
-      const ctx = canvas.getContext("2d");
+      const ctx = canvas.getContext("2d", { willReadFrequently: true });
       if (!ctx) return;
 
       // Execute fill locally
@@ -605,7 +605,7 @@ function DrawingCanvasComponent({ disabled = false }: DrawingCanvasProps) {
   const handleUndo = useCallback(async () => {
     // Prevent firing if an undo is already in progress
     if (undoPendingRef.current) return;
-    
+
     undoPendingRef.current = true;
     try {
       await undoLastDrawCommand();
@@ -635,9 +635,13 @@ function DrawingCanvasComponent({ disabled = false }: DrawingCanvasProps) {
         e.preventDefault();
         handleClearMemo();
       }
-      
+
       // Undo with Ctrl+Z (Cmd+Z on Mac)
-      if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "z" && !e.shiftKey) {
+      if (
+        (e.ctrlKey || e.metaKey) &&
+        e.key.toLowerCase() === "z" &&
+        !e.shiftKey
+      ) {
         e.preventDefault();
         if (localStrokeCount > 0) {
           handleUndo();
