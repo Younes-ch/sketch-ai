@@ -291,27 +291,26 @@ public class DrawingHub : Hub
     {
         if (!ValidationHelper.IsValidRoomCode(roomCode))
         {
-            _logger.LogWarning("Invalid room code in SendFillCommand: {RoomCode}", roomCode);
+            _logger.LogWarning("SendFillCommand failed: Invalid room code '{RoomCode}'", roomCode);
+            return;
+        }
+
+        if (!ValidationHelper.IsValidDrawingCommand(command))
+        {
+            _logger.LogWarning("SendFillCommand failed: Invalid fill command from {ConnectionId}", Context.ConnectionId);
             return;
         }
 
         var room = await _roomService.GetRoomAsync(roomCode);
         if (room?.CurrentDrawerConnectionId != Context.ConnectionId)
         {
-            _logger.LogWarning("Non-drawer attempted fill in room {RoomCode}", roomCode);
-            return;
-        }
-
-        if (command.Type != "fill" || command.Points.Count != 1)
-        {
-            _logger.LogWarning("Invalid fill command from {ConnectionId}", Context.ConnectionId);
+            _logger.LogWarning("SendFillCommand failed: Non-drawer {ConnectionId} attempted fill in room {RoomCode}", 
+                Context.ConnectionId, roomCode);
             return;
         }
 
         await _canvasService.AddDrawingCommandAsync(roomCode, command);
-
         await Clients.OthersInGroup(roomCode).SendAsync("ReceiveFillCommand", command);
-
         await _roomService.UpdateLastActivityAsync(roomCode);
     }
 
