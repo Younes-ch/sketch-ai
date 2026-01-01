@@ -1,5 +1,5 @@
 import { create } from "zustand";
-import type { GameState, Player } from "@/models";
+import type { GameState, Player, WordExplanation } from "@/models";
 import { initialGameState } from "@/models";
 import { logger } from "@/lib/logger";
 import { useConnectionStore } from "./connectionStore";
@@ -9,6 +9,11 @@ import { useChatStore } from "./chatStore";
 interface GameStore extends GameState {
   playersWhoGuessed: Set<string>;
   roundStartedAt: Date | null;
+
+  // Word translation state
+  wordExplanation: WordExplanation | null;
+  isTranslating: boolean;
+  translationError: string | null;
 
   // Actions
   setGameState: (state: Partial<GameState>) => void;
@@ -21,6 +26,8 @@ interface GameStore extends GameState {
   startGame: () => Promise<void>;
   selectWord: (word: string) => Promise<void>;
   sendGuess: (message: string) => Promise<void>;
+  getWordExplanation: (word: string, targetLanguage: string) => Promise<void>;
+  clearWordExplanation: () => void;
 
   // Reset
   reset: () => void;
@@ -30,6 +37,11 @@ export const useGameStore = create<GameStore>((set) => ({
   ...initialGameState,
   playersWhoGuessed: new Set(),
   roundStartedAt: null,
+
+  // Word translation initial state
+  wordExplanation: null,
+  isTranslating: false,
+  translationError: null,
 
   setGameState: (state) => set((prev) => ({ ...prev, ...state })),
   
@@ -69,11 +81,41 @@ export const useGameStore = create<GameStore>((set) => ({
     await connection.invoke("SendGuess", message);
   },
 
+  getWordExplanation: async (word, targetLanguage) => {
+    const { connection, isConnected } = useConnectionStore.getState();
+    if (!isConnected() || !connection) {
+      set({ translationError: "Not connected to server" });
+      return;
+    }
+
+    set({ isTranslating: true, translationError: null, wordExplanation: null });
+
+    try {
+      await connection.invoke("GetWordExplanation", word, targetLanguage);
+    } catch (error) {
+      logger.error("Failed to get word explanation", error);
+      set({
+        translationError: error instanceof Error ? error.message : "Failed to get translation",
+        isTranslating: false,
+      });
+    }
+  },
+
+  clearWordExplanation: () =>
+    set({
+      wordExplanation: null,
+      isTranslating: false,
+      translationError: null,
+    }),
+
   reset: () =>
     set({
       ...initialGameState,
       playersWhoGuessed: new Set(),
       roundStartedAt: null,
+      wordExplanation: null,
+      isTranslating: false,
+      translationError: null,
     }),
 }));
 
@@ -126,6 +168,25 @@ export function setupGameEventHandlers() {
   const handleWordChoices = (words: string[]) => {
     logger.info(`Received word choices: ${words.length} words`);
     useGameStore.getState().setGameState({ wordChoices: words });
+  };
+
+  const handleReceiveWordExplanation = (explanation: WordExplanation) => {
+    logger.info("Received word explanation:", explanation);
+    
+    // Treat "N/A" translation as an error
+    if (explanation.translation === "N/A") {
+      useGameStore.setState({
+        wordExplanation: null,
+        isTranslating: false,
+        translationError: "Translation unavailable. Please try again later.",
+      });
+      return;
+    }
+    
+    useGameStore.setState({
+      wordExplanation: explanation,
+      isTranslating: false,
+    });
   };
 
   const handleDrawingStarted = (gameStateDto: GameStateDto) => {
@@ -321,6 +382,7 @@ export function setupGameEventHandlers() {
   connection.on("GameEnded", handleGameEnded);
   connection.on("DrawerLeft", handleDrawerLeft);
   connection.on("GameReset", handleGameReset);
+  connection.on("ReceiveWordExplanation", handleReceiveWordExplanation);
 
   return () => {
     connection.off("GameStarted", handleGameStarted);
@@ -335,5 +397,6 @@ export function setupGameEventHandlers() {
     connection.off("GameEnded", handleGameEnded);
     connection.off("DrawerLeft", handleDrawerLeft);
     connection.off("GameReset", handleGameReset);
+    connection.off("ReceiveWordExplanation", handleReceiveWordExplanation);
   };
 }

@@ -2,6 +2,8 @@ var builder = WebApplication.CreateBuilder(args);
 
 builder.AddServiceDefaults();
 builder.AddRedisClient(connectionName: "redis");
+builder.AddOpenAIClient("ai-model")
+       .AddChatClient();
 
 // Add services to the container.
 // Learn more about configuring OpenAPI at https://aka.ms/aspnet/openapi
@@ -11,6 +13,8 @@ builder.Services.AddSingleton<IRoomService, RoomService>();
 builder.Services.AddSingleton<ICanvasService, CanvasService>();
 builder.Services.AddSingleton<IWordService, WordService>();
 builder.Services.AddSingleton<IGameService, GameService>();
+builder.Services.AddSingleton<IAIService, AIService>();
+builder.Services.AddSingleton<IWordExplanationService, WordExplanationService>();
 
 // Background services
 builder.Services.AddHostedService<RoundTimerService>();

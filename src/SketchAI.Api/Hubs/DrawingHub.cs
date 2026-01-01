@@ -9,6 +9,7 @@ public class DrawingHub : Hub
     private readonly ICanvasService _canvasService;
     private readonly IGameService _gameService;
     private readonly IWordService _wordService;
+    private readonly IWordExplanationService _wordExplanationService;
     private readonly IHubContext<DrawingHub> _hubContext;
     private readonly ILogger<DrawingHub> _logger;
 
@@ -17,6 +18,7 @@ public class DrawingHub : Hub
         ICanvasService canvasService,
         IGameService gameService,
         IWordService wordService,
+        IWordExplanationService wordExplanationService,
         IHubContext<DrawingHub> hubContext,
         ILogger<DrawingHub> logger)
     {
@@ -24,6 +26,7 @@ public class DrawingHub : Hub
         _canvasService = canvasService;
         _gameService = gameService;
         _wordService = wordService;
+        _wordExplanationService = wordExplanationService;
         _hubContext = hubContext;
         _logger = logger;
     }
@@ -251,6 +254,32 @@ public class DrawingHub : Hub
         await Clients.Caller.SendAsync("YourWord", room.CurrentWord);
 
         await Clients.OthersInGroup(roomCode).SendAsync("CanvasCleared");
+    }
+
+    public async Task GetWordExplanation(string word, string targetLanguage)
+    {
+        var roomCode = await _roomService.GetRoomCodeByConnectionIdAsync(Context.ConnectionId);
+
+        if (roomCode is null)
+        {
+            _logger.LogWarning("GetWordExplanation failed: Connection {ConnectionId} is not in any room", Context.ConnectionId);
+            throw new HubException("You are not in a room");
+        }
+
+        var room = await _roomService.GetRoomAsync(roomCode) ?? throw new HubException("Room not found");
+
+        if (room.Phase != GamePhase.WordSelection)
+        {
+            throw new HubException("You are not in word selection phase");
+        }
+
+        if (room.WordChoices is not null && !room.WordChoices.Contains(word, StringComparer.InvariantCultureIgnoreCase))
+        {
+            throw new HubException("Word is not from the given choices");
+        }
+
+        var result = await _wordExplanationService.ExplainWordAsync(word, targetLanguage);
+        await Clients.Caller.SendAsync("ReceiveWordExplanation", result);
     }
 
     /// <summary>

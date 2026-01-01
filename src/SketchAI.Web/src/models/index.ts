@@ -7,3 +7,4 @@ export * from './point';
 export * from './publicRoom';
 export * from './roomSettings';
 export * from './voteKick';
+export * from './wordExplanation';

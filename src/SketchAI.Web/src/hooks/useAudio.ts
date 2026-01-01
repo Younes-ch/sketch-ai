@@ -105,6 +105,30 @@ export function useAudio() {
     }
   }, []);
 
+  const pause = useCallback((soundName: SoundName) => {
+    const audioArr = playingAudio.get(soundName);
+    if (audioArr) {
+      // Pause ALL instances of this sound (without resetting time)
+      audioArr.forEach((audio) => {
+        audio.pause();
+      });
+    }
+  }, []);
+
+  const resume = useCallback((soundName: SoundName) => {
+    if (isMuted) return;
+    
+    const audioArr = playingAudio.get(soundName);
+    if (audioArr) {
+      // Resume ALL paused instances of this sound
+      audioArr.forEach((audio) => {
+        audio.play().catch((err) => {
+          logger.debug(`Could not resume sound ${soundName}:`, err);
+        });
+      });
+    }
+  }, [isMuted]);
+
   const stopAll = useCallback(() => {
     playingAudio.forEach((audioArr) => {
       audioArr.forEach((audio) => {
@@ -118,6 +142,8 @@ export function useAudio() {
   return {
     play,
     stop,
+    pause,
+    resume,
     stopAll,
     isMuted,
     volume,

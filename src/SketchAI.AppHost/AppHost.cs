@@ -2,7 +2,12 @@ var builder = DistributedApplication.CreateBuilder(args);
 
 var redis = builder
     .AddRedis("redis")
-    .WithRedisInsight();
+    .WithRedisInsight(resourceBuilder =>
+    {
+        resourceBuilder.WithHostPort(5540);
+    });
+
+var model = builder.AddGitHubModel("ai-model", Aspire.Hosting.GitHub.GitHubModel.OpenAI.OpenAIGpt4oMini);
 
 var apiService = builder
     .AddProject<Projects.SketchAI_Api>("apiservice")
@@ -21,6 +26,7 @@ var apiService = builder
         });
     })
     .WithReference(redis)
+    .WithReference(model)
     .WaitFor(redis);
 
 var webfrontend = builder
