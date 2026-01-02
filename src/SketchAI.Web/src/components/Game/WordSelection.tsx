@@ -1,6 +1,6 @@
 import { useGameStore } from "@/stores/gameStore";
 import { useRoomStore } from "@/stores/roomStore";
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
 import { cn } from "@/lib/utils";
 import { logger } from "@/lib/logger";
 import { useAudio } from "@/hooks/useAudio";
@@ -84,7 +84,7 @@ export function WordSelection({ words, timeLimit = 15 }: WordSelectionProps) {
   };
 
   // Handle closing the translation modal
-  const handleCloseTranslation = () => {
+  const handleCloseTranslation = useCallback(() => {
     // Calculate how long we were paused
     if (pauseStartTimeRef.current) {
       totalPausedTimeRef.current += Date.now() - pauseStartTimeRef.current;
@@ -95,7 +95,7 @@ export function WordSelection({ words, timeLimit = 15 }: WordSelectionProps) {
 
     // Resume countdown audio from where it was paused
     resume("countdown");
-  };
+  }, [clearWordExplanation, resume]);
 
   // Sync pause state with translation state
   useEffect(() => {
@@ -109,7 +109,13 @@ export function WordSelection({ words, timeLimit = 15 }: WordSelectionProps) {
       // Auto-close on error after a brief moment
       handleCloseTranslation();
     }
-  }, [isTranslating, translationPaused, wordExplanation, translationError]);
+  }, [
+    isTranslating,
+    translationPaused,
+    wordExplanation,
+    translationError,
+    handleCloseTranslation,
+  ]);
 
   // Countdown timer using elapsed time - also handles auto-select
   useEffect(() => {
