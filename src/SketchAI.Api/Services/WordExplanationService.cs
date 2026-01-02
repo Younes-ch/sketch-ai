@@ -6,6 +6,16 @@ public class WordExplanationService : IWordExplanationService
     private readonly IAIService _aiService;
     private readonly ILogger<WordExplanationService> _logger;
 
+    // Allowed languages for translation - used for validation
+    private static readonly HashSet<string> AllowedLanguages = new(StringComparer.OrdinalIgnoreCase)
+    {
+        "English", "French", "Spanish", "German", "Italian", "Portuguese",
+        "Dutch", "Polish", "Russian", "Japanese", "Korean", "Chinese", "Arabic"
+    };
+
+    // Maximum allowed length for word input
+    private const int MaxWordLength = 50;
+
     private static readonly JsonSerializerOptions JsonOptions = new()
     {
         PropertyNamingPolicy = JsonNamingPolicy.CamelCase
@@ -17,7 +27,6 @@ public class WordExplanationService : IWordExplanationService
         _aiService = aiService;
         _logger = logger;
     }
-
 
     public async Task<WordExplanationDto> ExplainWordAsync(string word, string targetLanguage, CancellationToken ct = default)
     {
@@ -33,7 +42,21 @@ public class WordExplanationService : IWordExplanationService
             return new WordExplanationDto(word, targetLanguage, "N/A", "Invalid language provided");
         }
 
-        var key = RedisKeys.WordExplanation(word, targetLanguage);
+        // Sanitize inputs against prompt injection
+        var sanitizedWord = SanitizeWord(word);
+        if (string.IsNullOrEmpty(sanitizedWord))
+        {
+            _logger.LogWarning("Word '{Word}' failed sanitization", word);
+            return new WordExplanationDto(word, targetLanguage, "N/A", "Invalid word format");
+        }
+
+        if (!AllowedLanguages.Contains(targetLanguage))
+        {
+            _logger.LogWarning("Invalid target language requested: '{TargetLanguage}'", targetLanguage);
+            return new WordExplanationDto(word, targetLanguage, "N/A", "Unsupported language");
+        }
+
+        var key = RedisKeys.WordExplanation(sanitizedWord, targetLanguage);
         var wordExplanationJson = await RedisHelper.SafeExecuteAsync(
             () => _db.StringGetAsync(key),
             _logger,
@@ -51,33 +74,55 @@ public class WordExplanationService : IWordExplanationService
             _logger.LogWarning("Failed to deserialize cached word explanation for '{Word}', fetching fresh", word);
         }
 
-        _logger.LogInformation("Requesting word explanation for '{Word}' in {TargetLanguage}", word, targetLanguage);
+        _logger.LogInformation("Requesting word explanation for '{Word}' in {TargetLanguage}", sanitizedWord, targetLanguage);
 
         var prompt = $$"""
                        You are helping a {{targetLanguage}} speaker understand English words.
 
-                       For the word "{{word}}", provide:
+                       For the word "{{sanitizedWord}}", provide:
                        1. Translation to {{targetLanguage}} in only the number of words it needs.
                        2. A simple explanation in {{targetLanguage}} (1-2 sentences, easy to understand)
 
                        Respond ONLY with valid JSON in this exact format:
-                       {"word": "{{word}}", "targetLanguage": "{{targetLanguage}}", "translation": "...", "simpleExplanation": "..."}
+                       {"word": "{{sanitizedWord}}", "targetLanguage": "{{targetLanguage}}", "translation": "...", "simpleExplanation": "..."}
                        """;
+
+        string responseJson;
+        try
+        {
+            responseJson = await _aiService.GetCompletionAsync(prompt, ct: ct);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "AI service failed while explaining word '{Word}'", sanitizedWord);
+            return new WordExplanationDto(word, targetLanguage, "N/A", "Translation service unavailable");
+        }
 
         try
         {
-            var responseJson = await _aiService.GetCompletionAsync(prompt, ct: ct);
-            _logger.LogDebug("Received AI response for word '{Word}': {Response}", word, responseJson);
+            _logger.LogDebug("Received AI response for word '{Word}': {Response}", sanitizedWord, responseJson);
+
+            // Strip markdown code blocks if present
+            responseJson = responseJson.Trim();
+            if (responseJson.StartsWith("```"))
+            {
+                var startIndex = responseJson.IndexOf('\n', StringComparison.Ordinal) + 1;
+                var endIndex = responseJson.LastIndexOf("```", StringComparison.Ordinal);
+                if (startIndex > 0 && endIndex > startIndex)
+                {
+                    responseJson = responseJson[startIndex..endIndex].Trim();
+                }
+            }
 
             var response = JsonSerializer.Deserialize<WordExplanationDto>(responseJson, JsonOptions);
 
             if (response is null)
             {
-                _logger.LogWarning("Failed to parse AI response for word '{Word}' - response was null after deserialization", word);
+                _logger.LogWarning("Failed to parse AI response for word '{Word}' - response was null after deserialization", sanitizedWord);
                 return new WordExplanationDto(word, targetLanguage, "N/A", "Translation unavailable");
             }
 
-            _logger.LogInformation("Successfully explained word '{Word}' - Translation: {Translation}", word, response.Translation);
+            _logger.LogInformation("Successfully explained word '{Word}' - Translation: {Translation}", sanitizedWord, response.Translation);
 
             await RedisHelper.SafeExecuteAsync(
             () => _db.StringSetAsync(key, responseJson, RedisKeys.WordExplanationExpiry),
@@ -89,8 +134,26 @@ public class WordExplanationService : IWordExplanationService
         }
         catch (JsonException ex)
         {
-            _logger.LogWarning(ex, "Failed to parse AI response as JSON for word '{Word}'", word);
+            _logger.LogWarning(ex, "Failed to parse AI response as JSON for word '{Word}'", sanitizedWord);
             return new WordExplanationDto(word, targetLanguage, "N/A", "Translation unavailable");
         }
+    }
+
+    /// <summary>
+    /// Sanitizes word input by limiting length and removing potentially dangerous characters.
+    /// </summary>
+    private static string SanitizeWord(string word)
+    {
+        if (string.IsNullOrWhiteSpace(word))
+            return string.Empty;
+
+        var sanitized = word.Trim();
+        if (sanitized.Length > MaxWordLength)
+            sanitized = sanitized[..MaxWordLength];
+
+        sanitized = new string(sanitized.Where(c =>
+            char.IsLetterOrDigit(c) || c == ' ' || c == '-' || c == '\'').ToArray());
+
+        return sanitized.Trim();
     }
 }
