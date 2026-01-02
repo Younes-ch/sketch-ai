@@ -2,23 +2,7 @@ import * as Popover from "@radix-ui/react-popover";
 import { useState } from "react";
 import { cn } from "@/lib/utils";
 import { DropdownArrowIcon } from "./Icons";
-
-// Available languages for translation
-const LANGUAGES = [
-  "English",
-  "French",
-  "Spanish",
-  "German",
-  "Italian",
-  "Portuguese",
-  "Dutch",
-  "Polish",
-  "Russian",
-  "Japanese",
-  "Korean",
-  "Chinese",
-  "Arabic",
-] as const;
+import { LANGUAGES } from "@/constants/languages";
 
 interface LanguageDropdownProps {
   value: string;
@@ -26,7 +10,11 @@ interface LanguageDropdownProps {
   className?: string;
 }
 
-export function LanguageDropdown({ value, onChange, className }: LanguageDropdownProps) {
+export function LanguageDropdown({
+  value,
+  onChange,
+  className,
+}: LanguageDropdownProps) {
   const [open, setOpen] = useState(false);
 
   const handleSelect = (languageName: string) => {
