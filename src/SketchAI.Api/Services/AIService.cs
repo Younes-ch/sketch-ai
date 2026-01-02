@@ -27,30 +27,4 @@ public class AIService : IAIService
 
         return "";
     }
-
-    public async IAsyncEnumerable<string> StreamCompletionAsync(
-        string prompt,
-        ChatOptions? options,
-        [EnumeratorCancellation] CancellationToken ct = default)
-    {
-        var message = new ChatMessage(ChatRole.User, prompt);
-        IAsyncEnumerable<ChatResponseUpdate> response;
-        try
-        {
-            response = _chatClient.GetStreamingResponseAsync(message, options, cancellationToken: ct);
-        }
-        catch (Exception ex)
-        {
-            _logger.LogError(ex, "Failed to initiate streaming completion");
-            yield break;
-        }
-
-        await foreach (var chunk in response.WithCancellation(ct))
-        {
-            if (!string.IsNullOrEmpty(chunk.Text))
-            {
-                yield return chunk.Text;
-            }
-        }
-    }
 }
