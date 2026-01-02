@@ -278,7 +278,7 @@ public class DrawingHub : Hub
             throw new HubException("Word is not from the given choices");
         }
 
-        var result = await _wordExplanationService.ExplainWordAsync(word, targetLanguage);
+        var result = await _wordExplanationService.ExplainWordAsync(word, targetLanguage, Context.ConnectionAborted);
         await Clients.Caller.SendAsync("ReceiveWordExplanation", result);
     }
 
@@ -333,7 +333,7 @@ public class DrawingHub : Hub
         var room = await _roomService.GetRoomAsync(roomCode);
         if (room?.CurrentDrawerConnectionId != Context.ConnectionId)
         {
-            _logger.LogWarning("SendFillCommand failed: Non-drawer {ConnectionId} attempted fill in room {RoomCode}", 
+            _logger.LogWarning("SendFillCommand failed: Non-drawer {ConnectionId} attempted fill in room {RoomCode}",
                 Context.ConnectionId, roomCode);
             return;
         }
