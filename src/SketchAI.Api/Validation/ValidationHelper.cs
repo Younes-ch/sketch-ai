@@ -17,7 +17,7 @@ public static partial class ValidationHelper
     private const int MaxBrushWidth = 50;
 
     // Valid drawing command types
-    private static readonly HashSet<string> ValidCommandTypes = ["stroke", "clear"];
+    private static readonly HashSet<string> ValidCommandTypes = ["stroke", "clear", "fill"];
 
     /// <summary>
     /// Validates a room code (6 chars, alphanumeric, uppercase).
@@ -79,7 +79,7 @@ public static partial class ValidationHelper
     }
 
     /// <summary>
-    /// Validates a drawing command.
+    /// Validates a drawing command (stroke, fill, or clear).
     /// </summary>
     public static bool IsValidDrawingCommand(DrawingCommandDto? command)
     {
@@ -94,18 +94,31 @@ public static partial class ValidationHelper
         if (!IsValidHexColor(command.Color))
             return false;
 
-        // Validate width
-        if (command.Width is < MinBrushWidth or > MaxBrushWidth)
-            return false;
+        // For stroke commands, validate points (at least 1 point) and width
+        if (command.Type.Equals("stroke", StringComparison.OrdinalIgnoreCase))
+        {
+            // Validate width
+            if (command.Width is < MinBrushWidth or > MaxBrushWidth)
+                return false;
 
-        // For stroke commands, validate points
-        if (!command.Type.Equals("stroke", StringComparison.OrdinalIgnoreCase)) return true;
-
-        if (command.Points.Count == 0)
-            return false;
+            if (command.Points.Count == 0)
+                return false;
 
         // Validate each point is within canvas bounds
-        return command.Points.All(IsPointWithinBounds);
+            return command.Points.All(IsPointWithinBounds);
+        }
+
+        // For fill commands, validate exactly 1 point
+        if (command.Type.Equals("fill", StringComparison.OrdinalIgnoreCase))
+        {
+            if (command.Points.Count != 1)
+                return false;
+
+            return IsPointWithinBounds(command.Points[0]);
+        }
+
+        // For clear commands, no additional validation needed
+        return true;
     }
 
     /// <summary>
