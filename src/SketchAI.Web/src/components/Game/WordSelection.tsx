@@ -254,10 +254,10 @@ export function WordSelection({ words, timeLimit = 15 }: WordSelectionProps) {
                 >
                   <button
                     onClick={() => handleTranslate(word)}
-                    disabled={isTranslating}
+                    disabled={isTranslating || translationPaused}
                     className={cn(
                       "px-3 rounded-lg transition-all duration-200",
-                      isTranslating
+                      isTranslating || translationPaused
                         ? "bg-card-border text-white/40 cursor-not-allowed"
                         : "bg-primary/20 text-primary hover:bg-primary/30 border border-primary/40"
                     )}
