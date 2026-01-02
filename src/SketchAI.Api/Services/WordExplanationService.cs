@@ -44,7 +44,11 @@ public class WordExplanationService : IWordExplanationService
         {
             _logger.LogInformation("Cache hit for word '{Word}'", word);
             var wordExplanation = JsonSerializer.Deserialize<WordExplanationDto>(wordExplanationJson.ToString(), JsonOptions);
-            return wordExplanation!;
+            if (wordExplanation is not null)
+            {
+                return wordExplanation;
+            }
+            _logger.LogWarning("Failed to deserialize cached word explanation for '{Word}', fetching fresh", word);
         }
 
         _logger.LogInformation("Requesting word explanation for '{Word}' in {TargetLanguage}", word, targetLanguage);
