@@ -75,7 +75,12 @@ export function WordSelection({ words, timeLimit = 15 }: WordSelectionProps) {
     pauseStartTimeRef.current = Date.now();
     setTranslationPaused(true);
 
-    await getWordExplanation(word, selectedLanguage);
+    try {
+      await getWordExplanation(word, selectedLanguage);
+    } catch (error) {
+      logger.error("Failed to get word explanation", error);
+      handleCloseTranslation();
+    }
   };
 
   // Handle closing the translation modal
