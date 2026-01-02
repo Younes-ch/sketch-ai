@@ -51,12 +51,11 @@ export function TranslationModal({
         {explanation && !isLoading && !error && (
           <>
             <div className="flex items-center justify-between mb-4">
-              <h3 className="text-xl font-bold text-white">
-                🌐 Translation
-              </h3>
+              <h3 className="text-xl font-bold text-white">🌐 Translation</h3>
               <button
                 onClick={onClose}
                 className="text-white/40 hover:text-white transition-colors text-2xl leading-none"
+                aria-label="close"
               >
                 ×
               </button>
@@ -85,9 +84,7 @@ export function TranslationModal({
                 <p className="text-white/60 text-xs uppercase tracking-wide mb-1">
                   Explanation
                 </p>
-                <p className="text-white/80">
-                  {explanation.simpleExplanation}
-                </p>
+                <p className="text-white/80">{explanation.simpleExplanation}</p>
               </div>
             </div>
 
