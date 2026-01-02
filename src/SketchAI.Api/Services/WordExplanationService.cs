@@ -37,7 +37,7 @@ public class WordExplanationService : IWordExplanationService
         var wordExplanationJson = await RedisHelper.SafeExecuteAsync(
             () => _db.StringGetAsync(key),
             _logger,
-            $"ExplainWord:{key}",
+            $"CheckCacheForWordExplanation:{key}",
             RedisValue.Null);
 
         if (wordExplanationJson.HasValue)
@@ -79,7 +79,10 @@ public class WordExplanationService : IWordExplanationService
 
             _logger.LogInformation("Successfully explained word '{Word}' - Translation: {Translation}", word, response.Translation);
 
-            await _db.StringSetAsync(key, responseJson, RedisKeys.WordExplanationExpiry);
+            await RedisHelper.SafeExecuteAsync(
+            () => _db.StringSetAsync(key, responseJson, RedisKeys.WordExplanationExpiry),
+            _logger,
+            $"CacheWordExplanation:{key}");
 
             _logger.LogDebug("Translation for word {Word} to {TargetLanguage} saved", word, targetLanguage);
             return response;
