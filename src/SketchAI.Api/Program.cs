@@ -2,7 +2,7 @@ var builder = WebApplication.CreateBuilder(args);
 
 builder.AddServiceDefaults();
 builder.AddRedisClient(connectionName: "redis");
-builder.AddOpenAIClient("ai-model")
+builder.AddOpenAIClient("gpt-4o-mini")
        .AddChatClient();
 
 // Add services to the container.

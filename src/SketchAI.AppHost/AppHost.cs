@@ -7,7 +7,7 @@ var redis = builder
         resourceBuilder.WithHostPort(5540);
     });
 
-var model = builder.AddGitHubModel("ai-model", Aspire.Hosting.GitHub.GitHubModel.OpenAI.OpenAIGpt4oMini);
+var gpt4OMini = builder.AddGitHubModel("gpt-4o-mini", Aspire.Hosting.GitHub.GitHubModel.OpenAI.OpenAIGpt4oMini);
 
 var apiService = builder
     .AddProject<Projects.SketchAI_Api>("apiservice")
@@ -26,7 +26,7 @@ var apiService = builder
         });
     })
     .WithReference(redis)
-    .WithReference(model)
+    .WithReference(gpt4OMini)
     .WaitFor(redis);
 
 var webfrontend = builder
