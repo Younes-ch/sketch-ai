@@ -7,7 +7,11 @@ var redis = builder
         resourceBuilder.WithHostPort(5540);
     });
 
-var gpt4OMini = builder.AddGitHubModel("gpt-4o-mini", Aspire.Hosting.GitHub.GitHubModel.OpenAI.OpenAIGpt4oMini);
+var githubModelsApiKey = builder.AddParameter("gh-models-api-key", secret: true);
+
+var gpt4OMini = builder
+    .AddGitHubModel("gpt-4o-mini", Aspire.Hosting.GitHub.GitHubModel.OpenAI.OpenAIGpt4oMini)
+    .WithApiKey(githubModelsApiKey);
 
 var apiService = builder
     .AddProject<Projects.SketchAI_Api>("apiservice")
