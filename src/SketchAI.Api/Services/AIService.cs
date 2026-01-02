@@ -34,11 +34,23 @@ public class AIService : IAIService
         [EnumeratorCancellation] CancellationToken ct = default)
     {
         var message = new ChatMessage(ChatRole.User, prompt);
-        var response = _chatClient.GetStreamingResponseAsync(message, options, cancellationToken: ct);
-        await foreach (var chunk in response)
+        IAsyncEnumerable<ChatResponseUpdate> response;
+        try
         {
-            if (ct.IsCancellationRequested) break;
-            yield return chunk.Text;
+            response = _chatClient.GetStreamingResponseAsync(message, options, cancellationToken: ct);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Failed to initiate streaming completion");
+            yield break;
+        }
+
+        await foreach (var chunk in response.WithCancellation(ct))
+        {
+            if (!string.IsNullOrEmpty(chunk.Text))
+            {
+                yield return chunk.Text;
+            }
         }
     }
 }
