@@ -82,6 +82,16 @@ public class GameService : IGameService
 
     public async Task<bool> SelectWordAsync(string roomCode, string connectionId, string word)
     {
+        await using var lockHandle = await _lockProvider.TryAcquireLockAsync(
+            RedisKeys.RoomLock(roomCode),
+            RedisKeys.RoomLockExpiry);
+
+        if (lockHandle is null)
+        {
+            _logger.LogWarning("SelectWord failed: Could not acquire lock for room {RoomCode}", roomCode);
+            return false;
+        }
+
         var room = await _roomService.GetRoomAsync(roomCode);
 
         if (room is null)
@@ -273,6 +283,16 @@ public class GameService : IGameService
 
     public async Task EndRoundAsync(string roomCode, bool isTimeout = false)
     {
+        await using var lockHandle = await _lockProvider.TryAcquireLockAsync(
+            RedisKeys.RoomLock(roomCode),
+            RedisKeys.RoomLockExpiry);
+
+        if (lockHandle is null)
+        {
+            _logger.LogWarning("EndRound failed: Could not acquire lock for room {RoomCode}", roomCode);
+            return;
+        }
+
         var room = await _roomService.GetRoomAsync(roomCode);
 
         if (room is null)
@@ -294,6 +314,16 @@ public class GameService : IGameService
 
     public async Task NextTurnAsync(string roomCode)
     {
+        await using var lockHandle = await _lockProvider.TryAcquireLockAsync(
+            RedisKeys.RoomLock(roomCode),
+            RedisKeys.RoomLockExpiry);
+
+        if (lockHandle is null)
+        {
+            _logger.LogWarning("NextTurn failed: Could not acquire lock for room {RoomCode}", roomCode);
+            return;
+        }
+
         var room = await _roomService.GetRoomAsync(roomCode);
 
         if (room is null)

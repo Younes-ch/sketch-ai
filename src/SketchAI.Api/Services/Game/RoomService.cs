@@ -85,6 +85,16 @@ public class RoomService : IRoomService
             return (null, errorMessage);
         }
 
+        await using var lockHandle = await _lockProvider.TryAcquireLockAsync(
+            RedisKeys.RoomLock(roomCode),
+            RedisKeys.RoomLockExpiry);
+
+        if (lockHandle is null)
+        {
+            _logger.LogWarning("UpdateRoomSettings failed: Could not acquire lock for room {RoomCode}", roomCode);
+            return (null, "Server busy, please try again");
+        }
+
         var room = await GetRoomAsync(roomCode);
 
         if (room is null)
@@ -594,6 +604,16 @@ public class RoomService : IRoomService
 
     public async Task CancelVoteKickAsync(string roomCode)
     {
+        await using var lockHandle = await _lockProvider.TryAcquireLockAsync(
+            RedisKeys.RoomLock(roomCode),
+            RedisKeys.RoomLockExpiry);
+
+        if (lockHandle is null)
+        {
+            _logger.LogWarning("CancelVoteKick failed: Could not acquire lock for room {RoomCode}", roomCode);
+            return;
+        }
+
         var room = await GetRoomAsync(roomCode);
         if (room?.ActiveVoteKick is null)
         {

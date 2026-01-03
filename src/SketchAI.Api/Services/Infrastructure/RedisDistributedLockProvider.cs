@@ -54,6 +54,8 @@ public class RedisDistributedLockProvider : IDistributedLockProvider
                 _logger.LogWarning(ex, "Redis error while acquiring lock {LockKey}", lockKey);
                 if (attempt == retryCount)
                     throw;
+
+                await Task.Delay(delay, ct);
             }
         }
 

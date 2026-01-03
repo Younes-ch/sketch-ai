@@ -18,4 +18,10 @@ public class LockAcquisitionException : Exception
     {
         LockKey = lockKey;
     }
+
+    public LockAcquisitionException(string lockKey, string message, Exception innerException)
+        : base(message, innerException)
+    {
+        LockKey = lockKey;
+    }
 }
