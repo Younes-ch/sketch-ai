@@ -119,6 +119,7 @@ public class CanvasService : ICanvasService
             return [];
         }
 
+        var malformedCount = 0;
         var history = historyValues
             .Select(v =>
             {
@@ -128,12 +129,19 @@ public class CanvasService : ICanvasService
                 }
                 catch (JsonException)
                 {
+                    malformedCount++;
                     return null;
                 }
             })
             .Where(cmd => cmd is not null)
             .Cast<DrawingCommandDto>()
             .ToList();
+
+        if (malformedCount > 0)
+        {
+            _logger.LogWarning("Skipping {MalformedCount} malformed drawing commands in room history for {RoomCode}",
+                malformedCount, roomCode);
+        }
 
         _logger.LogDebug("Retrieved {Count} drawing commands for room {RoomCode}", history.Count, roomCode);
         return history;
