@@ -413,7 +413,6 @@ function DrawingCanvasComponent({ disabled = false }: DrawingCanvasProps) {
 
       // Track in local history for undo
       commandHistoryRef.current.push(networkCommand);
-      setLocalStrokeCount((prev) => prev + 1);
 
       sendDrawingCommand(networkCommand).catch((error) => {
         logger.error("Failed to send drawing command", error);
@@ -462,7 +461,6 @@ function DrawingCanvasComponent({ disabled = false }: DrawingCanvasProps) {
 
         // Track in local history for undo
         commandHistoryRef.current.push(networkCommand);
-        setLocalStrokeCount((prev) => prev + 1);
 
         sendDrawingCommand(networkCommand).catch((error) => {
           logger.error("Failed to send drawing command", error);
@@ -492,6 +490,12 @@ function DrawingCanvasComponent({ disabled = false }: DrawingCanvasProps) {
     // If we started drawing but never moved, draw a dot
     if (isDrawingRef.current && !hasMovedRef.current && point) {
       createAndSendCommand([point], getEffectiveColor());
+    }
+
+    // Increment stroke count once per complete stroke (not per batched command)
+    // This keeps the count in sync with undo which removes entire strokes
+    if (isDrawingRef.current) {
+      setLocalStrokeCount((prev) => prev + 1);
     }
 
     isDrawingRef.current = false;
@@ -646,6 +650,16 @@ function DrawingCanvasComponent({ disabled = false }: DrawingCanvasProps) {
     if (disabled) return;
 
     const handleKeyDown = (e: KeyboardEvent) => {
+      // Ignore shortcuts when typing in input fields
+      const target = e.target as HTMLElement;
+      if (
+        target.tagName === "INPUT" ||
+        target.tagName === "TEXTAREA" ||
+        target.isContentEditable
+      ) {
+        return;
+      }
+
       // Clear canvas with Ctrl+Shift+X (Cmd+Shift+X on Mac)
       // Using Shift to avoid conflict with cut operation
       if (
@@ -666,6 +680,24 @@ function DrawingCanvasComponent({ disabled = false }: DrawingCanvasProps) {
         e.preventDefault();
         if (localStrokeCount > 0) {
           handleUndo();
+        }
+      }
+
+      // Tool shortcuts (single keys, no modifiers)
+      if (!e.ctrlKey && !e.metaKey && !e.altKey) {
+        switch (e.key.toLowerCase()) {
+          case "b":
+            e.preventDefault();
+            setCurrentTool("brush");
+            break;
+          case "f":
+            e.preventDefault();
+            setCurrentTool("fill");
+            break;
+          case "e":
+            e.preventDefault();
+            setCurrentTool("eraser");
+            break;
         }
       }
     };
