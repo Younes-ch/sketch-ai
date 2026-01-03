@@ -32,7 +32,6 @@ public class RoomService : IRoomService
             Username = hostUsername,
             IsHost = true,
             JoinedAt = DateTime.UtcNow,
-            IsConnected = true
         };
 
         var roomSettings = new RoomSettingsDto()
@@ -234,7 +233,6 @@ public class RoomService : IRoomService
             Username = username,
             IsHost = false,
             JoinedAt = DateTime.UtcNow,
-            IsConnected = true
         };
 
         room.Players.Add(newPlayer);

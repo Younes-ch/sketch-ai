@@ -10,7 +10,6 @@ public static class PlayerExtensions
         Username = player.Username,
         Score = player.Score,
         IsHost = player.IsHost,
-        IsConnected = player.IsConnected
     };
 
 }

@@ -7,5 +7,4 @@ public class Player
     public int Score { get; set; }
     public bool IsHost { get; set; }
     public DateTime JoinedAt { get; set; }
-    public bool IsConnected { get; set; } = true;
 }
