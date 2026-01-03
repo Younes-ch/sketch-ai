@@ -1,5 +1,10 @@
 import { motion, AnimatePresence } from "framer-motion";
-import { CloseIcon, VolumeOnIcon, VolumeOffIcon } from "@/components/ui/Icons";
+import {
+  CloseIcon,
+  VolumeOnIcon,
+  VolumeOffIcon,
+  ShortcutBadge,
+} from "@/components/ui";
 import { useAudioStore } from "@/stores/audioStore";
 
 interface SettingsModalProps {
@@ -129,6 +134,20 @@ export default function SettingsModal({
                     <span className="text-white/60 text-sm w-10 text-right">
                       {isMuted ? "0" : Math.round(volume * 100)}%
                     </span>
+                  </div>
+                </div>
+
+                {/* Keyboard Shortcuts */}
+                <div className="bg-background rounded-xl p-3 border-2 border-card-border">
+                  <p className="text-white/60 text-xs mb-2">
+                    Keyboard Shortcuts
+                  </p>
+                  <div className="grid grid-cols-2 gap-x-4 gap-y-2">
+                    <ShortcutBadge keys={["B"]} label="Brush" />
+                    <ShortcutBadge keys={["Ctrl", "Z"]} label="Undo" />
+                    <ShortcutBadge keys={["F"]} label="Fill" />
+                    <ShortcutBadge keys={["Ctrl", "⇧", "X"]} label="Clear" />
+                    <ShortcutBadge keys={["E"]} label="Eraser" />
                   </div>
                 </div>
 
