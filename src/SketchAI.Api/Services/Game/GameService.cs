@@ -335,7 +335,6 @@ public class GameService : IGameService
         if (room.Players.Count < 2)
         {
             _logger.LogInformation("Not enough players in room {RoomCode}, resetting to lobby", roomCode);
-            await lockHandle.DisposeAsync();
             await ResetToLobbyAsync(roomCode);
             return;
         }

@@ -288,7 +288,6 @@ public class RoomService : IRoomService
 
         if (room.Players.Count == 0)
         {
-            await lockHandle.DisposeAsync();
             await DeleteRoomAsync(roomCode);
             _logger.LogInformation("Room {RoomCode} deleted (empty)", roomCode);
         }

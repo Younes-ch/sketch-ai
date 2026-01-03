@@ -16,6 +16,11 @@ public class WordService : IWordService
         List<string> wordPool = [];
         if (difficulty != "mixed")
         {
+            if (!_wordsByDifficulty.ContainsKey(difficulty.ToLower()))
+            {
+                throw new ArgumentException($"Invalid difficulty: {difficulty}", nameof(difficulty));
+            }
+
             wordPool = _wordsByDifficulty[difficulty.ToLower()];
         }
         else
