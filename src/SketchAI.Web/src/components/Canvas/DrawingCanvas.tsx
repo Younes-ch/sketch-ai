@@ -47,6 +47,7 @@ function DrawingCanvasComponent({ disabled = false }: DrawingCanvasProps) {
   const pointBufferRef = useRef<Point[]>([]); // Accumulates points between batches
   const batchTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const currentColorRef = useRef<string>(DRAWING_COLORS.DEFAULT); // Track color during batch
+  const strokeIdRef = useRef<string | null>(null); // Track current stroke's unique ID for proper undo grouping
 
   // Local command history for undo functionality
   const commandHistoryRef = useRef<DrawingCommand[]>([]);
@@ -290,13 +291,28 @@ function DrawingCanvasComponent({ disabled = false }: DrawingCanvasProps) {
       setLocalStrokeCount(0);
     });
 
-    // Subscribe to undo events - clear and replay without last command
+    // Subscribe to undo events - clear and replay without last stroke
+    // A stroke may consist of multiple batched commands with the same strokeId
     const unsubUndo = onReceiveUndo(() => {
       logger.info("Received undo command - replaying canvas");
-      // Remove last command from local history
-      if (commandHistoryRef.current.length > 0) {
-        commandHistoryRef.current.pop();
+      const history = commandHistoryRef.current;
+
+      if (history.length === 0) return;
+
+      // Get the strokeId of the last command
+      const lastCommand = history[history.length - 1];
+      const strokeIdToRemove = lastCommand.strokeId;
+
+      if (strokeIdToRemove) {
+        // Remove all commands with the same strokeId (entire stroke)
+        commandHistoryRef.current = history.filter(
+          (cmd) => cmd.strokeId !== strokeIdToRemove
+        );
+      } else {
+        // Fallback for commands without strokeId (legacy or fill commands)
+        commandHistoryRef.current = history.slice(0, -1);
       }
+
       // Clear canvas and replay remaining history asynchronously
       clearCanvas();
       replayHistoryAsync(commandHistoryRef.current);
@@ -364,6 +380,8 @@ function DrawingCanvasComponent({ disabled = false }: DrawingCanvasProps) {
       // Initialize buffer with the starting point
       pointBufferRef.current = [point];
       currentColorRef.current = getEffectiveColor();
+      // Generate unique strokeId for this entire stroke (mousedown→mouseup)
+      strokeIdRef.current = crypto.randomUUID();
     },
     [getEffectiveColor]
   );
@@ -384,17 +402,17 @@ function DrawingCanvasComponent({ disabled = false }: DrawingCanvasProps) {
       // Only send if we have meaningful data after simplification
       if (simplifiedPoints.length < 2) return;
 
-      // Send normalized coordinates to server
+      // Send normalized coordinates to server with strokeId for undo grouping
       const networkCommand: DrawingCommand = {
         type: "stroke",
         points: simplifiedPoints.map(normalizePoint),
         color: effectiveColor,
         width: currentWidth,
+        strokeId: strokeIdRef.current ?? undefined,
       };
 
       // Track in local history for undo
       commandHistoryRef.current.push(networkCommand);
-      setLocalStrokeCount((prev) => prev + 1);
 
       sendDrawingCommand(networkCommand).catch((error) => {
         logger.error("Failed to send drawing command", error);
@@ -438,11 +456,11 @@ function DrawingCanvasComponent({ disabled = false }: DrawingCanvasProps) {
           points: points.map(normalizePoint),
           color: effectiveColor,
           width: currentWidth,
+          strokeId: strokeIdRef.current ?? undefined,
         };
 
         // Track in local history for undo
         commandHistoryRef.current.push(networkCommand);
-        setLocalStrokeCount((prev) => prev + 1);
 
         sendDrawingCommand(networkCommand).catch((error) => {
           logger.error("Failed to send drawing command", error);
@@ -474,10 +492,17 @@ function DrawingCanvasComponent({ disabled = false }: DrawingCanvasProps) {
       createAndSendCommand([point], getEffectiveColor());
     }
 
+    // Increment stroke count once per complete stroke (not per batched command)
+    // This keeps the count in sync with undo which removes entire strokes
+    if (isDrawingRef.current) {
+      setLocalStrokeCount((prev) => prev + 1);
+    }
+
     isDrawingRef.current = false;
     hasMovedRef.current = false;
     lastPointRef.current = null;
     pointBufferRef.current = [];
+    strokeIdRef.current = null; // Clear strokeId when stroke ends
   }, [createAndSendCommand, getEffectiveColor, sendBatchedCommand]);
 
   // Continue drawing to a new point
@@ -625,6 +650,16 @@ function DrawingCanvasComponent({ disabled = false }: DrawingCanvasProps) {
     if (disabled) return;
 
     const handleKeyDown = (e: KeyboardEvent) => {
+      // Ignore shortcuts when typing in input fields
+      const target = e.target as HTMLElement;
+      if (
+        target.tagName === "INPUT" ||
+        target.tagName === "TEXTAREA" ||
+        target.isContentEditable
+      ) {
+        return;
+      }
+
       // Clear canvas with Ctrl+Shift+X (Cmd+Shift+X on Mac)
       // Using Shift to avoid conflict with cut operation
       if (
@@ -645,6 +680,24 @@ function DrawingCanvasComponent({ disabled = false }: DrawingCanvasProps) {
         e.preventDefault();
         if (localStrokeCount > 0) {
           handleUndo();
+        }
+      }
+
+      // Tool shortcuts (single keys, no modifiers)
+      if (!e.ctrlKey && !e.metaKey && !e.altKey && !e.shiftKey) {
+        switch (e.key.toLowerCase()) {
+          case "b":
+            e.preventDefault();
+            setCurrentTool("brush");
+            break;
+          case "f":
+            e.preventDefault();
+            setCurrentTool("fill");
+            break;
+          case "e":
+            e.preventDefault();
+            setCurrentTool("eraser");
+            break;
         }
       }
     };

@@ -5,4 +5,5 @@ export interface DrawingCommand {
   points: Point[];
   color: string;
   width: number;
+  strokeId?: string;
 }

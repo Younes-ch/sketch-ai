@@ -10,6 +10,29 @@ public class CanvasService : ICanvasService
         PropertyNamingPolicy = JsonNamingPolicy.CamelCase
     };
 
+    private const string UndoStrokeLuaScript = @"
+            local key = KEYS[1]
+            local strokeId = ARGV[1]
+            local count = 0
+
+            while true do
+                local value = redis.call('LINDEX', key, -1)
+                if not value then
+                    break
+                end
+                
+                local command = cjson.decode(value)
+                if command.strokeId ~= strokeId then
+                    break
+                end
+                
+                redis.call('RPOP', key)
+                count = count + 1
+            end
+
+            return count
+            ";
+
     public CanvasService(IConnectionMultiplexer redis, ILogger<CanvasService> logger)
     {
         _db = redis.GetDatabase();
@@ -37,17 +60,49 @@ public class CanvasService : ICanvasService
     {
         var key = RedisKeys.CanvasHistory(roomCode);
 
-        var lastCommand = await RedisHelper.SafeExecuteAsync(
+        var lastCommandValue = await RedisHelper.SafeExecuteAsync(
             () => _db.ListRightPopAsync(key),
             _logger,
-            $"UndoLastStroke:{roomCode}",
+            $"UndoLastDrawCommand:{roomCode}",
             RedisValue.Null);
 
-        if (lastCommand.IsNullOrEmpty)
+        if (lastCommandValue.IsNullOrEmpty)
             return null;
 
-        _logger.LogDebug("Undo: removed last command from room {RoomCode}", roomCode);
-        return JsonSerializer.Deserialize<DrawingCommandDto>(lastCommand.ToString(), JsonOptions);
+        DrawingCommandDto? lastCommand;
+        try
+        {
+            lastCommand = JsonSerializer.Deserialize<DrawingCommandDto>(lastCommandValue.ToString(), JsonOptions);
+            if (lastCommand is null)
+                return null;
+
+        }
+        catch (JsonException ex)
+        {
+            _logger.LogError(ex, "Failed to deserialize drawing command during undo in room {RoomCode}", roomCode);
+            return null;
+        }
+
+
+        if (!string.IsNullOrEmpty(lastCommand.StrokeId))
+        {
+            var strokeIdToRemove = lastCommand.StrokeId;
+            var removedCount = await RedisHelper.SafeExecuteAsync(
+                () => _db.ScriptEvaluateAsync(
+                    UndoStrokeLuaScript,
+                    [key],
+                    [strokeIdToRemove]),
+                _logger,
+                $"UndoStrokeLuaScript:{roomCode}",
+                RedisResult.Create(0, ResultType.Integer));
+
+            var totalRemoved = removedCount is null || removedCount.IsNull ? 1 : (int)removedCount + 1;
+
+            _logger.LogDebug("Undo: removed {Count} commands with strokeId {StrokeId} from room {RoomCode}",
+                totalRemoved, strokeIdToRemove, roomCode);
+        }
+
+        return lastCommand;
     }
 
     public async Task<List<DrawingCommandDto>> GetCanvasHistoryAsync(string roomCode)
@@ -64,11 +119,29 @@ public class CanvasService : ICanvasService
             return [];
         }
 
+        var malformedCount = 0;
         var history = historyValues
-            .Select(v => JsonSerializer.Deserialize<DrawingCommandDto>(v.ToString(), JsonOptions))
+            .Select(v =>
+            {
+                try
+                {
+                    return JsonSerializer.Deserialize<DrawingCommandDto>(v.ToString(), JsonOptions);
+                }
+                catch (JsonException)
+                {
+                    malformedCount++;
+                    return null;
+                }
+            })
             .Where(cmd => cmd is not null)
             .Cast<DrawingCommandDto>()
             .ToList();
+
+        if (malformedCount > 0)
+        {
+            _logger.LogWarning("Skipping {MalformedCount} malformed drawing commands in room history for {RoomCode}",
+                malformedCount, roomCode);
+        }
 
         _logger.LogDebug("Retrieved {Count} drawing commands for room {RoomCode}", history.Count, roomCode);
         return history;
