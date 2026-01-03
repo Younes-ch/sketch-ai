@@ -88,13 +88,19 @@ public class CanvasService : ICanvasService
         if (!string.IsNullOrEmpty(lastCommand.StrokeId))
         {
             var strokeIdToRemove = lastCommand.StrokeId;
-            var removedCount = await _db.ScriptEvaluateAsync(
-                UndoStrokeLuaScript,
-                [key],
-                [strokeIdToRemove]);
+            var removedCount = await RedisHelper.SafeExecuteAsync(
+                () => _db.ScriptEvaluateAsync(
+                    UndoStrokeLuaScript,
+                    [key],
+                    [strokeIdToRemove]),
+                _logger,
+                $"UndoStrokeLuaScript:{roomCode}",
+                RedisResult.Create(0, ResultType.Integer));
+
+            var totalRemoved = removedCount is null || removedCount.IsNull ? 1 : (int)removedCount + 1;
 
             _logger.LogDebug("Undo: removed {Count} commands with strokeId {StrokeId} from room {RoomCode}",
-                (int)removedCount + 1, strokeIdToRemove, roomCode);
+                totalRemoved, strokeIdToRemove, roomCode);
         }
 
         return lastCommand;
