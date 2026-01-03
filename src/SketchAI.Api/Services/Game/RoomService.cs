@@ -2,10 +2,10 @@
 
 public class RoomService : IRoomService
 {
-
     private readonly IDatabase _db;
     private readonly IOptions<GameSettings> _gameSettings;
     private readonly ILogger<RoomService> _logger;
+    private readonly IDistributedLockProvider _lockProvider;
 
     private static readonly JsonSerializerOptions JsonOptions = new()
     {
@@ -15,11 +15,13 @@ public class RoomService : IRoomService
     public RoomService(
         IConnectionMultiplexer redis,
         IOptions<GameSettings> gameSettings,
-        ILogger<RoomService> logger)
+        ILogger<RoomService> logger,
+        IDistributedLockProvider lockProvider)
     {
         _db = redis.GetDatabase();
         _gameSettings = gameSettings;
         _logger = logger;
+        _lockProvider = lockProvider;
     }
 
     public async Task<Room> CreateRoomAsync(string roomCode, bool isPublic, string hostConnectionId, string hostUsername)
@@ -191,6 +193,17 @@ public class RoomService : IRoomService
 
     public async Task<Player?> AddPlayerToRoomAsync(string roomCode, string connectionId, string username)
     {
+        await using var lockHandle = await _lockProvider.TryAcquireLockAsync(
+            RedisKeys.RoomLock(roomCode),
+            RedisKeys.RoomLockExpiry);
+
+        if (lockHandle is null)
+        {
+            _logger.LogWarning("Failed to acquire lock for room {RoomCode} while adding player {Username}",
+                roomCode, username);
+            return null;
+        }
+
         var room = await GetRoomAsync(roomCode);
         if (room is null)
         {
@@ -233,6 +246,17 @@ public class RoomService : IRoomService
 
     public async Task<bool> RemovePlayerFromRoomAsync(string roomCode, string connectionId)
     {
+        await using var lockHandle = await _lockProvider.TryAcquireLockAsync(
+            RedisKeys.RoomLock(roomCode),
+            RedisKeys.RoomLockExpiry);
+
+        if (lockHandle is null)
+        {
+            _logger.LogWarning("Failed to acquire lock for room {RoomCode} while removing player",
+                roomCode);
+            return false;
+        }
+
         var room = await GetRoomAsync(roomCode);
         if (room is null)
         {
@@ -417,6 +441,17 @@ public class RoomService : IRoomService
 
     public async Task<(bool Success, string? ErrorMessage)> StartVoteKickAsync(string roomCode, string initiatorConnectionId, string targetUsername)
     {
+        await using var lockHandle = await _lockProvider.TryAcquireLockAsync(
+            RedisKeys.RoomLock(roomCode),
+            RedisKeys.RoomLockExpiry);
+
+        if (lockHandle is null)
+        {
+            _logger.LogWarning("Failed to acquire lock for room {RoomCode} while starting votekick",
+                roomCode);
+            return (false, "Server busy, please try again");
+        }
+
         var room = await GetRoomAsync(roomCode);
         if (room is null)
         {
@@ -477,6 +512,17 @@ public class RoomService : IRoomService
 
     public async Task<(VoteKickResult? Result, string? ErrorMessage)> CastVoteKickAsync(string roomCode, string voterConnectionId, bool voteToKick)
     {
+        await using var lockHandle = await _lockProvider.TryAcquireLockAsync(
+            RedisKeys.RoomLock(roomCode),
+            RedisKeys.RoomLockExpiry);
+
+        if (lockHandle is null)
+        {
+            _logger.LogWarning("Failed to acquire lock for room {RoomCode} while casting vote",
+                roomCode);
+            return (null, "Server busy, please try again");
+        }
+
         var room = await GetRoomAsync(roomCode);
         if (room is null)
         {

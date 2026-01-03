@@ -5,16 +5,32 @@ public class GameService : IGameService
     private readonly IRoomService _roomService;
     private readonly IWordService _wordService;
     private readonly ILogger<GameService> _logger;
+    private readonly IDistributedLockProvider _lockProvider;
 
-    public GameService(IRoomService roomService, IWordService wordService, ILogger<GameService> logger)
+    public GameService(
+        IRoomService roomService,
+        IWordService wordService,
+        ILogger<GameService> logger,
+        IDistributedLockProvider lockProvider)
     {
         _roomService = roomService;
         _wordService = wordService;
         _logger = logger;
+        _lockProvider = lockProvider;
     }
 
     public async Task<bool> StartGameAsync(string roomCode, string connectionId)
     {
+        await using var lockHandle = await _lockProvider.TryAcquireLockAsync(
+            RedisKeys.RoomLock(roomCode),
+            RedisKeys.RoomLockExpiry);
+
+        if (lockHandle is null)
+        {
+            _logger.LogWarning("StartGame failed: Could not acquire lock for room {RoomCode}", roomCode);
+            return false;
+        }
+
         var room = await _roomService.GetRoomAsync(roomCode);
 
         if (room is null)
@@ -116,6 +132,16 @@ public class GameService : IGameService
 
     public async Task<string?> RevealLetterAsync(string roomCode)
     {
+        await using var lockHandle = await _lockProvider.TryAcquireLockAsync(
+            RedisKeys.RoomLock(roomCode),
+            RedisKeys.RoomLockExpiry);
+
+        if (lockHandle is null)
+        {
+            _logger.LogWarning("RevealLetter failed: Could not acquire lock for room {RoomCode}", roomCode);
+            return null;
+        }
+
         var room = await _roomService.GetRoomAsync(roomCode);
 
         if (room is null || room.Phase != GamePhase.Drawing || room.CurrentWord is null || room.CurrentWordHint is null)
@@ -143,6 +169,16 @@ public class GameService : IGameService
 
     public async Task<bool> CheckGuessAsync(string roomCode, string connectionId, string guess)
     {
+        await using var lockHandle = await _lockProvider.TryAcquireLockAsync(
+            RedisKeys.RoomLock(roomCode),
+            RedisKeys.RoomLockExpiry);
+
+        if (lockHandle is null)
+        {
+            _logger.LogWarning("CheckGuess failed: Could not acquire lock for room {RoomCode}", roomCode);
+            return false;
+        }
+
         var room = await _roomService.GetRoomAsync(roomCode);
 
         if (room is null)
