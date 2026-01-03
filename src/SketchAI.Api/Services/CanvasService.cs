@@ -121,7 +121,17 @@ public class CanvasService : ICanvasService
         }
 
         var history = historyValues
-            .Select(v => JsonSerializer.Deserialize<DrawingCommandDto>(v.ToString(), JsonOptions))
+            .Select(v =>
+            {
+                try
+                {
+                    return JsonSerializer.Deserialize<DrawingCommandDto>(v.ToString(), JsonOptions);
+                }
+                catch (JsonException)
+                {
+                    return null;
+                }
+            })
             .Where(cmd => cmd is not null)
             .Cast<DrawingCommandDto>()
             .ToList();
