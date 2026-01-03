@@ -684,7 +684,7 @@ function DrawingCanvasComponent({ disabled = false }: DrawingCanvasProps) {
       }
 
       // Tool shortcuts (single keys, no modifiers)
-      if (!e.ctrlKey && !e.metaKey && !e.altKey) {
+      if (!e.ctrlKey && !e.metaKey && !e.altKey && !e.shiftKey) {
         switch (e.key.toLowerCase()) {
           case "b":
             e.preventDefault();
