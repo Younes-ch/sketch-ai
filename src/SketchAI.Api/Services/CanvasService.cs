@@ -10,6 +10,30 @@ public class CanvasService : ICanvasService
         PropertyNamingPolicy = JsonNamingPolicy.CamelCase
     };
 
+    private const string UndoStrokeLuaScript = @"
+            local key = KEYS[1]
+            local strokeId = ARGV[1]
+            local removed = {}
+            local count = 0
+
+            while true do
+                local value = redis.call('LINDEX', key, -1)
+                if not value then
+                    break
+                end
+                
+                local command = cjson.decode(value)
+                if command.strokeId ~= strokeId then
+                    break
+                end
+                
+                redis.call('RPOP', key)
+                count = count + 1
+            end
+
+            return count
+            ";
+
     public CanvasService(IConnectionMultiplexer redis, ILogger<CanvasService> logger)
     {
         _db = redis.GetDatabase();
@@ -46,36 +70,31 @@ public class CanvasService : ICanvasService
         if (lastCommandValue.IsNullOrEmpty)
             return null;
 
-        var lastCommand = JsonSerializer.Deserialize<DrawingCommandDto>(lastCommandValue.ToString(), JsonOptions);
-        if (lastCommand is null)
+        DrawingCommandDto? lastCommand;
+        try
+        {
+            lastCommand = JsonSerializer.Deserialize<DrawingCommandDto>(lastCommandValue.ToString(), JsonOptions);
+            if (lastCommand is null)
+                return null;
+
+        }
+        catch (JsonException ex)
+        {
+            _logger.LogError(ex, "Failed to deserialize drawing command during undo in room {RoomCode}", roomCode);
             return null;
+        }
 
 
         if (!string.IsNullOrEmpty(lastCommand.StrokeId))
         {
             var strokeIdToRemove = lastCommand.StrokeId;
-            var removedCount = 1;
-
-            while (true)
-            {
-                var peekValue = await _db.ListGetByIndexAsync(key, -1);
-                if (peekValue.IsNullOrEmpty)
-                    break;
-
-                var peekCommand = JsonSerializer.Deserialize<DrawingCommandDto>(peekValue.ToString(), JsonOptions);
-                if (peekCommand?.StrokeId != strokeIdToRemove)
-                    break;
-
-                await _db.ListRightPopAsync(key);
-                removedCount++;
-            }
+            var removedCount = await _db.ScriptEvaluateAsync(
+                UndoStrokeLuaScript,
+                [key],
+                [strokeIdToRemove]);
 
             _logger.LogDebug("Undo: removed {Count} commands with strokeId {StrokeId} from room {RoomCode}",
-                removedCount, strokeIdToRemove, roomCode);
-        }
-        else
-        {
-            _logger.LogDebug("Undo: removed last command (no strokeId) from room {RoomCode}", roomCode);
+                (int)removedCount + 1, strokeIdToRemove, roomCode);
         }
 
         return lastCommand;
