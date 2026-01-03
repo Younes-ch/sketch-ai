@@ -37,17 +37,48 @@ public class CanvasService : ICanvasService
     {
         var key = RedisKeys.CanvasHistory(roomCode);
 
-        var lastCommand = await RedisHelper.SafeExecuteAsync(
+        var lastCommandValue = await RedisHelper.SafeExecuteAsync(
             () => _db.ListRightPopAsync(key),
             _logger,
-            $"UndoLastStroke:{roomCode}",
+            $"UndoLastDrawCommand:{roomCode}",
             RedisValue.Null);
 
-        if (lastCommand.IsNullOrEmpty)
+        if (lastCommandValue.IsNullOrEmpty)
             return null;
 
-        _logger.LogDebug("Undo: removed last command from room {RoomCode}", roomCode);
-        return JsonSerializer.Deserialize<DrawingCommandDto>(lastCommand.ToString(), JsonOptions);
+        var lastCommand = JsonSerializer.Deserialize<DrawingCommandDto>(lastCommandValue.ToString(), JsonOptions);
+        if (lastCommand is null)
+            return null;
+
+
+        if (!string.IsNullOrEmpty(lastCommand.StrokeId))
+        {
+            var strokeIdToRemove = lastCommand.StrokeId;
+            var removedCount = 1;
+
+            while (true)
+            {
+                var peekValue = await _db.ListGetByIndexAsync(key, -1);
+                if (peekValue.IsNullOrEmpty)
+                    break;
+
+                var peekCommand = JsonSerializer.Deserialize<DrawingCommandDto>(peekValue.ToString(), JsonOptions);
+                if (peekCommand?.StrokeId != strokeIdToRemove)
+                    break;
+
+                await _db.ListRightPopAsync(key);
+                removedCount++;
+            }
+
+            _logger.LogDebug("Undo: removed {Count} commands with strokeId {StrokeId} from room {RoomCode}",
+                removedCount, strokeIdToRemove, roomCode);
+        }
+        else
+        {
+            _logger.LogDebug("Undo: removed last command (no strokeId) from room {RoomCode}", roomCode);
+        }
+
+        return lastCommand;
     }
 
     public async Task<List<DrawingCommandDto>> GetCanvasHistoryAsync(string roomCode)

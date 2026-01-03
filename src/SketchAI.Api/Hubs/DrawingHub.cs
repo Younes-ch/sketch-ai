@@ -430,9 +430,9 @@ public class DrawingHub : Hub
             return;
         }
 
-        var undoneCommand = await _canvasService.UndoLastDrawCommandAsync(roomCode);
+        var undoCommand = await _canvasService.UndoLastDrawCommandAsync(roomCode);
 
-        if (undoneCommand is not null)
+        if (undoCommand is not null)
         {
             await Clients.Group(roomCode).SendAsync("ReceiveUndo");
             _logger.LogDebug("Undo sent to room {RoomCode}", roomCode);
