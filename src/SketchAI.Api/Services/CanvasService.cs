@@ -13,7 +13,6 @@ public class CanvasService : ICanvasService
     private const string UndoStrokeLuaScript = @"
             local key = KEYS[1]
             local strokeId = ARGV[1]
-            local removed = {}
             local count = 0
 
             while true do
