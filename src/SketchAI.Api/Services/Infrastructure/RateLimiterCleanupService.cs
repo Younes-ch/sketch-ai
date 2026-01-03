@@ -1,4 +1,4 @@
-namespace SketchAI.Api.Services;
+namespace SketchAI.Api.Services.Infrastructure;
 
 /// <summary>
 /// Background service that periodically cleans up stale IP-based rate limiters.

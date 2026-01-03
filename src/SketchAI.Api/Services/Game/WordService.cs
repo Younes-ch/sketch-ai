@@ -1,4 +1,4 @@
-﻿namespace SketchAI.Api.Services;
+﻿namespace SketchAI.Api.Services.Game;
 
 public class WordService : IWordService
 {

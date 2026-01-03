@@ -21,7 +21,9 @@ global using SketchAI.Api.Helpers;
 global using SketchAI.Api.Hubs;
 global using SketchAI.Api.Hubs.Filters;
 global using SketchAI.Api.Models;
-global using SketchAI.Api.Services;
+global using SketchAI.Api.Services.AI;
+global using SketchAI.Api.Services.Game;
+global using SketchAI.Api.Services.Infrastructure;
 global using SketchAI.Api.Validation;
 
 global using StackExchange.Redis;

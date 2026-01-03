@@ -1,4 +1,4 @@
-﻿namespace SketchAI.Api.Services;
+﻿namespace SketchAI.Api.Services.Game;
 
 public class GameService : IGameService
 {
@@ -335,6 +335,7 @@ public class GameService : IGameService
         if (room.Players.Count < 2)
         {
             _logger.LogInformation("Not enough players in room {RoomCode}, resetting to lobby", roomCode);
+            await lockHandle.DisposeAsync();
             await ResetToLobbyAsync(roomCode);
             return;
         }
@@ -402,6 +403,16 @@ public class GameService : IGameService
 
     public async Task ResetToLobbyAsync(string roomCode)
     {
+        await using var lockHandle = await _lockProvider.TryAcquireLockAsync(
+            RedisKeys.RoomLock(roomCode),
+            RedisKeys.RoomLockExpiry);
+
+        if (lockHandle is null)
+        {
+            _logger.LogWarning("ResetToLobby failed: Could not acquire lock for room {RoomCode}", roomCode);
+            return;
+        }
+
         var room = await _roomService.GetRoomAsync(roomCode);
 
         if (room is null)

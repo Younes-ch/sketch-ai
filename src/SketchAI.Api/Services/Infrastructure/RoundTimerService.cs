@@ -1,4 +1,4 @@
-namespace SketchAI.Api.Services;
+namespace SketchAI.Api.Services.Infrastructure;
 
 /// <summary>
 /// Background service that manages round timing, hint reveals, and round expiry.

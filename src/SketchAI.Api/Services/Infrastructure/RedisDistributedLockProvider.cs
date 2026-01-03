@@ -1,4 +1,4 @@
-namespace SketchAI.Api.Services;
+namespace SketchAI.Api.Services.Infrastructure;
 
 /// <summary>
 /// Redis-based distributed lock provider using StackExchange.Redis LockTake/LockRelease.

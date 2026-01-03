@@ -1,4 +1,4 @@
-namespace SketchAI.Api.Services;
+namespace SketchAI.Api.Services.Infrastructure;
 
 /// <summary>
 /// Provides distributed locking functionality to prevent race conditions

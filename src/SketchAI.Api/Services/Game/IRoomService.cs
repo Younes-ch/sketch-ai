@@ -1,4 +1,4 @@
-﻿namespace SketchAI.Api.Services;
+﻿namespace SketchAI.Api.Services.Game;
 
 /// <summary>
 /// Service for managing game rooms and their players.
@@ -45,9 +45,9 @@ public interface IRoomService
     /// <summary>
     /// Checks if a room has reached its maximum player capacity.
     /// </summary>
-    /// <param name="roomCode">The room code to check.</param>
-    /// <returns>True if room is full or doesn't exist.</returns>
-    Task<bool> IsRoomFullAsync(string roomCode);
+    /// <param name="room">The room code to check.</param>
+    /// <returns>True if room is full or null.</returns>
+    bool IsRoomFull(Room? room);
 
     /// <summary>
     /// Checks if a room exists.

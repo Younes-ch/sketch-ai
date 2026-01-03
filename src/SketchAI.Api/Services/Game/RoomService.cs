@@ -1,4 +1,4 @@
-﻿namespace SketchAI.Api.Services;
+﻿namespace SketchAI.Api.Services.Game;
 
 public class RoomService : IRoomService
 {
@@ -161,7 +161,7 @@ public class RoomService : IRoomService
 
             var roomCodeStr = roomCode.ToString();
             var room = await GetRoomAsync(roomCodeStr);
-            var isRoomFull = await IsRoomFullAsync(roomCodeStr);
+            var isRoomFull = IsRoomFull(room);
             if (room is null)
             {
                 await _db.SetRemoveAsync(RedisKeys.PublicRooms, roomCode);
@@ -182,10 +182,8 @@ public class RoomService : IRoomService
         return rooms;
     }
 
-    public async Task<bool> IsRoomFullAsync(string roomCode)
+    public bool IsRoomFull(Room? room)
     {
-        var room = await GetRoomAsync(roomCode);
-
         return room is null || room.Players.Count >= room.Settings.MaxPlayers;
     }
 
@@ -222,7 +220,7 @@ public class RoomService : IRoomService
             return null;
         }
 
-        var isFull = await IsRoomFullAsync(roomCode);
+        var isFull = IsRoomFull(room);
         if (isFull)
         {
             _logger.LogWarning("Failed to add player {Username} - room {RoomCode} is full ({PlayerCount}/{MaxPlayers})",
@@ -290,6 +288,7 @@ public class RoomService : IRoomService
 
         if (room.Players.Count == 0)
         {
+            await lockHandle.DisposeAsync();
             await DeleteRoomAsync(roomCode);
             _logger.LogInformation("Room {RoomCode} deleted (empty)", roomCode);
         }
@@ -314,6 +313,16 @@ public class RoomService : IRoomService
 
     public async Task<bool> DeleteRoomAsync(string roomCode)
     {
+        await using var lockHandle = await _lockProvider.TryAcquireLockAsync(
+            RedisKeys.RoomLock(roomCode),
+            RedisKeys.RoomLockExpiry);
+
+        if (lockHandle is null)
+        {
+            _logger.LogWarning("DeleteRoom failed: Could not acquire lock for room {RoomCode}", roomCode);
+            return false;
+        }
+
         var room = await GetRoomAsync(roomCode);
         if (room is null)
         {
