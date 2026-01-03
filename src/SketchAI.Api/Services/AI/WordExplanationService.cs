@@ -1,4 +1,4 @@
-﻿namespace SketchAI.Api.Services;
+﻿namespace SketchAI.Api.Services.AI;
 
 public class WordExplanationService : IWordExplanationService
 {

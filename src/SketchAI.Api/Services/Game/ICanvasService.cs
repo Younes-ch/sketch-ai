@@ -1,4 +1,4 @@
-﻿namespace SketchAI.Api.Services;
+﻿namespace SketchAI.Api.Services.Game;
 
 /// <summary>
 /// Service for managing drawing canvas history in game rooms.

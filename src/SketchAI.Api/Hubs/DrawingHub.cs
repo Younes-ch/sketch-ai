@@ -184,7 +184,7 @@ public class DrawingHub : Hub
             throw new HubException("Username already taken in this room");
         }
 
-        var isFull = await _roomService.IsRoomFullAsync(roomCode);
+        var isFull = _roomService.IsRoomFull(room);
         if (isFull)
         {
             throw new HubException("Room is full");
@@ -593,7 +593,7 @@ public class DrawingHub : Hub
                 room.ActiveVoteKick.TargetUsername,
                 VotesToKick = room.ActiveVoteKick.VotesToKick.Count,
                 VotesToKeep = room.ActiveVoteKick.VotesToKeep.Count,
-                TotalVotersNeeded = room.ActiveVoteKick.TotalVotersNeeded
+                room.ActiveVoteKick.TotalVotersNeeded
             });
         }
     }
