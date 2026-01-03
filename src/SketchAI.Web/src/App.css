@@ -1,6 +1,9 @@
 @import "tailwindcss";
 
 @theme {
+  /* Typography - Nunito with system fallbacks */
+  --font-sans: 'Nunito', ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+  
   /* Background colors */
   --color-background: #0D1B2A;
   --color-card: #1B2838;
