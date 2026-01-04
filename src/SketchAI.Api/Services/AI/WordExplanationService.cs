@@ -3,7 +3,7 @@
 public class WordExplanationService : IWordExplanationService
 {
     private readonly IDatabase _db;
-    private readonly IAIService _aiService;
+    private readonly IAIWordExplanationService _aiService;
     private readonly ILogger<WordExplanationService> _logger;
 
     // Allowed languages for translation - used for validation
@@ -13,15 +13,12 @@ public class WordExplanationService : IWordExplanationService
         "Dutch", "Polish", "Russian", "Japanese", "Korean", "Chinese", "Arabic"
     };
 
-    // Maximum allowed length for word input
-    private const int MaxWordLength = 50;
-
     private static readonly JsonSerializerOptions JsonOptions = new()
     {
         PropertyNamingPolicy = JsonNamingPolicy.CamelCase
     };
 
-    public WordExplanationService(IConnectionMultiplexer redis, IAIService aiService, ILogger<WordExplanationService> logger)
+    public WordExplanationService(IConnectionMultiplexer redis, IAIWordExplanationService aiService, ILogger<WordExplanationService> logger)
     {
         _db = redis.GetDatabase();
         _aiService = aiService;
@@ -43,7 +40,7 @@ public class WordExplanationService : IWordExplanationService
         }
 
         // Sanitize inputs against prompt injection
-        var sanitizedWord = SanitizeWord(word);
+        var sanitizedWord = WordHelper.SanitizeWord(word);
         if (string.IsNullOrEmpty(sanitizedWord))
         {
             _logger.LogWarning("Word '{Word}' failed sanitization", word);
@@ -137,23 +134,5 @@ public class WordExplanationService : IWordExplanationService
             _logger.LogWarning(ex, "Failed to parse AI response as JSON for word '{Word}'", sanitizedWord);
             return new WordExplanationDto(word, targetLanguage, "N/A", "Translation unavailable");
         }
-    }
-
-    /// <summary>
-    /// Sanitizes word input by limiting length and removing potentially dangerous characters.
-    /// </summary>
-    private static string SanitizeWord(string word)
-    {
-        if (string.IsNullOrWhiteSpace(word))
-            return string.Empty;
-
-        var sanitized = word.Trim();
-        if (sanitized.Length > MaxWordLength)
-            sanitized = sanitized[..MaxWordLength];
-
-        sanitized = new string(sanitized.Where(c =>
-            char.IsLetterOrDigit(c) || c == ' ' || c == '-' || c == '\'').ToArray());
-
-        return sanitized.Trim();
     }
 }

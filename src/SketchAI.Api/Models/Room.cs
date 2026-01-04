@@ -13,10 +13,11 @@ public class Room
     public string? CurrentWordHint { get; set; }
     public int LettersRevealed { get; set; } = 0;
     public int RoundNumber { get; set; } = 1;
-    public DateTime? RoundStartedAt { get; set; }
     public List<string>? WordChoices { get; set; }
     public HashSet<string> PlayersWhoGuessed { get; set; } = [];
+    public VoteKick? ActiveVoteKick { get; set; }
+    public bool IsAiDrawing { get; set; } = false;
+    public DateTime? RoundStartedAt { get; set; }
     public DateTime CreatedAt { get; set; }
     public DateTime LastActivityAt { get; set; }
-    public VoteKick? ActiveVoteKick { get; set; }
 }
