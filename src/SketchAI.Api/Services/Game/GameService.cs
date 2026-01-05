@@ -70,6 +70,8 @@ public class GameService : IGameService
         foreach (var player in room.Players)
         {
             player.Score = 0;
+            player.AiDrawingsUsed = 0;
+            player.LastAiDrawingAt = null;
         }
 
         await _roomService.SaveRoomAsync(room);

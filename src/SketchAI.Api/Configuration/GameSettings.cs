@@ -13,7 +13,7 @@ public class GameSettings
     public int MaxRounds { get; set; } = 10;
     public int MinWordChoices { get; set; } = 2;
     public int MaxWordChoices { get; set; } = 5;
-    public int MaxAiDrawingsPerRound { get; set; } = 2;
+    public int MaxAiDrawingsPerPlayer { get; set; } = 1;
     public int AiDrawingCooldownSeconds { get; set; } = 30;
     public List<int> AllowedDrawTimes { get; set; } =
     [
