@@ -1,6 +1,4 @@
-﻿using System.Runtime.CompilerServices;
-
-namespace SketchAI.Api.Services.AI;
+﻿namespace SketchAI.Api.Services.AI;
 
 public class AIDrawingService : IAIDrawingService
 {
@@ -33,7 +31,11 @@ public class AIDrawingService : IAIDrawingService
         var fillTool = AIFunctionFactory.Create(DrawFill, name: "draw_fill");
 
         var prompt = BuildPrompt(sanitizedWord);
-        var messages = new List<ChatMessage> { new(ChatRole.User, prompt) };
+        var messages = new List<ChatMessage>
+        {
+            new(ChatRole.System, "You are a drawing function caller. Never output text. Only call draw_stroke and draw_fill functions."),
+            new(ChatRole.User, prompt)
+        };
 
         var options = new ChatOptions
         {
@@ -76,28 +78,44 @@ public class AIDrawingService : IAIDrawingService
     }
 
     private static string BuildPrompt(string word) =>
-        $"""
-         You are an AI that draws simple pictures by calling drawing functions.
+        $$"""
+         You are a drawing AI. Your ONLY task is to call drawing functions. Do NOT write any text responses.
 
-         CANVAS: Coordinates are normalized 0.0-1.0. (0,0)=top-left, (1,1)=bottom-right.
+         CANVAS: Normalized coordinates 0.0-1.0. (0,0)=top-left, (1,1)=bottom-right.
 
-         WORD TO DRAW: "{word}"
+         WORD TO DRAW: "{{word}}"
 
-         INSTRUCTIONS:
-         1. Draw a simple, recognizable representation of "{word}"
-         2. Use DrawStroke for lines, shapes, and outlines (pass array of points)
-         3. Use Fill for flood-filling enclosed areas with color (single start point)
-         4. Use multiple colors - be creative but keep it simple
-         5. Draw outlines first with DrawStroke, then use Fill to color enclosed areas
-         6. Keep strokes smooth with 3-10 points per stroke
-         7. Stay within bounds (0.0 to 1.0 for both x and y)
+         DRAWING TOOLS:
+         - draw_stroke(points, color, width): Draw lines/shapes. Points is an array of {x, y} coordinates.
+         - draw_fill(point, color): Flood-fill an enclosed area starting from a single point.
 
-         SUGGESTED APPROACH:
-         - Start with main outline strokes (black or dark color, width 5-10)
-         - Add detail strokes (thinner, width 2-4)
-         - Use Fill to color large enclosed areas (e.g., inside a circle or shape)
+         REQUIREMENTS - YOU MUST FOLLOW THESE EXACTLY:
+         1. Call draw_stroke AT LEAST 10-25 times to create a detailed drawing
+         2. Each stroke should have 4-12 points for smooth curves
+         3. Use varied line widths: 8-15 for outlines, 3-6 for details
+         4. Use multiple colors - at least 3 different colors
+         5. Draw complete outlines BEFORE using draw_fill
+         6. All coordinates must be between 0.0 and 1.0
 
-         Call the drawing functions now. Draw approximately 5-20 strokes/fills total.
+         DRAWING STRUCTURE (follow this order):
+         Step 1: Draw the main shape outline with thick strokes (width 10-15, black or dark color)
+         Step 2: Add internal details and features with medium strokes (width 5-8)
+         Step 3: Add fine details, textures, patterns with thin strokes (width 2-4)
+         Step 4: Use draw_fill to color enclosed areas (optional, 2-5 fills max)
+
+         EXAMPLE STROKE DENSITY:
+         - Simple object (apple, ball): 10-15 strokes
+         - Medium complexity (house, tree): 15-20 strokes
+         - Complex object (car, animal): 20-30 strokes
+
+         CRITICAL RULES:
+         - Do NOT output any text before, during, or after drawing
+         - Do NOT explain what you are drawing
+         - Do NOT summarize your actions
+         - ONLY call the drawing functions, nothing else
+         - Start immediately with draw_stroke calls
+
+         BEGIN DRAWING NOW:
          """;
 
     [Description("Draw a stroke (line) on the canvas with the given points")]
