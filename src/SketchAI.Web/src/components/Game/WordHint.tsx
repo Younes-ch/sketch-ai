@@ -6,6 +6,7 @@ import { cn } from "@/lib/utils";
 import { AISparklesIcon, InfoIcon } from "@/components/ui/Icons";
 import { Tooltip } from "@/components/ui/Tooltip";
 import { TranslationModal } from "@/components/Game/TranslationModal";
+import { DEFAULT_LANGUAGE, LANGUAGE_PREF_KEY } from "@/constants/languages";
 
 export default function WordHint() {
   const phase = useGameStore((s) => s.phase);
@@ -70,9 +71,6 @@ export default function WordHint() {
 
   const handleInfoClick = () => {
     if (currentWord) {
-      const LANGUAGE_PREF_KEY = "sketch-ai-language";
-      const DEFAULT_LANGUAGE = "English";
-
       const targetLanguage =
         typeof window !== "undefined"
           ? localStorage.getItem(LANGUAGE_PREF_KEY) || DEFAULT_LANGUAGE
@@ -125,8 +123,8 @@ export default function WordHint() {
                 isTranslating
                   ? "bg-transparent text-white/40 cursor-wait"
                   : isInfoHovered
-                    ? "bg-accent text-white"
-                    : "bg-transparent text-white/40 hover:text-white/60"
+                  ? "bg-accent text-white"
+                  : "bg-transparent text-white/40 hover:text-white/60"
               )}
               aria-label="Get word explanation"
             >
