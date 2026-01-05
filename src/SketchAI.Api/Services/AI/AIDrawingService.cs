@@ -46,7 +46,6 @@ public class AIDrawingService : IAIDrawingService
 
         try
         {
-            // Use streaming to get commands as they are generated
             await foreach (var update in _chatClient.GetStreamingResponseAsync(messages, options, ct))
             {
                 // Check for cancellation
@@ -56,7 +55,6 @@ public class AIDrawingService : IAIDrawingService
                     yield break;
                 }
 
-                // Yield any commands that were captured during this streaming update
                 while (commandQueue.TryDequeue(out var command))
                 {
                     yield return command;
@@ -112,11 +110,16 @@ public class AIDrawingService : IAIDrawingService
         [Description("Line width in pixels, 1-50. Use 2-5 for fine details, 6-15 for normal lines, 16-50 for thick outlines")]
         int width)
     {
+        var clampedPoints =
+            points.Select(p => new PointDto { X = Math.Clamp(p.X, 0.0, 1.0), Y = Math.Clamp(p.Y, 0.0, 1.0) });
+
+        var validColor = ValidationHelper.IsValidHexColor(color) ? color : "#000000";
+
         var command = new DrawingCommandDto
         {
             Type = "stroke",
-            Points = [.. points],
-            Color = color,
+            Points = [.. clampedPoints],
+            Color = validColor,
             Width = Math.Clamp(width, 1, 50),
             StrokeId = Guid.NewGuid().ToString()
         };
@@ -134,11 +137,13 @@ public class AIDrawingService : IAIDrawingService
         [Description("Fill color in hex format, e.g., #FF0000 for red")]
         string color)
     {
+        var validColor = ValidationHelper.IsValidHexColor(color) ? color : "#000000";
+
         var command = new DrawingCommandDto
         {
             Type = "fill",
             Points = [point],
-            Color = color,
+            Color = validColor,
             Width = 0
         };
 
