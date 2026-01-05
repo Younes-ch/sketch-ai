@@ -12,11 +12,15 @@ public class AIDrawingCancellationManager : IAIDrawingCancellationManager
 
     public CancellationTokenSource CreateSession(string roomCode)
     {
-        // Cancel any existing session first
-        CancelSession(roomCode);
-
         var cts = new CancellationTokenSource();
-        _sessions[roomCode] = cts;
+
+        var oldCts = _sessions.AddOrUpdate(roomCode, cts, (_, existing) =>
+        {
+            existing.Cancel();
+            existing.Dispose();
+            return cts;
+        });
+
         _logger.LogDebug("Created AI drawing session for room {RoomCode}", roomCode);
         return cts;
     }
