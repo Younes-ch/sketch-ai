@@ -2,6 +2,7 @@
 global using System.ComponentModel;
 global using System.ComponentModel.DataAnnotations;
 global using System.Net;
+global using System.Runtime.CompilerServices;
 global using System.Text.Json;
 global using System.Text.RegularExpressions;
 global using System.Threading.RateLimiting;

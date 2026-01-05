@@ -116,6 +116,9 @@ function DrawingCanvasComponent({ disabled = false }: DrawingCanvasProps) {
   const onCanvasCleared = useCanvasStore((s) => s.onCanvasCleared);
   const onReceiveUndo = useCanvasStore((s) => s.onReceiveUndo);
   const onReceiveFillCommand = useCanvasStore((s) => s.onReceiveFillCommand);
+  const onReceiveAIDrawingCommand = useCanvasStore(
+    (s) => s.onReceiveAIDrawingCommand
+  );
   const pendingCanvasHistory = useCanvasStore((s) => s.pendingCanvasHistory);
   const clearPendingCanvasHistory = useCanvasStore(
     (s) => s.clearPendingCanvasHistory
@@ -326,12 +329,23 @@ function DrawingCanvasComponent({ disabled = false }: DrawingCanvasProps) {
       drawCommand(command);
     });
 
+    // Subscribe to AI drawing commands (drawer only) - increment stroke count for undo
+    const unsubAIDrawing = onReceiveAIDrawingCommand(
+      (command: DrawingCommand) => {
+        logger.info("Received AI drawing command", command.strokeId);
+        // Increment local stroke count so the undo button becomes enabled
+        // Each AI command with a unique strokeId is a separate undo-able action
+        setLocalStrokeCount((prev) => prev + 1);
+      }
+    );
+
     return () => {
       unsubDrawing();
       unsubHistory();
       unsubClear();
       unsubUndo();
       unsubFill();
+      unsubAIDrawing();
     };
   }, [
     onReceiveDrawingCommand,
@@ -339,6 +353,7 @@ function DrawingCanvasComponent({ disabled = false }: DrawingCanvasProps) {
     onCanvasCleared,
     onReceiveUndo,
     onReceiveFillCommand,
+    onReceiveAIDrawingCommand,
     drawCommand,
     clearCanvas,
     replayHistoryAsync,

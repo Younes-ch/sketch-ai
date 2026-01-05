@@ -19,6 +19,7 @@ interface CanvasStore {
   // AI Drawing state
   isAIDrawing: boolean;
   aiDrawingError: string | null;
+  aiDrawingStrokeIds: string[]; // Track stroke IDs from AI drawing for undo
   
   // Callback refs for event subscriptions
   drawingCommandCallback: DrawingCommandCallback | null;
@@ -30,6 +31,8 @@ interface CanvasStore {
   clearPendingCanvasHistory: () => void;
   setIsAIDrawing: (isDrawing: boolean) => void;
   setAIDrawingError: (error: string | null) => void;
+  addAIDrawingStrokeId: (strokeId: string) => void;
+  clearAIDrawingStrokeIds: () => void;
 
   // SignalR actions
   sendDrawingCommand: (command: DrawingCommand) => Promise<void>;
@@ -38,6 +41,7 @@ interface CanvasStore {
   clearCanvas: () => Promise<void>;
   startAIDrawing: () => Promise<void>;
   stopAIDrawing: () => Promise<void>;
+  undoAIDrawing: () => Promise<void>;
 
   // Event subscription methods
   onReceiveDrawingCommand: (callback: DrawingCommandCallback) => () => void;
@@ -45,15 +49,17 @@ interface CanvasStore {
   onCanvasCleared: (callback: ClearCanvasCallback) => () => void;
   onReceiveUndo: (callback: UndoCallback) => () => void;
   onReceiveFillCommand: (callback: FillCommandCallback) => () => void;
+  onReceiveAIDrawingCommand: (callback: DrawingCommandCallback) => () => void;
 
   // Reset
   reset: () => void;
 }
 
-export const useCanvasStore = create<CanvasStore>((set) => ({
+export const useCanvasStore = create<CanvasStore>((set, get) => ({
   pendingCanvasHistory: null,
   isAIDrawing: false,
   aiDrawingError: null,
+  aiDrawingStrokeIds: [],
   drawingCommandCallback: null,
   historyCallback: null,
   clearCallback: null,
@@ -64,6 +70,10 @@ export const useCanvasStore = create<CanvasStore>((set) => ({
   clearPendingCanvasHistory: () => set({ pendingCanvasHistory: null }),
   setIsAIDrawing: (isDrawing) => set({ isAIDrawing: isDrawing }),
   setAIDrawingError: (error) => set({ aiDrawingError: error }),
+  addAIDrawingStrokeId: (strokeId) => set((state) => ({
+    aiDrawingStrokeIds: [...state.aiDrawingStrokeIds, strokeId]
+  })),
+  clearAIDrawingStrokeIds: () => set({ aiDrawingStrokeIds: [] }),
 
   sendDrawingCommand: async (command) => {
     const { connection, isConnected } = useConnectionStore.getState();
@@ -134,6 +144,39 @@ export const useCanvasStore = create<CanvasStore>((set) => ({
       await connection.invoke("StopAiDrawing");
     } catch (error) {
       logger.error("Failed to stop AI drawing", error);
+    } finally {
+      // Always reset state locally to prevent stuck UI
+      // The server will also send AIDrawingStopped, but this ensures UI responsiveness
+      set({ isAIDrawing: false });
+    }
+  },
+
+  undoAIDrawing: async () => {
+    const { connection, isConnected } = useConnectionStore.getState();
+    const { roomCode } = useRoomStore.getState();
+    const { aiDrawingStrokeIds } = get();
+    
+    if (!isConnected() || !connection || !roomCode) {
+      logger.warn("Cannot undo AI drawing: not connected or not in room");
+      return;
+    }
+
+    if (aiDrawingStrokeIds.length === 0) {
+      logger.warn("No AI drawing strokes to undo");
+      return;
+    }
+
+    try {
+      // Undo each AI drawing stroke (they share the same mechanism as regular undo)
+      // Call undo for each unique stroke ID
+      for (let i = 0; i < aiDrawingStrokeIds.length; i++) {
+        await connection.invoke("UndoLastDrawCommand", roomCode);
+      }
+      set({ aiDrawingStrokeIds: [] });
+      logger.info(`Undid ${aiDrawingStrokeIds.length} AI drawing strokes`);
+    } catch (error) {
+      logger.error("Failed to undo AI drawing", error);
+      useToastStore.getState().addToast(parseHubError(error), "error", 5000);
     }
   },
 
@@ -179,11 +222,21 @@ export const useCanvasStore = create<CanvasStore>((set) => ({
     return () => {};
   },
 
+  onReceiveAIDrawingCommand: (callback) => {
+    const connection = useConnectionStore.getState().connection;
+    if (connection) {
+      connection.on("AIDrawingCommand", callback);
+      return () => connection.off("AIDrawingCommand", callback);
+    }
+    return () => {};
+  },
+
   reset: () =>
     set({
       pendingCanvasHistory: null,
       isAIDrawing: false,
       aiDrawingError: null,
+      aiDrawingStrokeIds: [],
       drawingCommandCallback: null,
       historyCallback: null,
       clearCallback: null,
@@ -210,6 +263,7 @@ export function setupCanvasEventHandlers() {
     logger.info("AI drawing started");
     useCanvasStore.getState().setIsAIDrawing(true);
     useCanvasStore.getState().setAIDrawingError(null);
+    useCanvasStore.getState().clearAIDrawingStrokeIds();
   };
 
   const handleAIDrawingStopped = () => {
@@ -224,15 +278,28 @@ export function setupCanvasEventHandlers() {
     useToastStore.getState().addToast(error, "error", 5000);
   };
 
+  // Track AI drawing stroke IDs for undo functionality
+  const handleAIDrawingCommand = (command: DrawingCommand) => {
+    if (command.strokeId) {
+      const { aiDrawingStrokeIds, addAIDrawingStrokeId } = useCanvasStore.getState();
+      // Only add unique stroke IDs
+      if (!aiDrawingStrokeIds.includes(command.strokeId)) {
+        addAIDrawingStrokeId(command.strokeId);
+      }
+    }
+  };
+
   connection.on("ReceiveCanvasHistory", handleCanvasHistory);
   connection.on("AIDrawingStarted", handleAIDrawingStarted);
   connection.on("AIDrawingStopped", handleAIDrawingStopped);
   connection.on("AIDrawingError", handleAIDrawingError);
+  connection.on("AIDrawingCommand", handleAIDrawingCommand);
 
   return () => {
     connection.off("ReceiveCanvasHistory", handleCanvasHistory);
     connection.off("AIDrawingStarted", handleAIDrawingStarted);
     connection.off("AIDrawingStopped", handleAIDrawingStopped);
     connection.off("AIDrawingError", handleAIDrawingError);
+    connection.off("AIDrawingCommand", handleAIDrawingCommand);
   };
 }
