@@ -281,7 +281,7 @@ public class DrawingHub : Hub
 
         if (room.Phase == GamePhase.WordSelection)
         {
-            if (room.WordChoices is not null && !room.WordChoices.Contains(word, StringComparer.InvariantCultureIgnoreCase))
+            if (room.WordChoices is not null && !room.WordChoices.Contains(word, StringComparer.OrdinalIgnoreCase))
             {
                 throw new HubException("Word is not from the given choices");
             }
@@ -391,7 +391,6 @@ public class DrawingHub : Hub
 
         await Clients.Group(roomCode).SendAsync("AIDrawingStarted");
 
-        // Create session - manager owns the CTS lifetime, don't use 'using' here
         var cts = _aiCancellationManager.CreateSession(roomCode);
 
         // Link with connection abort so cancellation happens if drawer disconnects
@@ -440,7 +439,6 @@ public class DrawingHub : Hub
 
             await Clients.Group(roomCode).SendAsync("AIDrawingStopped");
         }
-
     }
 
     public async Task StopAiDrawing()
