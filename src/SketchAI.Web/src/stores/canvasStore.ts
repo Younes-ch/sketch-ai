@@ -11,7 +11,6 @@ type CanvasHistoryCallback = (history: DrawingCommand[]) => void;
 type ClearCanvasCallback = () => void;
 type UndoCallback = () => void;
 type FillCommandCallback = (command: DrawingCommand) => void;
-type AIDrawingErrorCallback = (error: string) => void;
 
 interface CanvasStore {
   pendingCanvasHistory: DrawingCommand[] | null;
@@ -45,7 +44,6 @@ interface CanvasStore {
   onCanvasCleared: (callback: ClearCanvasCallback) => () => void;
   onReceiveUndo: (callback: UndoCallback) => () => void;
   onReceiveFillCommand: (callback: FillCommandCallback) => () => void;
-  onAIDrawingError: (callback: AIDrawingErrorCallback) => () => void;
 
   // Reset
   reset: () => void;
@@ -174,15 +172,6 @@ export const useCanvasStore = create<CanvasStore>((set) => ({
     if (connection) {
       connection.on("ReceiveFillCommand", callback);
       return () => connection.off("ReceiveFillCommand", callback);
-    }
-    return () => {};
-  },
-
-  onAIDrawingError: (callback) => {
-    const connection = useConnectionStore.getState().connection;
-    if (connection) {
-      connection.on("AIDrawingError", callback);
-      return () => connection.off("AIDrawingError", callback);
     }
     return () => {};
   },
