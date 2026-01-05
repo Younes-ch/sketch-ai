@@ -11,7 +11,7 @@ public class AIDrawingService : IAIDrawingService
     private static readonly AsyncLocal<ConcurrentQueue<DrawingCommandDto>?> CommandQueue = new();
 
     public AIDrawingService(
-        [FromKeyedServices("gpt-4o-mini")] IChatClient chatClient,
+        [FromKeyedServices("gemini-model")] IChatClient chatClient,
         ILogger<AIDrawingService> logger)
     {
         _chatClient = chatClient;

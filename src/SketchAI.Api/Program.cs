@@ -1,3 +1,4 @@
+using GeminiDotnet;
 var builder = WebApplication.CreateBuilder(args);
 
 builder.AddServiceDefaults();
@@ -9,7 +10,14 @@ builder.AddOpenAIClient("gpt-41")
        .AddKeyedChatClient("gpt-41")
        .UseFunctionInvocation();
 
+var options = new GeminiClientOptions
+{
+    ApiKey = builder.Configuration["AI:ApiKey"] ?? throw new InvalidOperationException("Gemini API key is not configured."),
+    ModelId = builder.Configuration["AI:ModelId"] ?? "gemini-3-flash-preview",
+};
 
+builder.Services.AddKeyedChatClient("gemini-model", new GeminiChatClient(options))
+       .UseFunctionInvocation();
 
 
 // Add services to the container.
