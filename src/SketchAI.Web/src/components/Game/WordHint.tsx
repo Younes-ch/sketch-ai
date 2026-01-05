@@ -24,7 +24,6 @@ export default function WordHint() {
   const stopAIDrawing = useCanvasStore((s) => s.stopAIDrawing);
 
   const [isAIHovered, setIsAIHovered] = useState(false);
-  const [isInfoHovered, setIsInfoHovered] = useState(false);
 
   const isDrawer = currentDrawer?.username === username;
   const isDrawingPhase = phase === "drawing";
@@ -115,16 +114,12 @@ export default function WordHint() {
           <Tooltip content="Get word explanation">
             <button
               onClick={handleInfoClick}
-              onMouseEnter={() => setIsInfoHovered(true)}
-              onMouseLeave={() => setIsInfoHovered(false)}
               disabled={isTranslating}
               className={cn(
                 "p-1.5 rounded-lg transition-all duration-200 cursor-pointer",
                 isTranslating
                   ? "bg-transparent text-white/40 cursor-wait"
-                  : isInfoHovered
-                  ? "bg-accent text-white"
-                  : "bg-transparent text-white/40 hover:text-white/60"
+                  : "bg-transparent text-white/40 hover:bg-accent hover:text-white focus:outline-none"
               )}
               aria-label="Get word explanation"
             >
@@ -151,12 +146,6 @@ export default function WordHint() {
       </p>
       {isDrawingPhase && !isDrawer && wordLengthsDisplay && (
         <p className="text-white/40 text-xs mt-1">{`${wordLengthsDisplay}`}</p>
-      )}
-      {isDrawingPhase && isAIDrawing && (
-        <div className="flex items-center justify-center gap-2 mt-2 text-purple-400 animate-pulse">
-          <span>🤖</span>
-          <span className="text-xs font-bold">AI is drawing...</span>
-        </div>
       )}
 
       {/* Translation Modal */}
