@@ -741,7 +741,7 @@ public class DrawingHub : Hub
 
             var room = await _roomService.GetRoomAsync(roomCode);
 
-            if (room is null || room?.CurrentDrawerConnectionId == Context.ConnectionId)
+            if (room is null || room.CurrentDrawerConnectionId == Context.ConnectionId)
             {
                 _aiCancellationManager.CancelSession(roomCode);
             }
