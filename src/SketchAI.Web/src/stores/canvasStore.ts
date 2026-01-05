@@ -1,6 +1,7 @@
 import { create } from "zustand";
 import type { DrawingCommand } from "@/models";
 import { logger } from "@/lib/logger";
+import { parseHubError } from "@/lib/utils";
 import { useConnectionStore } from "./connectionStore";
 import { useRoomStore } from "./roomStore";
 import { useToastStore } from "./toastStore";
@@ -109,13 +110,13 @@ export const useCanvasStore = create<CanvasStore>((set) => ({
     }
 
     try {
-      set({ aiDrawingError: null });
+      set({ aiDrawingError: null, aiDrawingStrokeIds: [] });
       await connection.invoke("StartAiDrawing");
     } catch (error) {
       logger.error("Failed to start AI drawing", error);
-      set({ 
-        aiDrawingError: error instanceof Error ? error.message : "Failed to start AI drawing" 
-      });
+      const errorMessage = parseHubError(error);
+      set({ aiDrawingError: errorMessage });
+      useToastStore.getState().addToast(errorMessage, "error", 5000);
     }
   },
 
@@ -124,6 +125,8 @@ export const useCanvasStore = create<CanvasStore>((set) => ({
     
     if (!isConnected() || !connection) {
       logger.warn("Cannot stop AI drawing: not connected");
+      // Still reset state locally even if not connected
+      set({ isAIDrawing: false });
       return;
     }
 
