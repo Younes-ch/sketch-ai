@@ -391,10 +391,10 @@ public class DrawingHub : Hub
 
         await Clients.Group(roomCode).SendAsync("AIDrawingStarted");
 
-        var cts = _aiCancellationManager.CreateSession(roomCode);
+        var ct = _aiCancellationManager.CreateSession(roomCode);
 
         // Link with connection abort so cancellation happens if drawer disconnects
-        using var linkedCts = CancellationTokenSource.CreateLinkedTokenSource(cts.Token, Context.ConnectionAborted);
+        using var linkedCts = CancellationTokenSource.CreateLinkedTokenSource(ct, Context.ConnectionAborted);
 
         try
         {

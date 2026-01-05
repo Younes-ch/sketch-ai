@@ -10,7 +10,7 @@ public class AIDrawingCancellationManager : IAIDrawingCancellationManager
         _logger = logger;
     }
 
-    public CancellationTokenSource CreateSession(string roomCode)
+    public CancellationToken CreateSession(string roomCode)
     {
         var cts = new CancellationTokenSource();
 
@@ -22,7 +22,7 @@ public class AIDrawingCancellationManager : IAIDrawingCancellationManager
         });
 
         _logger.LogDebug("Created AI drawing session for room {RoomCode}", roomCode);
-        return cts;
+        return cts.Token;
     }
 
     public void CancelSession(string roomCode)
