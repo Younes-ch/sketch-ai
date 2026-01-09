@@ -157,10 +157,12 @@ public class AIDrawingService : IAIDrawingService
     {
         var validColor = ValidationHelper.IsValidHexColor(color) ? color : "#000000";
 
+        var clampedPoint = new PointDto { X = Math.Clamp(point.X, 0.0, 1.0), Y = Math.Clamp(point.Y, 0.0, 1.0) };
+
         var command = new DrawingCommandDto
         {
             Type = "fill",
-            Points = [point],
+            Points = [clampedPoint],
             Color = validColor,
             Width = 0
         };
