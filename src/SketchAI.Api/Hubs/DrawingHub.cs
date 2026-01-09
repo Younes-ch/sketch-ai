@@ -475,6 +475,7 @@ public class DrawingHub : Hub
                         if (drawer is not null && drawer.AiDrawingsUsed > 0)
                         {
                             drawer.AiDrawingsUsed--;
+                            drawer.LastAiDrawingAt = null;
                             _logger.LogInformation("Reset AI drawing count for drawer in room {RoomCode} (cancelled/failed)", roomCode);
                         }
                     }
