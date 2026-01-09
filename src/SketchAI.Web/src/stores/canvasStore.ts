@@ -110,12 +110,12 @@ export const useCanvasStore = create<CanvasStore>((set, get) => ({
     }
 
     try {
-      set({ aiDrawingError: null, aiDrawingStrokeIds: [] });
+      set({ aiDrawingError: null, aiDrawingStrokeIds: [], isAIDrawing: true });
       await connection.invoke("StartAiDrawing");
     } catch (error) {
       logger.error("Failed to start AI drawing", error);
       const errorMessage = parseHubError(error);
-      set({ aiDrawingError: errorMessage });
+      set({ aiDrawingError: errorMessage, isAIDrawing: false });
       useToastStore.getState().addToast(errorMessage, "error", 5000);
     }
   },
@@ -232,6 +232,7 @@ export const useCanvasStore = create<CanvasStore>((set, get) => ({
 
 // Setup SignalR event handlers for canvas events
 export function setupCanvasEventHandlers() {
+  const seenStrokeIds = new Set<string>();
   const connection = useConnectionStore.getState().connection;
   if (!connection) return () => {};
 
@@ -248,6 +249,7 @@ export function setupCanvasEventHandlers() {
     useCanvasStore.getState().setIsAIDrawing(true);
     useCanvasStore.getState().setAIDrawingError(null);
     useCanvasStore.getState().clearAIDrawingStrokeIds();
+    seenStrokeIds.clear();
   };
 
   const handleAIDrawingStopped = () => {
@@ -263,7 +265,6 @@ export function setupCanvasEventHandlers() {
   };
 
   // Track AI drawing stroke IDs for undo functionality
-  const seenStrokeIds = new Set<string>();
   const handleAIDrawingCommand = (command: DrawingCommand) => {
     if (command.strokeId && !seenStrokeIds.has(command.strokeId)) {
       seenStrokeIds.add(command.strokeId);
