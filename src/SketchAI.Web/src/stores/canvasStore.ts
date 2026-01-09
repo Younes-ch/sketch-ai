@@ -13,6 +13,18 @@ type ClearCanvasCallback = () => void;
 type UndoCallback = () => void;
 type FillCommandCallback = (command: DrawingCommand) => void;
 
+// Track whether the real canvas component is subscribed to events
+// This allows the fallback handler to know when to defer to the real handler
+let isCanvasSubscribed = false;
+
+export function getIsCanvasSubscribed(): boolean {
+  return isCanvasSubscribed;
+}
+
+export function setIsCanvasSubscribed(value: boolean): void {
+  isCanvasSubscribed = value;
+}
+
 interface CanvasStore {
   pendingCanvasHistory: DrawingCommand[] | null;
   
@@ -38,7 +50,8 @@ interface CanvasStore {
   stopAIDrawing: () => Promise<void>;
   undoAIDrawing: () => Promise<void>;
 
-  // Event subscription methods
+  // Event subscription methods - these now handle connection state changes
+  // and will auto-bind callbacks when connection becomes available
   onReceiveDrawingCommand: (callback: DrawingCommandCallback) => () => void;
   onReceiveCanvasHistory: (callback: CanvasHistoryCallback) => () => void;
   onCanvasCleared: (callback: ClearCanvasCallback) => () => void;
@@ -48,6 +61,54 @@ interface CanvasStore {
 
   // Reset
   reset: () => void;
+}
+
+/**
+ * Creates a subscription helper that handles connection state changes.
+ * If connection isn't available at subscription time, it waits for it.
+ * Also re-subscribes after reconnection.
+ */
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+function createConnectionAwareSubscription<T extends (...args: any[]) => void>(
+  eventName: string,
+  callback: T
+): () => void {
+  let currentCleanup: (() => void) | null = null;
+  let isUnsubscribed = false;
+
+  const subscribe = () => {
+    if (isUnsubscribed) return;
+    
+    const connection = useConnectionStore.getState().connection;
+    if (connection) {
+      connection.on(eventName, callback);
+      currentCleanup = () => {
+        connection.off(eventName, callback);
+      };
+    }
+  };
+
+  // Subscribe immediately if connection is available
+  subscribe();
+
+  // Also subscribe to connection state changes to handle reconnection
+  const unsubscribeStore = useConnectionStore.subscribe((state, prevState) => {
+    // Connection became available (initial connect or reconnect)
+    if (state.connection && state.connection !== prevState.connection) {
+      // Clean up old subscription if any
+      currentCleanup?.();
+      currentCleanup = null;
+      // Subscribe to new connection
+      subscribe();
+    }
+  });
+
+  return () => {
+    isUnsubscribed = true;
+    currentCleanup?.();
+    currentCleanup = null;
+    unsubscribeStore();
+  };
 }
 
 export const useCanvasStore = create<CanvasStore>((set, get) => ({
@@ -60,9 +121,11 @@ export const useCanvasStore = create<CanvasStore>((set, get) => ({
   clearPendingCanvasHistory: () => set({ pendingCanvasHistory: null }),
   setIsAIDrawing: (isDrawing) => set({ isAIDrawing: isDrawing }),
   setAIDrawingError: (error) => set({ aiDrawingError: error }),
-  addAIDrawingStrokeId: (strokeId) => set((state) => ({
-    aiDrawingStrokeIds: [...state.aiDrawingStrokeIds, strokeId]
-  })),
+  addAIDrawingStrokeId: (strokeId) => set((state) => (
+    state.aiDrawingStrokeIds.includes(strokeId)
+      ? state
+      : { aiDrawingStrokeIds: [...state.aiDrawingStrokeIds, strokeId] }
+  )),
   clearAIDrawingStrokeIds: () => set({ aiDrawingStrokeIds: [] }),
 
   sendDrawingCommand: async (command) => {
@@ -168,57 +231,27 @@ export const useCanvasStore = create<CanvasStore>((set, get) => ({
   },
 
   onReceiveDrawingCommand: (callback) => {
-    const connection = useConnectionStore.getState().connection;
-    if (connection) {
-      connection.on("ReceiveDrawingCommand", callback);
-      return () => connection.off("ReceiveDrawingCommand", callback);
-    }
-    return () => {};
+    return createConnectionAwareSubscription("ReceiveDrawingCommand", callback);
   },
 
   onReceiveCanvasHistory: (callback) => {
-    const connection = useConnectionStore.getState().connection;
-    if (connection) {
-      connection.on("ReceiveCanvasHistory", callback);
-      return () => connection.off("ReceiveCanvasHistory", callback);
-    }
-    return () => {};
+    return createConnectionAwareSubscription("ReceiveCanvasHistory", callback);
   },
 
   onCanvasCleared: (callback) => {
-    const connection = useConnectionStore.getState().connection;
-    if (connection) {
-      connection.on("CanvasCleared", callback);
-      return () => connection.off("CanvasCleared", callback);
-    }
-    return () => {};
+    return createConnectionAwareSubscription("CanvasCleared", callback);
   },
 
   onReceiveUndo: (callback) => {
-    const connection = useConnectionStore.getState().connection;
-    if (connection) {
-      connection.on("ReceiveUndo", callback);
-      return () => connection.off("ReceiveUndo", callback);
-    }
-    return () => {};
+    return createConnectionAwareSubscription("ReceiveUndo", callback);
   },
 
   onReceiveFillCommand: (callback) => {
-    const connection = useConnectionStore.getState().connection;
-    if (connection) {
-      connection.on("ReceiveFillCommand", callback);
-      return () => connection.off("ReceiveFillCommand", callback);
-    }
-    return () => {};
+    return createConnectionAwareSubscription("ReceiveFillCommand", callback);
   },
 
   onReceiveAIDrawingCommand: (callback) => {
-    const connection = useConnectionStore.getState().connection;
-    if (connection) {
-      connection.on("AIDrawingCommand", callback);
-      return () => connection.off("AIDrawingCommand", callback);
-    }
-    return () => {};
+    return createConnectionAwareSubscription("AIDrawingCommand", callback);
   },
 
   reset: () =>
@@ -238,10 +271,14 @@ export function setupCanvasEventHandlers() {
 
   // Fallback handler for ReceiveCanvasHistory when DrawingCanvas isn't mounted yet
   // (e.g., late joiners who receive history before GameScreen renders)
-  // DrawingCanvas also registers its own handler via onReceiveCanvasHistory
+  // Only stores as pending if DrawingCanvas hasn't subscribed yet to avoid conflicts
   const handleCanvasHistoryFallback = (history: DrawingCommand[]) => {
-    // Store as pending - DrawingCanvas will pick this up when it mounts
-    useCanvasStore.getState().setPendingCanvasHistory(history);
+    // Only set pending history if the real canvas handler isn't subscribed
+    // This prevents the fallback from fighting with the real handler
+    if (!isCanvasSubscribed) {
+      logger.info("Canvas not mounted, storing history as pending");
+      useCanvasStore.getState().setPendingCanvasHistory(history);
+    }
   };
 
   const handleAIDrawingStarted = () => {

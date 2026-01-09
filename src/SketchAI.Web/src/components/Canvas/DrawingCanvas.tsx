@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState, useCallback, useMemo, memo } from "react";
 import simplify from "simplify-js";
 import type { Point, DrawingCommand } from "@/models";
-import { useCanvasStore } from "@/stores/canvasStore";
+import { useCanvasStore, setIsCanvasSubscribed } from "@/stores/canvasStore";
 import { logger } from "@/lib/logger";
 import { cn } from "@/lib/utils";
 import {
@@ -282,6 +282,13 @@ function DrawingCanvasComponent({ disabled = false }: DrawingCanvasProps) {
 
   // Initialize SignalR listeners
   useEffect(() => {
+    // Mark that the real canvas handler is now subscribed
+    // This prevents the fallback handler from fighting with us
+    setIsCanvasSubscribed(true);
+
+    // Capture ref for cleanup to avoid React lint warning
+    const seenAiStrokeIds = seenAiStrokeIdsRef.current;
+
     // Subscribe to drawing commands from other clients
     const unsubDrawing = onReceiveDrawingCommand((command: DrawingCommand) => {
       commandHistoryRef.current.push(command);
@@ -376,13 +383,16 @@ function DrawingCanvasComponent({ disabled = false }: DrawingCanvasProps) {
     );
 
     return () => {
+      // Mark that the real canvas handler is no longer subscribed
+      // This allows the fallback handler to work again if canvas unmounts
+      setIsCanvasSubscribed(false);
       unsubDrawing();
       unsubHistory();
       unsubClear();
       unsubUndo();
       unsubFill();
       unsubAIDrawing();
-      seenAiStrokeIdsRef.current.clear();
+      seenAiStrokeIds.clear();
     };
   }, [
     onReceiveDrawingCommand,
