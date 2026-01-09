@@ -14,7 +14,7 @@ public class AIDrawingCancellationManager : IAIDrawingCancellationManager
     {
         var cts = new CancellationTokenSource();
 
-        var oldCts = _sessions.AddOrUpdate(roomCode, cts, (_, existing) =>
+        _sessions.AddOrUpdate(roomCode, cts, (_, existing) =>
         {
             existing.Cancel();
             existing.Dispose();
