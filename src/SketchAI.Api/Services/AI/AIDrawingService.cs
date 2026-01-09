@@ -20,7 +20,7 @@ public class AIDrawingService : IAIDrawingService
         var sanitizedWord = WordHelper.SanitizeWord(word);
         if (string.IsNullOrEmpty(sanitizedWord))
         {
-            _logger.LogWarning("Invalid word for AI drawing: '{Word}'", word);
+            _logger.LogWarning("Invalid word for AI drawing (sanitized to empty): '{Word}'", word);
             yield break;
         }
 
@@ -65,7 +65,7 @@ public class AIDrawingService : IAIDrawingService
         {
             if (ct.IsCancellationRequested)
             {
-                _logger.LogInformation("AI drawing cancelled for word '{Word}'", word);
+                _logger.LogInformation("AI drawing cancelled for word '{Word}'", sanitizedWord);
                 yield break;
             }
 
@@ -126,6 +126,19 @@ public class AIDrawingService : IAIDrawingService
         string color,
         int width)
     {
+
+        if (points is null || points.Length == 0)
+        {
+            return new DrawingCommandDto
+            {
+                Type = "stroke",
+                Points = [],
+                Color = "#000000",
+                Width = Math.Clamp(width, 1, 50),
+                StrokeId = Guid.NewGuid().ToString()
+            };
+        }
+
         var clampedPoints =
             points.Select(p => new PointDto { X = Math.Clamp(p.X, 0.0, 1.0), Y = Math.Clamp(p.Y, 0.0, 1.0) });
 
@@ -150,6 +163,19 @@ public class AIDrawingService : IAIDrawingService
         PointDto point,
         string color)
     {
+
+        if (point is null)
+        {
+            return new DrawingCommandDto
+            {
+                Type = "fill",
+                Points = [new PointDto { X = 0.5, Y = 0.5 }],
+                Color = "#000000",
+                Width = 0,
+                StrokeId = Guid.NewGuid().ToString()
+            };
+        }
+
         var validColor = ValidationHelper.IsValidHexColor(color) ? color : "#000000";
 
         var clampedPoint = new PointDto { X = Math.Clamp(point.X, 0.0, 1.0), Y = Math.Clamp(point.Y, 0.0, 1.0) };
