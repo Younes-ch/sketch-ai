@@ -42,6 +42,11 @@ public class AIDrawingCancellationManager : IAIDrawingCancellationManager
 
     public bool IsDrawing(string roomCode)
     {
-        return _sessions.ContainsKey(roomCode);
+        if (!_sessions.TryGetValue(roomCode, out var cts))
+        {
+            return false;
+        }
+
+        return !cts.IsCancellationRequested;
     }
 }
