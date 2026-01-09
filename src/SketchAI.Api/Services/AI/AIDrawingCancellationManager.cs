@@ -13,6 +13,12 @@ public class AIDrawingCancellationManager : IAIDrawingCancellationManager, IDisp
 
     public CancellationToken CreateSession(string roomCode)
     {
+
+        if (_disposed)
+        {
+            throw new ObjectDisposedException(nameof(AIDrawingCancellationManager));
+        }
+
         var cts = new CancellationTokenSource();
 
         _sessions.AddOrUpdate(roomCode, cts, (_, existingCts) =>
@@ -37,6 +43,12 @@ public class AIDrawingCancellationManager : IAIDrawingCancellationManager, IDisp
 
     public void CancelSession(string roomCode)
     {
+
+        if (_disposed)
+        {
+            throw new ObjectDisposedException(nameof(AIDrawingCancellationManager));
+        }
+
         if (_sessions.TryRemove(roomCode, out var cts))
         {
             try
@@ -54,17 +66,35 @@ public class AIDrawingCancellationManager : IAIDrawingCancellationManager, IDisp
 
     public CancellationToken? GetToken(string roomCode)
     {
+        if (_disposed)
+        {
+            throw new ObjectDisposedException(nameof(AIDrawingCancellationManager));
+        }
+
         return _sessions.TryGetValue(roomCode, out var cts) ? cts.Token : null;
     }
 
     public bool IsDrawing(string roomCode)
     {
+
+        if (_disposed)
+        {
+            throw new ObjectDisposedException(nameof(AIDrawingCancellationManager));
+        }
+
         if (!_sessions.TryGetValue(roomCode, out var cts))
         {
             return false;
         }
 
-        return !cts.IsCancellationRequested;
+        try
+        {
+            return !cts.IsCancellationRequested;
+        }
+        catch (ObjectDisposedException)
+        {
+            return false;
+        }
     }
 
     public void Dispose()
