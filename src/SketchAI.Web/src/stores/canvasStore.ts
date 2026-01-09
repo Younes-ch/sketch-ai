@@ -167,11 +167,8 @@ export const useCanvasStore = create<CanvasStore>((set, get) => ({
     }
 
     try {
-      // Undo each AI drawing stroke (they share the same mechanism as regular undo)
-      // Call undo for each unique stroke ID
-      for (let i = 0; i < aiDrawingStrokeIds.length; i++) {
-        await connection.invoke("UndoLastDrawCommand", roomCode);
-      }
+      // Use batch undo endpoint for atomic removal
+      await connection.invoke("UndoAIDrawing", roomCode, aiDrawingStrokeIds);
       set({ aiDrawingStrokeIds: [] });
       logger.info(`Undid ${aiDrawingStrokeIds.length} AI drawing strokes`);
     } catch (error) {

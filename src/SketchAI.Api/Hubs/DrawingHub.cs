@@ -608,6 +608,34 @@ public class DrawingHub : Hub
         }
     }
 
+    public async Task UndoAIDrawing(string roomCode, string[] strokeIds)
+    {
+        if (!ValidationHelper.IsValidRoomCode(roomCode))
+        {
+            _logger.LogWarning("Invalid room code in UndoAIDrawing: {RoomCode}", roomCode);
+            return;
+        }
+
+        var room = await _roomService.GetRoomAsync(roomCode);
+        if (room?.CurrentDrawerConnectionId != Context.ConnectionId)
+        {
+            _logger.LogWarning("Non-drawer attempted AI undo in room {RoomCode}", roomCode);
+            return;
+        }
+
+        if (strokeIds.Length == 0)
+            return;
+
+        var removedCount = await _canvasService.UndoStrokesByIdsAsync(roomCode, strokeIds);
+        if (removedCount > 0)
+        {
+            var history = await _canvasService.GetCanvasHistoryAsync(roomCode);
+            await Clients.Group(roomCode).SendAsync("ReceiveCanvasHistory", history);
+            _logger.LogDebug("AI drawing undo: removed {Count} strokes, refreshed canvas for room {RoomCode}",
+                removedCount, roomCode);
+        }
+    }
+
     /// <summary>
     /// Clears the canvas for all players in the room.
     /// </summary>

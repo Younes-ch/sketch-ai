@@ -106,6 +106,8 @@ function DrawingCanvasComponent({ disabled = false }: DrawingCanvasProps) {
   const sendDrawingCommand = useCanvasStore((s) => s.sendDrawingCommand);
   const sendFillCommand = useCanvasStore((s) => s.sendFillCommand);
   const undoLastDrawCommand = useCanvasStore((s) => s.undoLastDrawCommand);
+  const undoAIDrawing = useCanvasStore((s) => s.undoAIDrawing);
+  const aiDrawingStrokeIds = useCanvasStore((s) => s.aiDrawingStrokeIds);
   const signalRClearCanvas = useCanvasStore((s) => s.clearCanvas);
   const onReceiveDrawingCommand = useCanvasStore(
     (s) => s.onReceiveDrawingCommand
@@ -330,12 +332,15 @@ function DrawingCanvasComponent({ disabled = false }: DrawingCanvasProps) {
     });
 
     // Subscribe to AI drawing commands (drawer only) - increment stroke count for undo
+    const seenAiStrokeIds = new Set<string>();
     const unsubAIDrawing = onReceiveAIDrawingCommand(
       (command: DrawingCommand) => {
         logger.info("Received AI drawing command", command.strokeId);
-        // Increment local stroke count so the undo button becomes enabled
-        // Each AI command with a unique strokeId is a separate undo-able action
-        setLocalStrokeCount((prev) => prev + 1);
+        // Only increment for unique strokeIds
+        if (command.strokeId && !seenAiStrokeIds.has(command.strokeId)) {
+          seenAiStrokeIds.add(command.strokeId);
+          setLocalStrokeCount((prev) => prev + 1);
+        }
       }
     );
 
@@ -648,7 +653,12 @@ function DrawingCanvasComponent({ disabled = false }: DrawingCanvasProps) {
 
     undoPendingRef.current = true;
     try {
-      await undoLastDrawCommand();
+      // If there are AI drawing strokes, undo the entire AI drawing
+      if (aiDrawingStrokeIds.length > 0) {
+        await undoAIDrawing();
+      } else {
+        await undoLastDrawCommand();
+      }
     } catch (error) {
       logger.error("Failed to undo", error);
     } finally {
@@ -658,7 +668,7 @@ function DrawingCanvasComponent({ disabled = false }: DrawingCanvasProps) {
         undoPendingRef.current = false;
       }, 150);
     }
-  }, [undoLastDrawCommand]);
+  }, [undoLastDrawCommand, undoAIDrawing, aiDrawingStrokeIds.length]);
 
   // Keyboard shortcuts
   useEffect(() => {

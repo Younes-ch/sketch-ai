@@ -7,6 +7,7 @@ global using System.Text.Json;
 global using System.Text.RegularExpressions;
 global using System.Threading.RateLimiting;
 
+global using GeminiDotnet;
 global using GeminiDotnet.Extensions.AI;
 
 global using Microsoft.AspNetCore.HttpOverrides;
