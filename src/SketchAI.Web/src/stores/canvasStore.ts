@@ -19,12 +19,7 @@ interface CanvasStore {
   // AI Drawing state
   isAIDrawing: boolean;
   aiDrawingError: string | null;
-  aiDrawingStrokeIds: string[]; // Track stroke IDs from AI drawing for undo
-  
-  // Callback refs for event subscriptions
-  drawingCommandCallback: DrawingCommandCallback | null;
-  historyCallback: CanvasHistoryCallback | null;
-  clearCallback: ClearCanvasCallback | null;
+  aiDrawingStrokeIds: string[]; // Track stroke IDs from AI drawing for undo;
 
   // Actions
   setPendingCanvasHistory: (history: DrawingCommand[] | null) => void;
@@ -60,11 +55,6 @@ export const useCanvasStore = create<CanvasStore>((set, get) => ({
   isAIDrawing: false,
   aiDrawingError: null,
   aiDrawingStrokeIds: [],
-  drawingCommandCallback: null,
-  historyCallback: null,
-  clearCallback: null,
-  undoCallback: null,
-  fillCommandCallback: null,
 
   setPendingCanvasHistory: (history) => set({ pendingCanvasHistory: history }),
   clearPendingCanvasHistory: () => set({ pendingCanvasHistory: null }),
@@ -187,9 +177,12 @@ export const useCanvasStore = create<CanvasStore>((set, get) => ({
   },
 
   onReceiveCanvasHistory: (callback) => {
-    // Store the callback for direct invocation from event handler
-    set({ historyCallback: callback });
-    return () => set({ historyCallback: null });
+    const connection = useConnectionStore.getState().connection;
+    if (connection) {
+      connection.on("ReceiveCanvasHistory", callback);
+      return () => connection.off("ReceiveCanvasHistory", callback);
+    }
+    return () => {};
   },
 
   onCanvasCleared: (callback) => {
@@ -234,9 +227,6 @@ export const useCanvasStore = create<CanvasStore>((set, get) => ({
       isAIDrawing: false,
       aiDrawingError: null,
       aiDrawingStrokeIds: [],
-      drawingCommandCallback: null,
-      historyCallback: null,
-      clearCallback: null,
     }),
 }));
 
@@ -245,15 +235,12 @@ export function setupCanvasEventHandlers() {
   const connection = useConnectionStore.getState().connection;
   if (!connection) return () => {};
 
-  const handleCanvasHistory = (history: DrawingCommand[]) => {
-    logger.info(`Received canvas history with ${history.length} commands`);
-    const { historyCallback } = useCanvasStore.getState();
-    
-    if (historyCallback) {
-      historyCallback(history);
-    } else {
-      useCanvasStore.getState().setPendingCanvasHistory(history);
-    }
+  // Fallback handler for ReceiveCanvasHistory when DrawingCanvas isn't mounted yet
+  // (e.g., late joiners who receive history before GameScreen renders)
+  // DrawingCanvas also registers its own handler via onReceiveCanvasHistory
+  const handleCanvasHistoryFallback = (history: DrawingCommand[]) => {
+    // Store as pending - DrawingCanvas will pick this up when it mounts
+    useCanvasStore.getState().setPendingCanvasHistory(history);
   };
 
   const handleAIDrawingStarted = () => {
@@ -276,24 +263,22 @@ export function setupCanvasEventHandlers() {
   };
 
   // Track AI drawing stroke IDs for undo functionality
+  const seenStrokeIds = new Set<string>();
   const handleAIDrawingCommand = (command: DrawingCommand) => {
-    if (command.strokeId) {
-      const { aiDrawingStrokeIds, addAIDrawingStrokeId } = useCanvasStore.getState();
-      // Only add unique stroke IDs
-      if (!aiDrawingStrokeIds.includes(command.strokeId)) {
-        addAIDrawingStrokeId(command.strokeId);
-      }
+    if (command.strokeId && !seenStrokeIds.has(command.strokeId)) {
+      seenStrokeIds.add(command.strokeId);
+      useCanvasStore.getState().addAIDrawingStrokeId(command.strokeId);
     }
   };
 
-  connection.on("ReceiveCanvasHistory", handleCanvasHistory);
+  connection.on("ReceiveCanvasHistory", handleCanvasHistoryFallback);
   connection.on("AIDrawingStarted", handleAIDrawingStarted);
   connection.on("AIDrawingStopped", handleAIDrawingStopped);
   connection.on("AIDrawingError", handleAIDrawingError);
   connection.on("AIDrawingCommand", handleAIDrawingCommand);
 
   return () => {
-    connection.off("ReceiveCanvasHistory", handleCanvasHistory);
+    connection.off("ReceiveCanvasHistory", handleCanvasHistoryFallback);
     connection.off("AIDrawingStarted", handleAIDrawingStarted);
     connection.off("AIDrawingStopped", handleAIDrawingStopped);
     connection.off("AIDrawingError", handleAIDrawingError);

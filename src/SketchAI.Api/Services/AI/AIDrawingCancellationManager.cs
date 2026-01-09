@@ -14,9 +14,8 @@ public class AIDrawingCancellationManager : IAIDrawingCancellationManager
     {
         var cts = new CancellationTokenSource();
 
-        if (_sessions.TryGetValue(roomCode, out var existingCts))
+        _sessions.AddOrUpdate(roomCode, cts, (_, existingCts) =>
         {
-
             try
             {
                 existingCts.Cancel();
@@ -28,9 +27,8 @@ public class AIDrawingCancellationManager : IAIDrawingCancellationManager
             }
 
             _logger.LogDebug("Cancelled existing AI drawing session for room {RoomCode}", roomCode);
-        }
-
-        _sessions[roomCode] = cts;
+            return cts;
+        });
 
         _logger.LogDebug("Created AI drawing session for room {RoomCode}", roomCode);
         return cts.Token;

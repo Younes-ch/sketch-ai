@@ -97,7 +97,7 @@ public class AIDrawingService : IAIDrawingService
          - draw_fill(point, color): Flood-fill an enclosed area starting from a single point.
 
          INSTRUCTIONS:
-         1. Draw a simple, recognizable representation of "{word}"
+         1. Draw a simple, recognizable representation of "{{word}}"
          2. Use draw_stroke for lines, shapes, and outlines (pass array of points)
          3. Use draw_fill for flood-filling enclosed areas with color (single start point)
          4. Use multiple colors - be creative but keep it simple
@@ -159,7 +159,8 @@ public class AIDrawingService : IAIDrawingService
             Type = "fill",
             Points = [clampedPoint],
             Color = validColor,
-            Width = 0
+            Width = 0,
+            StrokeId = Guid.NewGuid().ToString()
         };
 
         queue.Enqueue(command);

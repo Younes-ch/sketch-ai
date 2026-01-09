@@ -138,6 +138,14 @@ public class CanvasService : ICanvasService
         if (strokeIdArray.Length == 0)
             return 0;
 
+        if (strokeIdArray.Any(string.IsNullOrWhiteSpace))
+        {
+            _logger.LogWarning("Attempted to undo strokes with empty stroke IDs in room {RoomCode}", roomCode);
+            strokeIdArray = strokeIdArray.Where(id => !string.IsNullOrWhiteSpace(id)).ToArray();
+            if (strokeIdArray.Length == 0)
+                return 0;
+        }
+
         var key = RedisKeys.CanvasHistory(roomCode);
 
         var result = await RedisHelper.SafeExecuteAsync(
