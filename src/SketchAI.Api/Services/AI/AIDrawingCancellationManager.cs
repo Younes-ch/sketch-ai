@@ -1,6 +1,6 @@
 ﻿namespace SketchAI.Api.Services.AI;
 
-public class AIDrawingCancellationManager : IAIDrawingCancellationManager, IDisposable
+public sealed class AIDrawingCancellationManager : IAIDrawingCancellationManager, IDisposable
 {
     private readonly Lock _lock = new();
     private readonly ConcurrentDictionary<string, CancellationTokenSource> _sessions = new();
