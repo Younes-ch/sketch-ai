@@ -33,6 +33,33 @@ public class CanvasService : ICanvasService
             return count
             ";
 
+    private const string UndoStrokesByIdsLuaScript = @"
+            local key = KEYS[1]
+            local strokeIds = {}
+            for i = 1, #ARGV do
+                strokeIds[ARGV[i]] = true
+            end
+            
+            local len = redis.call('LLEN', key)
+            local count = 0
+            local i = 0
+            
+            while i < len do
+                local value = redis.call('LINDEX', key, i)
+                if value then
+                    local ok, command = pcall(cjson.decode, value)
+                    if ok and command.strokeId and strokeIds[command.strokeId] then
+                        redis.call('LSET', key, i, '__DELETED__')
+                        count = count + 1
+                    end
+                end
+                i = i + 1
+            end
+            
+            redis.call('LREM', key, 0, '__DELETED__')
+            return count
+            ";
+
     public CanvasService(IConnectionMultiplexer redis, ILogger<CanvasService> logger)
     {
         _db = redis.GetDatabase();
@@ -103,6 +130,39 @@ public class CanvasService : ICanvasService
         }
 
         return lastCommand;
+    }
+
+    public async Task<int> UndoStrokesByIdsAsync(string roomCode, IEnumerable<string> strokeIds)
+    {
+        var strokeIdArray = strokeIds.ToArray();
+        if (strokeIdArray.Length == 0)
+            return 0;
+
+        if (strokeIdArray.Any(string.IsNullOrWhiteSpace))
+        {
+            _logger.LogWarning("Attempted to undo strokes with empty stroke IDs in room {RoomCode}", roomCode);
+            strokeIdArray = strokeIdArray.Where(id => !string.IsNullOrWhiteSpace(id)).ToArray();
+            if (strokeIdArray.Length == 0)
+                return 0;
+        }
+
+        var key = RedisKeys.CanvasHistory(roomCode);
+
+        var result = await RedisHelper.SafeExecuteAsync(
+            () => _db.ScriptEvaluateAsync(
+                UndoStrokesByIdsLuaScript,
+                [key],
+                strokeIdArray.Select(id => (RedisValue)id).ToArray()),
+            _logger,
+            $"UndoStrokesByIds:{roomCode}",
+            RedisResult.Create(0, ResultType.Integer));
+
+        var removedCount = result is null || result.IsNull ? 0 : (int)result;
+
+        _logger.LogDebug("Batch undo: removed {Count} commands for {StrokeCount} stroke IDs from room {RoomCode}",
+            removedCount, strokeIdArray.Length, roomCode);
+
+        return removedCount;
     }
 
     public async Task<List<DrawingCommandDto>> GetCanvasHistoryAsync(string roomCode)

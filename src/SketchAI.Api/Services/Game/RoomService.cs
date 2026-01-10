@@ -310,16 +310,6 @@ public class RoomService : IRoomService
 
     public async Task<bool> DeleteRoomAsync(string roomCode)
     {
-        await using var lockHandle = await _lockProvider.TryAcquireLockAsync(
-            RedisKeys.RoomLock(roomCode),
-            RedisKeys.RoomLockExpiry);
-
-        if (lockHandle is null)
-        {
-            _logger.LogWarning("DeleteRoom failed: Could not acquire lock for room {RoomCode}", roomCode);
-            return false;
-        }
-
         var room = await GetRoomAsync(roomCode);
         if (room is null)
         {

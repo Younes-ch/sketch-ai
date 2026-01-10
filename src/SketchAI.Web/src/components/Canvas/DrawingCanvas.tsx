@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState, useCallback, useMemo, memo } from "react";
 import simplify from "simplify-js";
 import type { Point, DrawingCommand } from "@/models";
-import { useCanvasStore } from "@/stores/canvasStore";
+import { useCanvasStore, setIsCanvasSubscribed } from "@/stores/canvasStore";
 import { logger } from "@/lib/logger";
 import { cn } from "@/lib/utils";
 import {
@@ -40,8 +40,9 @@ function DrawingCanvasComponent({ disabled = false }: DrawingCanvasProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
   const isDrawingRef = useRef(false);
-  const hasMovedRef = useRef(false); // Track if pointer moved since starting
+  const hasMovedRef = useRef(false);
   const lastPointRef = useRef<Point | null>(null);
+  const seenAiStrokeIdsRef = useRef<Set<string>>(new Set());
 
   // Batching refs for network optimization
   const pointBufferRef = useRef<Point[]>([]); // Accumulates points between batches
@@ -106,6 +107,8 @@ function DrawingCanvasComponent({ disabled = false }: DrawingCanvasProps) {
   const sendDrawingCommand = useCanvasStore((s) => s.sendDrawingCommand);
   const sendFillCommand = useCanvasStore((s) => s.sendFillCommand);
   const undoLastDrawCommand = useCanvasStore((s) => s.undoLastDrawCommand);
+  const undoAIDrawing = useCanvasStore((s) => s.undoAIDrawing);
+  const aiDrawingStrokeIds = useCanvasStore((s) => s.aiDrawingStrokeIds);
   const signalRClearCanvas = useCanvasStore((s) => s.clearCanvas);
   const onReceiveDrawingCommand = useCanvasStore(
     (s) => s.onReceiveDrawingCommand
@@ -116,6 +119,9 @@ function DrawingCanvasComponent({ disabled = false }: DrawingCanvasProps) {
   const onCanvasCleared = useCanvasStore((s) => s.onCanvasCleared);
   const onReceiveUndo = useCanvasStore((s) => s.onReceiveUndo);
   const onReceiveFillCommand = useCanvasStore((s) => s.onReceiveFillCommand);
+  const onReceiveAIDrawingCommand = useCanvasStore(
+    (s) => s.onReceiveAIDrawingCommand
+  );
   const pendingCanvasHistory = useCanvasStore((s) => s.pendingCanvasHistory);
   const clearPendingCanvasHistory = useCanvasStore(
     (s) => s.clearPendingCanvasHistory
@@ -253,6 +259,7 @@ function DrawingCanvasComponent({ disabled = false }: DrawingCanvasProps) {
           logger.info(
             `Drawing pending canvas history (retry): ${historyToProcess.length} commands`
           );
+          clearCanvas();
           replayHistoryAsync(historyToProcess);
         }
       });
@@ -263,23 +270,57 @@ function DrawingCanvasComponent({ disabled = false }: DrawingCanvasProps) {
     logger.info(
       `Drawing pending canvas history: ${historyToProcess.length} commands`
     );
+    clearCanvas();
     replayHistoryAsync(historyToProcess);
     clearPendingCanvasHistory();
-  }, [pendingCanvasHistory, replayHistoryAsync, clearPendingCanvasHistory]);
+  }, [
+    pendingCanvasHistory,
+    replayHistoryAsync,
+    clearPendingCanvasHistory,
+    clearCanvas,
+  ]);
 
   // Initialize SignalR listeners
   useEffect(() => {
+    // Mark that the real canvas handler is now subscribed
+    // This prevents the fallback handler from fighting with us
+    setIsCanvasSubscribed(true);
+
+    // Capture ref for cleanup to avoid React lint warning
+    const seenAiStrokeIds = seenAiStrokeIdsRef.current;
+
     // Subscribe to drawing commands from other clients
     const unsubDrawing = onReceiveDrawingCommand((command: DrawingCommand) => {
       commandHistoryRef.current.push(command);
       drawCommand(command);
     });
 
-    // Subscribe to canvas history (sent when late joiner joins)
+    // Subscribe to canvas history (sent when late joiner joins or after AI undo)
     const unsubHistory = onReceiveCanvasHistory((history: DrawingCommand[]) => {
       logger.info(`Received canvas history with ${history.length} commands`);
       // Replace local history with server history
       commandHistoryRef.current = [...history];
+
+      // Recalculate local stroke count based on unique strokeIds in history
+      // This ensures the count stays in sync after operations like AI undo
+      const uniqueStrokeIds = new Set(
+        history.filter((cmd) => cmd.strokeId).map((cmd) => cmd.strokeId)
+      );
+      // Count commands without strokeId (legacy or fill commands) as individual strokes
+      const commandsWithoutStrokeId = history.filter(
+        (cmd) => !cmd.strokeId
+      ).length;
+      setLocalStrokeCount(uniqueStrokeIds.size + commandsWithoutStrokeId);
+
+      // Clear seen AI stroke IDs since we're resetting to server state
+      seenAiStrokeIdsRef.current.clear();
+
+      // Clear pending history to prevent double processing
+      // (the fallback handler in setupCanvasEventHandlers also sets pendingCanvasHistory)
+      clearPendingCanvasHistory();
+
+      // Clear canvas before replaying to ensure clean state
+      clearCanvas();
       // Replay all commands asynchronously to prevent UI freeze
       replayHistoryAsync(history);
     });
@@ -326,12 +367,32 @@ function DrawingCanvasComponent({ disabled = false }: DrawingCanvasProps) {
       drawCommand(command);
     });
 
+    // Subscribe to AI drawing commands (drawer only) - increment stroke count for undo
+    const unsubAIDrawing = onReceiveAIDrawingCommand(
+      (command: DrawingCommand) => {
+        logger.info("Received AI drawing command", command.strokeId);
+        // Only increment for unique strokeIds
+        if (
+          command.strokeId &&
+          !seenAiStrokeIdsRef.current.has(command.strokeId)
+        ) {
+          seenAiStrokeIdsRef.current.add(command.strokeId);
+          setLocalStrokeCount((prev) => prev + 1);
+        }
+      }
+    );
+
     return () => {
+      // Mark that the real canvas handler is no longer subscribed
+      // This allows the fallback handler to work again if canvas unmounts
+      setIsCanvasSubscribed(false);
       unsubDrawing();
       unsubHistory();
       unsubClear();
       unsubUndo();
       unsubFill();
+      unsubAIDrawing();
+      seenAiStrokeIds.clear();
     };
   }, [
     onReceiveDrawingCommand,
@@ -339,8 +400,10 @@ function DrawingCanvasComponent({ disabled = false }: DrawingCanvasProps) {
     onCanvasCleared,
     onReceiveUndo,
     onReceiveFillCommand,
+    onReceiveAIDrawingCommand,
     drawCommand,
     clearCanvas,
+    clearPendingCanvasHistory,
     replayHistoryAsync,
   ]);
 
@@ -633,7 +696,12 @@ function DrawingCanvasComponent({ disabled = false }: DrawingCanvasProps) {
 
     undoPendingRef.current = true;
     try {
-      await undoLastDrawCommand();
+      // If there are AI drawing strokes, undo the entire AI drawing
+      if (aiDrawingStrokeIds.length > 0) {
+        await undoAIDrawing();
+      } else {
+        await undoLastDrawCommand();
+      }
     } catch (error) {
       logger.error("Failed to undo", error);
     } finally {
@@ -643,7 +711,7 @@ function DrawingCanvasComponent({ disabled = false }: DrawingCanvasProps) {
         undoPendingRef.current = false;
       }, 150);
     }
-  }, [undoLastDrawCommand]);
+  }, [undoLastDrawCommand, undoAIDrawing, aiDrawingStrokeIds.length]);
 
   // Keyboard shortcuts
   useEffect(() => {

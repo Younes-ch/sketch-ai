@@ -16,3 +16,6 @@ export const LANGUAGES = [
 ] as const;
 
 export type Language = (typeof LANGUAGES)[number];
+
+export const LANGUAGE_PREF_KEY = "sketch-ai-language";
+export const DEFAULT_LANGUAGE = "English";

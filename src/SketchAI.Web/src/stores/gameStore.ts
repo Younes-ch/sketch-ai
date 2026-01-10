@@ -2,6 +2,7 @@ import { create } from "zustand";
 import type { GameState, Player, WordExplanation } from "@/models";
 import { initialGameState } from "@/models";
 import { logger } from "@/lib/logger";
+import { parseHubError } from "@/lib/utils";
 import { useConnectionStore } from "./connectionStore";
 import { useRoomStore } from "./roomStore";
 import { useChatStore } from "./chatStore";
@@ -95,7 +96,7 @@ export const useGameStore = create<GameStore>((set) => ({
     } catch (error) {
       logger.error("Failed to get word explanation", error);
       set({
-        translationError: error instanceof Error ? error.message : "Failed to get translation",
+        translationError: parseHubError(error),
         isTranslating: false,
       });
     }

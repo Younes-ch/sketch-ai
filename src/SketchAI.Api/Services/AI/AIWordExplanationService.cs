@@ -1,11 +1,13 @@
 ﻿namespace SketchAI.Api.Services.AI;
 
-public class AIService : IAIService
+public class AIWordExplanationService : IAIWordExplanationService
 {
     private readonly IChatClient _chatClient;
-    private readonly ILogger<AIService> _logger;
+    private readonly ILogger<AIWordExplanationService> _logger;
 
-    public AIService(IChatClient chatClient, ILogger<AIService> logger)
+    public AIWordExplanationService(
+        [FromKeyedServices("gpt-4o-mini")] IChatClient chatClient,
+        ILogger<AIWordExplanationService> logger)
     {
         _chatClient = chatClient;
         _logger = logger;

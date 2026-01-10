@@ -104,17 +104,14 @@ public static partial class ValidationHelper
             if (command.Points.Count == 0)
                 return false;
 
-        // Validate each point is within canvas bounds
+            // Validate each point is within canvas bounds
             return command.Points.All(IsPointWithinBounds);
         }
 
         // For fill commands, validate exactly 1 point
         if (command.Type.Equals("fill", StringComparison.OrdinalIgnoreCase))
         {
-            if (command.Points.Count != 1)
-                return false;
-
-            return IsPointWithinBounds(command.Points[0]);
+            return command.Points.Count == 1 && IsPointWithinBounds(command.Points[0]);
         }
 
         // For clear commands, no additional validation needed

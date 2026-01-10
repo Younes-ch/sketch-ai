@@ -3,7 +3,21 @@ var builder = WebApplication.CreateBuilder(args);
 builder.AddServiceDefaults();
 builder.AddRedisClient(connectionName: "redis");
 builder.AddOpenAIClient("gpt-4o-mini")
-       .AddChatClient();
+       .AddKeyedChatClient("gpt-4o-mini")
+       .UseFunctionInvocation();
+builder.AddOpenAIClient("gpt-41")
+       .AddKeyedChatClient("gpt-41")
+       .UseFunctionInvocation();
+
+var options = new GeminiClientOptions
+{
+    ApiKey = builder.Configuration["AI:ApiKey"] ?? throw new InvalidOperationException("Gemini API key is not configured."),
+    ModelId = builder.Configuration["AI:ModelId"] ?? "gemini-3-flash-preview",
+};
+
+builder.Services.AddKeyedChatClient("gemini-model", new GeminiChatClient(options))
+       .UseFunctionInvocation();
+
 
 // Add services to the container.
 // Learn more about configuring OpenAPI at https://aka.ms/aspnet/openapi
@@ -14,8 +28,10 @@ builder.Services.AddSingleton<IRoomService, RoomService>();
 builder.Services.AddSingleton<ICanvasService, CanvasService>();
 builder.Services.AddSingleton<IWordService, WordService>();
 builder.Services.AddSingleton<IGameService, GameService>();
-builder.Services.AddSingleton<IAIService, AIService>();
+builder.Services.AddSingleton<IAIWordExplanationService, AIWordExplanationService>();
+builder.Services.AddSingleton<IAIDrawingService, AIDrawingService>();
 builder.Services.AddSingleton<IWordExplanationService, WordExplanationService>();
+builder.Services.AddSingleton<IAIDrawingCancellationManager, AIDrawingCancellationManager>();
 
 // Background services
 builder.Services.AddHostedService<RoundTimerService>();

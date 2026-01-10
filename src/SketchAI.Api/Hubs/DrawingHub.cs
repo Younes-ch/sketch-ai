@@ -10,7 +10,10 @@ public class DrawingHub : Hub
     private readonly IGameService _gameService;
     private readonly IWordService _wordService;
     private readonly IWordExplanationService _wordExplanationService;
+    private readonly IAIDrawingService _aiDrawingService;
+    private readonly IAIDrawingCancellationManager _aiCancellationManager;
     private readonly IHubContext<DrawingHub> _hubContext;
+    private readonly GameSettings _gameSettings;
     private readonly ILogger<DrawingHub> _logger;
 
 
@@ -19,7 +22,10 @@ public class DrawingHub : Hub
         IGameService gameService,
         IWordService wordService,
         IWordExplanationService wordExplanationService,
+        IAIDrawingService aiDrawingService,
+        IAIDrawingCancellationManager aiCancellationManager,
         IHubContext<DrawingHub> hubContext,
+        IOptions<GameSettings> gameSettings,
         ILogger<DrawingHub> logger)
     {
         _roomService = roomService;
@@ -27,7 +33,10 @@ public class DrawingHub : Hub
         _gameService = gameService;
         _wordService = wordService;
         _wordExplanationService = wordExplanationService;
+        _aiDrawingService = aiDrawingService;
+        _aiCancellationManager = aiCancellationManager;
         _hubContext = hubContext;
+        _gameSettings = gameSettings.Value;
         _logger = logger;
     }
 
@@ -268,14 +277,24 @@ public class DrawingHub : Hub
 
         var room = await _roomService.GetRoomAsync(roomCode) ?? throw new HubException("Room not found");
 
-        if (room.Phase != GamePhase.WordSelection)
+        if (room.Phase != GamePhase.WordSelection && room.Phase != GamePhase.Drawing)
         {
-            throw new HubException("You are not in word selection phase");
+            throw new HubException("You are not in word selection or drawing phase");
         }
 
-        if (room.WordChoices is not null && !room.WordChoices.Contains(word, StringComparer.InvariantCultureIgnoreCase))
+        if (room.Phase == GamePhase.WordSelection)
         {
-            throw new HubException("Word is not from the given choices");
+            if (room.WordChoices is not null && !room.WordChoices.Contains(word, StringComparer.OrdinalIgnoreCase))
+            {
+                throw new HubException("Word is not from the given choices");
+            }
+        }
+        else
+        {
+            if (room.CurrentWord is not null && !room.CurrentWord.Equals(word, StringComparison.OrdinalIgnoreCase))
+            {
+                throw new HubException("Word is not the selected word");
+            }
         }
 
         var result = await _wordExplanationService.ExplainWordAsync(word, targetLanguage, Context.ConnectionAborted);
@@ -341,6 +360,156 @@ public class DrawingHub : Hub
         await _canvasService.AddDrawingCommandAsync(roomCode, command);
         await Clients.OthersInGroup(roomCode).SendAsync("ReceiveFillCommand", command);
         await _roomService.UpdateLastActivityAsync(roomCode);
+    }
+
+    public async Task StartAiDrawing()
+    {
+        var roomCode = await _roomService.GetRoomCodeByConnectionIdAsync(Context.ConnectionId)
+            ?? throw new HubException("You are not in a room");
+
+        var room = await _roomService.GetRoomAsync(roomCode) ?? throw new HubException("Room not found");
+
+        if (room.CurrentDrawerConnectionId != Context.ConnectionId)
+        {
+            throw new HubException("Only the drawer can use AI drawing");
+        }
+
+        if (room.Phase != GamePhase.Drawing)
+        {
+            throw new HubException("AI drawing is only available during the drawing phase");
+        }
+
+        if (string.IsNullOrEmpty(room.CurrentWord))
+        {
+            throw new HubException("No word selected");
+        }
+
+        if (_aiCancellationManager.IsDrawing(roomCode))
+        {
+            throw new HubException("AI drawing is already in progress");
+        }
+
+        var drawerPlayer = room.Players.FirstOrDefault(p => p.ConnectionId == Context.ConnectionId)
+            ?? throw new HubException("Player not found");
+
+        if (drawerPlayer.AiDrawingsUsed >= _gameSettings.MaxAiDrawingsPerPlayer)
+        {
+            throw new HubException($"You have used all {_gameSettings.MaxAiDrawingsPerPlayer} AI drawing(s) for this game");
+        }
+
+        if (drawerPlayer.LastAiDrawingAt.HasValue)
+        {
+            var elapsed = DateTime.UtcNow - drawerPlayer.LastAiDrawingAt.Value;
+            var cooldown = TimeSpan.FromSeconds(_gameSettings.AiDrawingCooldownSeconds);
+            if (elapsed < cooldown)
+            {
+                var remaining = (int)Math.Ceiling((cooldown - elapsed).TotalSeconds);
+                throw new HubException($"Please wait {remaining} second(s) before using AI drawing again");
+            }
+        }
+
+        drawerPlayer.AiDrawingsUsed++;
+        drawerPlayer.LastAiDrawingAt = DateTime.UtcNow;
+
+        room.IsAiDrawing = true;
+        await _roomService.SaveRoomAsync(room);
+
+        await Clients.Group(roomCode).SendAsync("AIDrawingStarted");
+
+        var ct = _aiCancellationManager.CreateSession(roomCode);
+
+        var wordToDraw = room.CurrentWord;
+
+        var drawerConnectionId = Context.ConnectionId;
+
+        // Run AI drawing in background so other hub methods (StopAiDrawing, LeaveRoom) can execute
+        _ = Task.Run(async () =>
+        {
+            var completedSuccessfully = false;
+            try
+            {
+                await foreach (var command in _aiDrawingService.GenerateDrawingCommandAsync(wordToDraw, ct))
+                {
+                    // Check if cancelled before sending
+                    if (ct.IsCancellationRequested)
+                        break;
+
+                    await _canvasService.AddDrawingCommandAsync(roomCode, command);
+
+                    if (command.Type == "fill")
+                    {
+                        await _hubContext.Clients.Group(roomCode).SendAsync("ReceiveFillCommand", command);
+                    }
+                    else
+                    {
+                        await _hubContext.Clients.Group(roomCode).SendAsync("ReceiveDrawingCommand", command);
+                    }
+
+                    // Send to drawer for tracking stroke IDs (for undo functionality)
+                    await _hubContext.Clients.Client(drawerConnectionId).SendAsync("AIDrawingCommand", command);
+                }
+
+                completedSuccessfully = !ct.IsCancellationRequested;
+            }
+            catch (OperationCanceledException)
+            {
+                _logger.LogInformation("AI drawing cancelled in room {RoomCode}", roomCode);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "AI drawing failed in room {RoomCode}", roomCode);
+                await _hubContext.Clients.Group(roomCode).SendAsync("AIDrawingError", "AI drawing failed. Please try again.");
+            }
+            finally
+            {
+                _aiCancellationManager.CancelSession(roomCode);
+
+                var currentRoom = await _roomService.GetRoomAsync(roomCode);
+                if (currentRoom is not null)
+                {
+                    currentRoom.IsAiDrawing = false;
+
+                    if (!completedSuccessfully)
+                    {
+                        var drawer = currentRoom.Players.FirstOrDefault(p => p.ConnectionId == drawerConnectionId);
+                        if (drawer is not null && drawer.AiDrawingsUsed > 0)
+                        {
+                            drawer.AiDrawingsUsed--;
+                            drawer.LastAiDrawingAt = null;
+                            _logger.LogInformation("Reset AI drawing count for drawer in room {RoomCode} (cancelled/failed)", roomCode);
+                        }
+                    }
+
+                    await _roomService.SaveRoomAsync(currentRoom);
+                }
+
+                await _hubContext.Clients.Group(roomCode).SendAsync("AIDrawingStopped");
+            }
+        });
+    }
+
+    public async Task StopAiDrawing()
+    {
+        var roomCode = await _roomService.GetRoomCodeByConnectionIdAsync(Context.ConnectionId)
+                       ?? throw new HubException("You are not in a room");
+
+        var room = await _roomService.GetRoomAsync(roomCode)
+                   ?? throw new HubException("Room not found");
+
+        if (room.CurrentDrawerConnectionId != Context.ConnectionId)
+        {
+            throw new HubException("Only the drawer can stop AI drawing");
+        }
+
+        if (!_aiCancellationManager.IsDrawing(roomCode))
+        {
+            return;
+        }
+
+        _aiCancellationManager.CancelSession(roomCode);
+
+        // AIDrawingStopped will be sent by the finally block in StartAiDrawing
+        _logger.LogInformation("AI drawing stopped by drawer in room {RoomCode}", roomCode);
     }
 
     /// <summary>
@@ -436,6 +605,34 @@ public class DrawingHub : Hub
         {
             await Clients.Group(roomCode).SendAsync("ReceiveUndo");
             _logger.LogDebug("Undo sent to room {RoomCode}", roomCode);
+        }
+    }
+
+    public async Task UndoAIDrawing(string roomCode, string[] strokeIds)
+    {
+        if (!ValidationHelper.IsValidRoomCode(roomCode))
+        {
+            _logger.LogWarning("Invalid room code in UndoAIDrawing: {RoomCode}", roomCode);
+            return;
+        }
+
+        var room = await _roomService.GetRoomAsync(roomCode);
+        if (room?.CurrentDrawerConnectionId != Context.ConnectionId)
+        {
+            _logger.LogWarning("Non-drawer attempted AI undo in room {RoomCode}", roomCode);
+            return;
+        }
+
+        if (strokeIds.Length == 0)
+            return;
+
+        var removedCount = await _canvasService.UndoStrokesByIdsAsync(roomCode, strokeIds);
+        if (removedCount > 0)
+        {
+            var history = await _canvasService.GetCanvasHistoryAsync(roomCode);
+            await Clients.Group(roomCode).SendAsync("ReceiveCanvasHistory", history);
+            _logger.LogDebug("AI drawing undo: removed {Count} strokes, refreshed canvas for room {RoomCode}",
+                removedCount, roomCode);
         }
     }
 
@@ -616,6 +813,13 @@ public class DrawingHub : Hub
             {
                 await HandlePlayerLeaving(roomCode, player);
             }
+
+            var room = await _roomService.GetRoomAsync(roomCode);
+
+            if (room is null || room.CurrentDrawerConnectionId == Context.ConnectionId)
+            {
+                _aiCancellationManager.CancelSession(roomCode);
+            }
         }
 
         // Clean up rate limiters for this connection
@@ -643,6 +847,8 @@ public class DrawingHub : Hub
             Word = room.CurrentWord
         });
 
+        _aiCancellationManager.CancelSession(roomCode);
+
         _ = Task.Run(async () =>
         {
             await Task.Delay(5000);
@@ -652,6 +858,8 @@ public class DrawingHub : Hub
 
     private async Task AdvanceToNextTurn(string roomCode)
     {
+        _aiCancellationManager.CancelSession(roomCode);
+
         await _gameService.NextTurnAsync(roomCode);
 
         var room = await _roomService.GetRoomAsync(roomCode)
@@ -715,6 +923,13 @@ public class DrawingHub : Hub
         if (roomBeforeLeave is not null)
         {
             wasDrawer = roomBeforeLeave.CurrentDrawerConnectionId == player.ConnectionId;
+
+            if (wasDrawer && _aiCancellationManager.IsDrawing(roomCode))
+            {
+                _aiCancellationManager.CancelSession(roomCode);
+                _logger.LogInformation("AI drawing cancelled because drawer {Username} is leaving room {RoomCode}",
+                    username, roomCode);
+            }
 
             // Cancel any active votekick involving this player
             if (roomBeforeLeave.ActiveVoteKick is not null)

@@ -7,6 +7,7 @@ import {
   defaultRoomSettings
 } from "@/models";
 import { logger } from "@/lib/logger";
+import { parseHubError } from "@/lib/utils";
 import { useConnectionStore } from "./connectionStore";
 import { useGameStore } from "./gameStore";
 import { useChatStore } from "./chatStore";
@@ -101,7 +102,14 @@ export const useRoomStore = create<RoomStore>((set, get) => ({
     if (!isConnected() || !connection) return;
 
     set({ username: newUsername });
-    await connection.invoke("CreateRoom", newUsername, newRoomCode, isPublic, settings);
+    try {
+      await connection.invoke("CreateRoom", newUsername, newRoomCode, isPublic, settings);
+    } catch (error) {
+      set({ username: null });
+      const errorMessage = parseHubError(error);
+      useToastStore.getState().addToast(errorMessage, "error", 5000);
+      throw error;
+    }
   },
 
   joinRoom: async (newUsername, newRoomCode) => {
@@ -109,7 +117,14 @@ export const useRoomStore = create<RoomStore>((set, get) => ({
     if (!isConnected() || !connection) return;
 
     set({ username: newUsername });
-    await connection.invoke("JoinRoom", newUsername, newRoomCode);
+    try {
+      await connection.invoke("JoinRoom", newUsername, newRoomCode);
+    } catch (error) {
+      set({ username: null });
+      const errorMessage = parseHubError(error);
+      useToastStore.getState().addToast(errorMessage, "error", 5000);
+      throw error;
+    }
   },
 
   leaveRoom: async () => {
@@ -141,28 +156,52 @@ export const useRoomStore = create<RoomStore>((set, get) => ({
     if (!isConnected() || !connection) return;
 
     const newSettings = { ...currentSettings, ...settings };
-    await connection.invoke("UpdateRoomSettings", newSettings);
+    try {
+      await connection.invoke("UpdateRoomSettings", newSettings);
+    } catch (error) {
+      const errorMessage = parseHubError(error);
+      useToastStore.getState().addToast(errorMessage, "error", 5000);
+      throw error;
+    }
   },
 
   kickPlayer: async (targetUsername) => {
     const { connection, isConnected } = useConnectionStore.getState();
     if (!isConnected() || !connection) return;
 
-    await connection.invoke("KickPlayer", targetUsername);
+    try {
+      await connection.invoke("KickPlayer", targetUsername);
+    } catch (error) {
+      const errorMessage = parseHubError(error);
+      useToastStore.getState().addToast(errorMessage, "error", 5000);
+      throw error;
+    }
   },
 
   startVoteKick: async (targetUsername) => {
     const { connection, isConnected } = useConnectionStore.getState();
     if (!isConnected() || !connection) return;
 
-    await connection.invoke("StartVoteKick", targetUsername);
+    try {
+      await connection.invoke("StartVoteKick", targetUsername);
+    } catch (error) {
+      const errorMessage = parseHubError(error);
+      useToastStore.getState().addToast(errorMessage, "error", 5000);
+      throw error;
+    }
   },
 
   castVoteKick: async (voteToKick) => {
     const { connection, isConnected } = useConnectionStore.getState();
     if (!isConnected() || !connection) return;
 
-    await connection.invoke("CastVoteKick", voteToKick);
+    try {
+      await connection.invoke("CastVoteKick", voteToKick);
+    } catch (error) {
+      const errorMessage = parseHubError(error);
+      useToastStore.getState().addToast(errorMessage, "error", 5000);
+      throw error;
+    }
   },
 
   reset: () =>

@@ -19,6 +19,14 @@ public interface ICanvasService
     Task<DrawingCommandDto?> UndoLastDrawCommandAsync(string roomCode);
 
     /// <summary>
+    /// Removes multiple stroke commands by their IDs atomically (for AI drawing undo).
+    /// Returns the count of removed commands.
+    /// </summary>
+    /// <param name="roomCode">The room to undo strokes in.</param>
+    /// <param name="strokeIds">The stroke IDs to remove.</param>
+    Task<int> UndoStrokesByIdsAsync(string roomCode, IEnumerable<string> strokeIds);
+
+    /// <summary>
     /// Retrieves all drawing commands for a room's canvas.
     /// Used to sync new players with the current canvas state.
     /// </summary>

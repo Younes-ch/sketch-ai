@@ -7,10 +7,7 @@ import { useAudio } from "@/hooks/useAudio";
 import { TranslationModal } from "./TranslationModal";
 import { Tooltip } from "@/components/ui/Tooltip";
 import { LanguageDropdown } from "@/components/ui/LanguageDropdown";
-
-// Default language preference key for localStorage
-const LANGUAGE_PREF_KEY = "sketch-ai-language";
-const DEFAULT_LANGUAGE = "English";
+import { DEFAULT_LANGUAGE, LANGUAGE_PREF_KEY } from "@/constants/languages";
 
 interface WordSelectionProps {
   words: string[];

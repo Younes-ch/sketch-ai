@@ -7,6 +7,7 @@ public class RoundTimerService : BackgroundService
 {
     private readonly IServiceScopeFactory _scopeFactory;
     private readonly IHubContext<DrawingHub> _hubContext;
+    private readonly IAIDrawingCancellationManager _aiCancellationManager;
     private readonly ILogger<RoundTimerService> _logger;
 
     /// <summary>
@@ -18,10 +19,12 @@ public class RoundTimerService : BackgroundService
     public RoundTimerService(
         IServiceScopeFactory scopeFactory,
         IHubContext<DrawingHub> hubContext,
+        IAIDrawingCancellationManager aiCancellationManager,
         ILogger<RoundTimerService> logger)
     {
         _scopeFactory = scopeFactory;
         _hubContext = hubContext;
+        _aiCancellationManager = aiCancellationManager;
         _logger = logger;
     }
 
@@ -83,6 +86,9 @@ public class RoundTimerService : BackgroundService
         {
             _logger.LogInformation("Round expired in room {RoomCode} after {DrawTime}s. Ending round.",
                 room.Id, drawTimeSeconds);
+
+            // Cancel any active AI drawing session
+            _aiCancellationManager.CancelSession(room.Id);
 
             var word = room.CurrentWord;
             await gameService.EndRoundAsync(room.Id, isTimeout: true);

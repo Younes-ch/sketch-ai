@@ -1,9 +1,14 @@
 ﻿global using System.Collections.Concurrent;
+global using System.ComponentModel;
 global using System.ComponentModel.DataAnnotations;
 global using System.Net;
+global using System.Runtime.CompilerServices;
 global using System.Text.Json;
 global using System.Text.RegularExpressions;
 global using System.Threading.RateLimiting;
+
+global using GeminiDotnet;
+global using GeminiDotnet.Extensions.AI;
 
 global using Microsoft.AspNetCore.HttpOverrides;
 global using Microsoft.AspNetCore.SignalR;
