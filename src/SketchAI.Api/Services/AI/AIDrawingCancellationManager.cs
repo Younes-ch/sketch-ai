@@ -2,9 +2,10 @@
 
 public class AIDrawingCancellationManager : IAIDrawingCancellationManager, IDisposable
 {
+    private readonly Lock _lock = new();
     private readonly ConcurrentDictionary<string, CancellationTokenSource> _sessions = new();
     private readonly ILogger<AIDrawingCancellationManager> _logger;
-    private bool _disposed;
+    private volatile bool _disposed;
 
     public AIDrawingCancellationManager(ILogger<AIDrawingCancellationManager> logger)
     {
@@ -13,108 +14,135 @@ public class AIDrawingCancellationManager : IAIDrawingCancellationManager, IDisp
 
     public CancellationToken CreateSession(string roomCode)
     {
-
-        if (_disposed)
+        using (_lock.EnterScope())
         {
-            throw new ObjectDisposedException(nameof(AIDrawingCancellationManager));
+            if (_disposed)
+            {
+                throw new ObjectDisposedException(nameof(AIDrawingCancellationManager));
+            }
+
+            var cts = new CancellationTokenSource();
+
+            _sessions.AddOrUpdate(roomCode, cts, (_, existingCts) =>
+            {
+                try
+                {
+                    existingCts.Cancel();
+                    existingCts.Dispose();
+                }
+                catch (ObjectDisposedException)
+                {
+                    // Ignore if already disposed
+                }
+                _logger.LogDebug("Cancelled existing AI drawing session for room {RoomCode}", roomCode);
+                return cts;
+            });
+
+            _logger.LogDebug("Created new AI drawing session for room {RoomCode}", roomCode);
+            return cts.Token;
         }
-
-        var cts = new CancellationTokenSource();
-
-        _sessions.AddOrUpdate(roomCode, cts, (_, existingCts) =>
-        {
-            try
-            {
-                existingCts.Cancel();
-                existingCts.Dispose();
-            }
-            catch (ObjectDisposedException)
-            {
-                // Ignore if already disposed
-            }
-
-            _logger.LogDebug("Cancelled existing AI drawing session for room {RoomCode}", roomCode);
-            return cts;
-        });
-
-        _logger.LogDebug("Created AI drawing session for room {RoomCode}", roomCode);
-        return cts.Token;
     }
 
     public void CancelSession(string roomCode)
     {
 
-        if (_disposed)
+        using (_lock.EnterScope())
         {
-            throw new ObjectDisposedException(nameof(AIDrawingCancellationManager));
-        }
 
-        if (_sessions.TryRemove(roomCode, out var cts))
-        {
-            try
+            if (_disposed)
             {
-                cts.Cancel();
-                cts.Dispose();
-                _logger.LogDebug("Cancelled AI drawing session for room {RoomCode}", roomCode);
+                throw new ObjectDisposedException(nameof(AIDrawingCancellationManager));
             }
-            catch (ObjectDisposedException)
+
+            if (_sessions.TryRemove(roomCode, out var cts))
             {
-                // Ignore if already disposed
+                try
+                {
+                    cts.Cancel();
+                    cts.Dispose();
+                    _logger.LogDebug("Cancelled AI drawing session for room {RoomCode}", roomCode);
+                }
+                catch (ObjectDisposedException)
+                {
+                    // Ignore if already disposed
+                }
             }
         }
     }
 
     public CancellationToken? GetToken(string roomCode)
     {
-        if (_disposed)
+        using (_lock.EnterScope())
         {
-            throw new ObjectDisposedException(nameof(AIDrawingCancellationManager));
-        }
 
-        return _sessions.TryGetValue(roomCode, out var cts) ? cts.Token : null;
+            if (_disposed)
+            {
+                throw new ObjectDisposedException(nameof(AIDrawingCancellationManager));
+            }
+
+            if (!_sessions.TryGetValue(roomCode, out var cts))
+            {
+                return null;
+            }
+
+            try
+            {
+                return cts.Token;
+            }
+            catch (ObjectDisposedException)
+            {
+                return null;
+            }
+        }
     }
 
     public bool IsDrawing(string roomCode)
     {
+        using (_lock.EnterScope())
+        {
 
-        if (_disposed)
-        {
-            throw new ObjectDisposedException(nameof(AIDrawingCancellationManager));
-        }
+            if (_disposed)
+            {
+                throw new ObjectDisposedException(nameof(AIDrawingCancellationManager));
+            }
 
-        if (!_sessions.TryGetValue(roomCode, out var cts))
-        {
-            return false;
-        }
+            if (!_sessions.TryGetValue(roomCode, out var cts))
+            {
+                return false;
+            }
 
-        try
-        {
-            return !cts.IsCancellationRequested;
-        }
-        catch (ObjectDisposedException)
-        {
-            return false;
+            try
+            {
+                return !cts.IsCancellationRequested;
+            }
+            catch (ObjectDisposedException)
+            {
+                return false;
+            }
         }
     }
 
     public void Dispose()
     {
-        if (_disposed) return;
-
-        foreach (var cts in _sessions.Values)
+        using (_lock.EnterScope())
         {
-            try
-            {
-                cts.Cancel();
-                cts.Dispose();
-            }
-            catch (ObjectDisposedException)
-            {
-                // Ignore if already disposed
-            }
-        }
+            if (_disposed) return;
 
-        _sessions.Clear();
-        _disposed = true;
+            foreach (var cts in _sessions.Values)
+            {
+                try
+                {
+                    cts.Cancel();
+                    cts.Dispose();
+                }
+                catch (ObjectDisposedException)
+                {
+                    // Ignore if already disposed
+                }
+            }
+
+            _sessions.Clear();
+            _disposed = true;
+        }
     }
 }
