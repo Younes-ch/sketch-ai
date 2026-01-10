@@ -29,6 +29,7 @@ builder.Services.AddSingleton<ICanvasService, CanvasService>();
 builder.Services.AddSingleton<IWordService, WordService>();
 builder.Services.AddSingleton<IGameService, GameService>();
 builder.Services.AddSingleton<IAIWordExplanationService, AIWordExplanationService>();
+builder.Services.AddSingleton<IAIProviderSelector, AIProviderSelector>();
 builder.Services.AddSingleton<IAIDrawingService, AIDrawingService>();
 builder.Services.AddSingleton<IWordExplanationService, WordExplanationService>();
 builder.Services.AddSingleton<IAIDrawingCancellationManager, AIDrawingCancellationManager>();
@@ -66,6 +67,7 @@ builder.Services.AddCors(options =>
 
 // Register Configuration
 builder.Services.Configure<GameSettings>(builder.Configuration.GetSection("GameSettings"));
+builder.Services.Configure<AiProviderSettings>(builder.Configuration.GetSection("AiProviders"));
 builder.Services.Configure<RateLimiterCleanupConfig>(
     builder.Configuration.GetSection("RateLimiterCleanup"));
 
