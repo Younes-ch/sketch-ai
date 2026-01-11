@@ -16,6 +16,33 @@ export default defineConfig(({ mode }) => {
                 '@': path.resolve(__dirname, './src')
             }
         },
+        build: {
+            rollupOptions: {
+                output: {
+                    manualChunks(id: string) {
+                        // Vendor chunks - split large dependencies
+                        if (id.includes('node_modules')) {
+                            if (id.includes('react-dom') || id.includes('react/')) {
+                                return 'vendor-react';
+                            }
+                            if (id.includes('@microsoft/signalr')) {
+                                return 'vendor-signalr';
+                            }
+                            if (id.includes('framer-motion')) {
+                                return 'vendor-motion';
+                            }
+                            if (id.includes('@radix-ui')) {
+                                return 'vendor-radix';
+                            }
+                            if (id.includes('zustand') || id.includes('clsx') || 
+                                id.includes('tailwind-merge') || id.includes('class-variance-authority')) {
+                                return 'vendor-utils';
+                            }
+                        }
+                    }
+                }
+            }
+        },
         server: {
             port: parseInt(env.PORT) || 5173,
             proxy: {
