@@ -20,7 +20,7 @@ public class AIProviderSelector : IAIProviderSelector
         _logger = logger;
         _timeProvider = timeProvider;
     }
-    
+
     private IEnumerable<AiProviderConfig> GetSortedProviders()
     {
         var providers = _aiProviderOptions.CurrentValue.Providers;
@@ -79,7 +79,7 @@ public class AIProviderSelector : IAIProviderSelector
         _rateLimitedProviders.AddOrUpdate(
             providerServiceKey,
             expiry,
-            (_, existingExpiry) => existingExpiry > now ? existingExpiry : expiry);
+            (_, existingExpiry) => (existingExpiry > now && existingExpiry > expiry) ? existingExpiry : expiry);
 
         _logger.LogWarning(
             "Provider {ProviderServiceKey} marked as rate limited until {Expiry} ({CooldownMinutes} minutes)",
