@@ -1,4 +1,5 @@
 import { cn } from "@/lib/utils";
+import { Button } from "@/components/ui";
 
 interface TabButtonProps {
   label: string;
@@ -22,7 +23,8 @@ export default function TabButton({
   onClick,
 }: TabButtonProps) {
   return (
-    <button
+    <Button
+      variant={isActive ? undefined : "secondary"}
       className={cn(
         "flex-1 py-2.5 px-3 rounded-2xl font-bold text-base transition-all duration-200 border-4",
         isActive
@@ -35,6 +37,6 @@ export default function TabButton({
       onClick={onClick}
     >
       {icon} {label}
-    </button>
+    </Button>
   );
 }

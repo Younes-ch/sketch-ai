@@ -69,10 +69,12 @@ export default function CreateRoomTab({
       </div>
 
       {/* Settings Toggle */}
-      <button
+      <Button
         type="button"
+        variant="ghost"
+        size="lg"
         onClick={() => setShowSettings(!showSettings)}
-        className="flex items-center justify-between bg-background rounded-2xl p-4 border-2 border-card-border hover:border-accent transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent"
+        className="flex items-center justify-between bg-background rounded-2xl p-4 border-2 border-card-border hover:border-accent transition-colors h-auto w-full"
       >
         <div className="flex items-center gap-2">
           <span className="text-xl">⚙️</span>
@@ -94,7 +96,7 @@ export default function CreateRoomTab({
         >
           ▼
         </span>
-      </button>
+      </Button>
 
       {/* Expandable Settings Panel */}
       {showSettings && (

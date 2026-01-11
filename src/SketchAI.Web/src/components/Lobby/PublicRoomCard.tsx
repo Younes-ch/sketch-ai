@@ -1,5 +1,6 @@
 import type { PublicRoom } from "@/models";
 import { cn } from "@/lib/utils";
+import { Button } from "@/components/ui";
 
 interface PublicRoomCardProps {
   room: PublicRoom;
@@ -13,12 +14,14 @@ export default function PublicRoomCard({
   isDisabled,
 }: PublicRoomCardProps) {
   return (
-    <button
+    <Button
+      variant="ghost"
+      size="lg"
       onClick={() => onJoin(room)}
       disabled={isDisabled}
       className={cn(
-        "w-full bg-background rounded-xl p-4 border-2 border-card-border hover:border-accent hover:bg-background/80 transition-all text-left flex items-center justify-between",
-        isDisabled ? "opacity-50 cursor-not-allowed" : "cursor-pointer"
+        "w-full bg-background rounded-xl p-4 border-2 border-card-border hover:border-accent hover:bg-background/80 transition-all text-left flex items-center justify-between h-auto",
+        isDisabled && "opacity-50 cursor-not-allowed"
       )}
     >
       <div>
@@ -40,6 +43,6 @@ export default function PublicRoomCard({
         </p>
         <p className="text-white/40 text-xs">players</p>
       </div>
-    </button>
+    </Button>
   );
 }

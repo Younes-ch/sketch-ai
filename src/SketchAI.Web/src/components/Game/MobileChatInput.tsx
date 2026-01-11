@@ -1,6 +1,7 @@
 import { useState, useRef } from "react";
 import { useGameStore } from "@/stores/gameStore";
 import { useRoomStore } from "@/stores/roomStore";
+import { Button } from "@/components/ui";
 import { cn } from "@/lib/utils";
 import { logger } from "@/lib/logger";
 
@@ -105,16 +106,15 @@ export default function MobileChatInput() {
           disabled={isInputDisabled}
           className="flex-1 min-w-0 bg-background border-2 border-card-border rounded-xl px-3 py-2 text-white focus:outline-none focus:border-accent placeholder:text-white/30 disabled:opacity-50 disabled:cursor-not-allowed"
         />
-        <button
+        <Button
+          variant="success"
+          size="sm"
           onClick={handleSubmit}
           disabled={isInputDisabled || !inputValue.trim()}
-          className={cn(
-            "bg-success border-2 border-success-dark rounded-xl px-4 py-2 text-white font-bold transition-colors shrink-0 disabled:opacity-50 disabled:cursor-not-allowed",
-            !isInputDisabled && inputValue.trim() && "hover:bg-success-hover"
-          )}
+          className="shrink-0 px-4"
         >
           {isSending ? "..." : "➤"}
-        </button>
+        </Button>
       </div>
     </div>
   );

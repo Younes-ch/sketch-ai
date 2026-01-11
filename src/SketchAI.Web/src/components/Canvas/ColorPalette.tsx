@@ -24,7 +24,7 @@ export default function ColorPalette({
           key={index}
           onClick={() => onColorSelect(color)}
           className={cn(
-            "w-7 h-7 rounded-md transition-all duration-150 hover:scale-110",
+            "w-7 h-7 rounded-md transition-all duration-150 hover:scale-110 cursor-pointer",
             currentColor === color && currentTool !== "eraser"
               ? "ring-2 ring-accent ring-offset-2 ring-offset-background scale-110"
               : "hover:ring-2 hover:ring-white/50"

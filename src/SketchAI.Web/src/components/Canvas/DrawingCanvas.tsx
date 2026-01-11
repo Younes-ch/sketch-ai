@@ -15,7 +15,11 @@ import {
   floodFill,
 } from "@/lib/canvasUtils";
 import { DRAWING_COLORS } from "@/constants/colors";
-import { CanvasToolbar, type ToolType } from "@/components/Canvas";
+import {
+  CanvasToolbar,
+  DraggableToolbar,
+  type ToolType,
+} from "@/components/Canvas";
 
 // Batching configuration for network optimization
 // Points are accumulated and sent every BATCH_INTERVAL_MS to reduce network traffic
@@ -26,11 +30,6 @@ const BATCH_INTERVAL_MS = 50;
 // Higher = more simplification, lower = more precision
 const SIMPLIFY_TOLERANCE = 1.5;
 const SIMPLIFY_HIGH_QUALITY = true; // Use Douglas-Peucker (slower but better quality)
-
-// Layout constraints
-const TOOLBAR_RESERVED_HEIGHT = 160;
-const MIN_CANVAS_WIDTH = 200;
-const MIN_CANVAS_HEIGHT = 125;
 
 interface DrawingCanvasProps {
   disabled?: boolean;
@@ -65,33 +64,30 @@ function DrawingCanvasComponent({ disabled = false }: DrawingCanvasProps) {
   const [currentTool, setCurrentTool] = useState<ToolType>("brush");
   const [localStrokeCount, setLocalStrokeCount] = useState(0); // Track local strokes for undo
   const [displaySize, setDisplaySize] = useState({
-    width: CANVAS_WIDTH,
-    height: CANVAS_HEIGHT,
+    width: 800,
+    height: 450,
   });
 
-  // Calculate display size to fit container while maintaining aspect ratio
+  // Calculate display size to fill container width while maintaining aspect ratio
   useEffect(() => {
     const updateSize = () => {
       if (containerRef.current) {
-        const containerWidth = containerRef.current.offsetWidth - 16;
-        // On mobile (< 1024px), toolbar is a floating FAB, so don't reserve height
-        const isMobile = window.innerWidth < 1024;
-        const toolbarReserve = isMobile ? 0 : TOOLBAR_RESERVED_HEIGHT;
-        const containerHeight =
-          containerRef.current.offsetHeight - toolbarReserve;
+        const containerWidth = containerRef.current.offsetWidth;
+        const containerHeight = containerRef.current.offsetHeight;
 
-        let displayWidth = Math.min(containerWidth, CANVAS_WIDTH);
+        // Use full container width, calculate height from aspect ratio
+        let displayWidth = containerWidth;
         let displayHeight = displayWidth / CANVAS_ASPECT_RATIO;
 
-        // If height exceeds available space, scale based on height
-        if (displayHeight > containerHeight && containerHeight > 100) {
+        // If height exceeds container, scale down to fit
+        if (displayHeight > containerHeight) {
           displayHeight = containerHeight;
           displayWidth = displayHeight * CANVAS_ASPECT_RATIO;
         }
 
         setDisplaySize({
-          width: Math.max(displayWidth, MIN_CANVAS_WIDTH),
-          height: Math.max(displayHeight, MIN_CANVAS_HEIGHT),
+          width: Math.floor(displayWidth),
+          height: Math.floor(displayHeight),
         });
       }
     };
@@ -777,9 +773,26 @@ function DrawingCanvasComponent({ disabled = false }: DrawingCanvasProps) {
   return (
     <div
       ref={containerRef}
-      className="flex flex-col items-center justify-center w-full h-full"
+      className="relative flex items-center justify-center w-full h-full"
     >
-      {/* Canvas*/}
+      {/* Draggable toolbar for desktop - can be positioned anywhere on canvas */}
+      {!disabled && (
+        <DraggableToolbar
+          containerRef={containerRef}
+          currentColor={currentColor}
+          currentTool={currentTool}
+          currentWidth={currentWidth}
+          brushSizes={brushSizes}
+          onColorChange={setCurrentColor}
+          onToolChange={setCurrentTool}
+          onWidthChange={setCurrentWidth}
+          onClear={handleClearMemo}
+          onUndo={handleUndo}
+          canUndo={localStrokeCount > 0}
+        />
+      )}
+
+      {/* Canvas */}
       <canvas
         ref={canvasRef}
         width={CANVAS_WIDTH}
@@ -793,7 +806,7 @@ function DrawingCanvasComponent({ disabled = false }: DrawingCanvasProps) {
         onTouchEnd={stopDrawing}
         onTouchCancel={stopDrawing}
         className={cn(
-          "bg-white rounded-lg shadow-inner shrink-0 touch-none border-4 border-card-border",
+          "bg-white rounded-lg shadow-inner touch-none border-4 border-card-border",
           disabled && "opacity-90"
         )}
         style={{
@@ -803,19 +816,22 @@ function DrawingCanvasComponent({ disabled = false }: DrawingCanvasProps) {
         }}
       />
 
+      {/* Mobile toolbar (floating FAB) */}
       {!disabled && (
-        <CanvasToolbar
-          currentColor={currentColor}
-          currentTool={currentTool}
-          currentWidth={currentWidth}
-          brushSizes={brushSizes}
-          onColorChange={setCurrentColor}
-          onToolChange={setCurrentTool}
-          onWidthChange={setCurrentWidth}
-          onClear={handleClearMemo}
-          onUndo={handleUndo}
-          canUndo={localStrokeCount > 0}
-        />
+        <div className="lg:hidden">
+          <CanvasToolbar
+            currentColor={currentColor}
+            currentTool={currentTool}
+            currentWidth={currentWidth}
+            brushSizes={brushSizes}
+            onColorChange={setCurrentColor}
+            onToolChange={setCurrentTool}
+            onWidthChange={setCurrentWidth}
+            onClear={handleClearMemo}
+            onUndo={handleUndo}
+            canUndo={localStrokeCount > 0}
+          />
+        </div>
       )}
     </div>
   );

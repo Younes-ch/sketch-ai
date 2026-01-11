@@ -1,5 +1,6 @@
 import { useRef, useEffect, useCallback } from "react";
 import { useChatStore } from "@/stores/chatStore";
+import { Button } from "@/components/ui";
 import { ChevronDownIcon } from "@/components/ui/Icons";
 import { cn } from "@/lib/utils";
 import { useState } from "react";
@@ -138,13 +139,15 @@ export default function MobileChatMessages() {
 
         {/* Scroll to bottom button */}
         {isUserScrolledUp && chatMessages.length > 0 && (
-          <button
+          <Button
+            variant="primary"
+            size="icon"
             onClick={scrollToBottom}
-            className="absolute bottom-1 right-1 bg-accent hover:bg-accent/80 text-white rounded-full p-1 shadow-lg transition-all duration-200"
+            className="absolute bottom-1 right-1 bg-accent hover:bg-accent/80 rounded-full p-1 shadow-lg border-0"
             aria-label="Scroll to bottom"
           >
             <ChevronDownIcon size={12} />
-          </button>
+          </Button>
         )}
       </div>
     </div>

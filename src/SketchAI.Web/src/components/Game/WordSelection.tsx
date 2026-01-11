@@ -7,6 +7,7 @@ import { useAudio } from "@/hooks/useAudio";
 import { TranslationModal } from "./TranslationModal";
 import { Tooltip } from "@/components/ui/Tooltip";
 import { LanguageDropdown } from "@/components/ui/LanguageDropdown";
+import { Button } from "@/components/ui";
 import { DEFAULT_LANGUAGE, LANGUAGE_PREF_KEY } from "@/constants/languages";
 
 interface WordSelectionProps {
@@ -227,40 +228,44 @@ export function WordSelection({ words, timeLimit = 15 }: WordSelectionProps) {
           <div className="space-y-3">
             {words.map((word, index) => (
               <div key={word} className="flex gap-2">
-                <button
+                <Button
+                  variant="success"
+                  size="lg"
                   onClick={() => handleSelectWord(word)}
                   disabled={isSelecting || translationPaused}
                   className={cn(
-                    "flex-1 py-4 px-6 rounded-lg text-lg font-semibold transition-all duration-200 transform",
+                    "flex-1 py-4 px-6 rounded-lg text-lg font-semibold transition-all duration-200 transform h-auto",
                     isSelecting || translationPaused
-                      ? "bg-card-border text-white/40 cursor-not-allowed"
-                      : "bg-success text-white hover:bg-success-hover hover:scale-[1.02] active:scale-[0.98] border-2 border-success-dark"
+                      ? "bg-card-border text-white/40"
+                      : "hover:scale-[1.02] active:scale-[0.98]"
                   )}
                 >
-                  <span className="flex items-center justify-between">
+                  <span className="flex items-center justify-between w-full">
                     <span className="text-sm text-white/60">{index + 1}.</span>
                     <span>{word}</span>
                     <span className="text-sm text-white/60">
                       {word.replace(/\s/g, "").length} letters
                     </span>
                   </span>
-                </button>
+                </Button>
                 <Tooltip
                   content={`Translate "${word}" to ${selectedLanguage}`}
                   side="right"
                 >
-                  <button
+                  <Button
+                    variant="ghost"
+                    size="lg"
                     onClick={() => handleTranslate(word)}
                     disabled={isTranslating || translationPaused}
                     className={cn(
                       "px-3 rounded-lg transition-all duration-200",
                       isTranslating || translationPaused
-                        ? "bg-card-border text-white/40 cursor-not-allowed"
+                        ? "bg-card-border text-white/40"
                         : "bg-primary/20 text-primary hover:bg-primary/30 border border-primary/40"
                     )}
                   >
                     🌐
-                  </button>
+                  </Button>
                 </Tooltip>
               </div>
             ))}

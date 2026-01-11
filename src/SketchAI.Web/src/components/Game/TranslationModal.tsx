@@ -1,5 +1,5 @@
 import { useEffect, useRef } from "react";
-import { cn } from "@/lib/utils";
+import { Button } from "@/components/ui";
 import type { WordExplanation } from "@/models/wordExplanation";
 
 interface TranslationModalProps {
@@ -64,12 +64,9 @@ export function TranslationModal({
             <div className="text-4xl mb-3">⚠️</div>
             <p className="text-danger font-medium mb-2">Translation Failed</p>
             <p className="text-white/60 text-sm mb-4">{error}</p>
-            <button
-              onClick={onClose}
-              className="px-4 py-2 bg-card-border hover:bg-card-border/80 rounded-lg text-white transition-colors"
-            >
+            <Button variant="secondary" size="md" onClick={onClose}>
               Close
-            </button>
+            </Button>
           </div>
         )}
 
@@ -82,13 +79,15 @@ export function TranslationModal({
               >
                 🌐 Translation
               </h3>
-              <button
+              <Button
+                variant="ghost"
+                size="icon"
                 onClick={onClose}
-                className="text-white/40 hover:text-white transition-colors text-2xl leading-none"
+                className="text-white/40 hover:text-white text-2xl leading-none"
                 aria-label="close"
               >
                 ×
-              </button>
+              </Button>
             </div>
 
             <div className="space-y-4">
@@ -118,15 +117,14 @@ export function TranslationModal({
               </div>
             </div>
 
-            <button
+            <Button
+              variant="success"
+              size="lg"
               onClick={onClose}
-              className={cn(
-                "w-full mt-4 py-3 rounded-lg font-semibold transition-all",
-                "bg-success text-white hover:bg-success-hover"
-              )}
+              className="w-full mt-4"
             >
               Got it!
-            </button>
+            </Button>
           </>
         )}
       </div>

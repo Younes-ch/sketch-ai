@@ -2,6 +2,7 @@ import { useState, useRef, useEffect, useCallback } from "react";
 import { useChatStore } from "@/stores/chatStore";
 import { useGameStore } from "@/stores/gameStore";
 import { useRoomStore } from "@/stores/roomStore";
+import { Button } from "@/components/ui";
 import { ChevronDownIcon } from "@/components/ui/Icons";
 import { cn } from "@/lib/utils";
 import { logger } from "@/lib/logger";
@@ -175,17 +176,23 @@ export default function ChatPanel({ variant = "desktop" }: ChatPanelProps) {
                   msg.type === "close-guess" &&
                     "bg-orange-500/20 -mx-3 px-3 py-1.5 rounded",
                   // System message specialized backgrounds
-                  msg.type === "join" && "bg-blue-500/10 -mx-3 px-3 py-1.5 rounded",
-                  msg.type === "leave" && "bg-red-500/10 -mx-3 px-3 py-1.5 rounded",
-                  msg.type === "owner-change" && "bg-orange-400/10 -mx-3 px-3 py-1.5 rounded",
-                  msg.type === "round-start" && "bg-purple-500/10 -mx-3 px-3 py-1.5 rounded mt-4 mb-2 border-t border-purple-500/30",
-                  msg.type === "round-end" && "bg-indigo-500/10 -mx-3 px-3 py-1.5 rounded mb-4 border-b border-indigo-500/30",
-                  msg.type === "turn-start" && "bg-cyan-500/10 -mx-3 px-3 py-1.5 rounded my-1",
+                  msg.type === "join" &&
+                    "bg-blue-500/10 -mx-3 px-3 py-1.5 rounded",
+                  msg.type === "leave" &&
+                    "bg-red-500/10 -mx-3 px-3 py-1.5 rounded",
+                  msg.type === "owner-change" &&
+                    "bg-orange-400/10 -mx-3 px-3 py-1.5 rounded",
+                  msg.type === "round-start" &&
+                    "bg-purple-500/10 -mx-3 px-3 py-1.5 rounded mt-4 mb-2 border-t border-purple-500/30",
+                  msg.type === "round-end" &&
+                    "bg-indigo-500/10 -mx-3 px-3 py-1.5 rounded mb-4 border-b border-indigo-500/30",
+                  msg.type === "turn-start" &&
+                    "bg-cyan-500/10 -mx-3 px-3 py-1.5 rounded my-1"
                 )}
               >
                 {/* Generic System Message */}
                 {msg.type === "system" && (
-                   <p className="text-white/50 italic text-xs">{msg.message}</p>
+                  <p className="text-white/50 italic text-xs">{msg.message}</p>
                 )}
 
                 {/* Specialized System Messages */}
@@ -260,13 +267,15 @@ export default function ChatPanel({ variant = "desktop" }: ChatPanelProps) {
 
         {/* Scroll to bottom button */}
         {isUserScrolledUp && chatMessages.length > 0 && (
-          <button
+          <Button
+            variant="primary"
+            size="icon"
             onClick={scrollToBottom}
-            className="absolute bottom-2 right-2 bg-accent hover:bg-accent/80 text-white rounded-full p-2 shadow-lg transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-accent focus:ring-offset-2 focus:ring-offset-background"
+            className="absolute bottom-2 right-2 bg-accent hover:bg-accent/80 rounded-full p-2 shadow-lg border-0"
             aria-label="Scroll to bottom"
           >
             <ChevronDownIcon size={16} />
-          </button>
+          </Button>
         )}
       </div>
 
@@ -307,17 +316,15 @@ export default function ChatPanel({ variant = "desktop" }: ChatPanelProps) {
             isDesktop ? "px-3 py-2 text-sm" : "px-4 py-3"
           )}
         />
-        <button
+        <Button
+          variant="success"
+          size={isDesktop ? "sm" : "md"}
           onClick={handleSubmit}
           disabled={isInputDisabled || !inputValue.trim()}
-          className={cn(
-            "bg-success border-2 border-success-dark rounded-xl text-white font-bold transition-colors shrink-0 disabled:opacity-50 disabled:cursor-not-allowed",
-            !isInputDisabled && inputValue.trim() && "hover:bg-success-hover",
-            isDesktop ? "px-4 py-2" : "px-5 py-3"
-          )}
+          className="shrink-0"
         >
           {isSending ? "..." : "➤"}
-        </button>
+        </Button>
       </div>
     </div>
   );
