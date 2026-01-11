@@ -33,6 +33,12 @@ public class AIProvidersController : ControllerBase
     public IActionResult ResetProvider(string serviceKey)
     {
         _logger.LogInformation("Manual reset requested for provider: {ServiceKey}", serviceKey);
+        var statuses = _providerSelector.GetProviderStatuses();
+        if (!statuses.ContainsKey(serviceKey))
+        {
+            return NotFound(new { message = $"Provider '{serviceKey}' not found" });
+        }
+
         _providerSelector.ResetProviderStatus(serviceKey);
         return Ok(new { message = $"Provider {serviceKey} rate limit status reset" });
     }

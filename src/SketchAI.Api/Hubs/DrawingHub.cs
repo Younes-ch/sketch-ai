@@ -455,6 +455,11 @@ public class DrawingHub : Hub
             {
                 _logger.LogInformation("AI drawing cancelled in room {RoomCode}", roomCode);
             }
+            catch (AIDrawingException ex)
+            {
+                _logger.LogWarning(ex, "AI drawing unavailable in room {RoomCode}", roomCode);
+                await _hubContext.Clients.Group(roomCode).SendAsync("AIDrawingError", ex.Message);
+            }
             catch (Exception ex)
             {
                 _logger.LogError(ex, "AI drawing failed in room {RoomCode}", roomCode);

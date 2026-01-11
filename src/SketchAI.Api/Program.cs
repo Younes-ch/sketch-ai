@@ -5,9 +5,6 @@ builder.AddRedisClient(connectionName: "redis");
 builder.AddOpenAIClient("gpt-4o-mini")
        .AddKeyedChatClient("gpt-4o-mini")
        .UseFunctionInvocation();
-builder.AddOpenAIClient("gpt-41")
-       .AddKeyedChatClient("gpt-41")
-       .UseFunctionInvocation();
 
 var options = new GeminiClientOptions
 {
@@ -16,7 +13,7 @@ var options = new GeminiClientOptions
 };
 
 builder.Services.AddKeyedChatClient("gemini-model", new GeminiChatClient(options))
-       .UseFunctionInvocation();
+                .UseFunctionInvocation();
 
 
 // Add services to the container.

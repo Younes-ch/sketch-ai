@@ -20,9 +20,17 @@ public class AIProviderSelector : IAIProviderSelector
         _logger = logger;
         _timeProvider = timeProvider;
     }
-
-    private IEnumerable<AiProviderConfig> GetSortedProviders() =>
-        _aiProviderOptions.CurrentValue.Providers.OrderBy(p => p.Priority);
+    
+    private IEnumerable<AiProviderConfig> GetSortedProviders()
+    {
+        var providers = _aiProviderOptions.CurrentValue.Providers;
+        if (providers is null || providers.Count == 0)
+        {
+            _logger.LogWarning("No AI providers configured in AiProviders:Providers");
+            return [];
+        }
+        return providers.OrderBy(p => p.Priority);
+    }
 
     public (IChatClient? Client, string? ProviderServiceKey) GetAvailableProvider()
     {
@@ -32,7 +40,7 @@ public class AIProviderSelector : IAIProviderSelector
         {
             if (_rateLimitedProviders.TryGetValue(provider.ServiceKey, out var expiry))
             {
-                if (now <= expiry)
+                if (now < expiry)
                 {
                     _logger.LogDebug(
                         "Skipping provider {Name} ({ServiceKey}) - rate limited until {Expiry}",
@@ -68,7 +76,10 @@ public class AIProviderSelector : IAIProviderSelector
         var cooldownMinutes = _aiProviderOptions.CurrentValue.FallbackCooldownMinutes;
         var expiry = now.AddMinutes(cooldownMinutes);
 
-        _rateLimitedProviders.AddOrUpdate(providerServiceKey, expiry, (_, _) => expiry);
+        _rateLimitedProviders.AddOrUpdate(
+            providerServiceKey,
+            expiry,
+            (_, existingExpiry) => existingExpiry > now ? existingExpiry : expiry);
 
         _logger.LogWarning(
             "Provider {ProviderServiceKey} marked as rate limited until {Expiry} ({CooldownMinutes} minutes)",

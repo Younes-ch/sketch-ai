@@ -3,13 +3,18 @@
 public class AIDrawingService : IAIDrawingService
 {
     private readonly IAIProviderSelector _providerSelector;
+    private readonly IOptionsMonitor<AiProviderSettings> _aiProviderOptions;
     private readonly ILogger<AIDrawingService> _logger;
+    private static readonly TimeSpan DrawingTimeout = TimeSpan.FromSeconds(20);
+    private const string ProvidersExhaustedMessage = "AI drawing is temporarily unavailable. Please try again later.";
 
     public AIDrawingService(
         IAIProviderSelector providerSelector,
+        IOptionsMonitor<AiProviderSettings> aiProviderOptions,
         ILogger<AIDrawingService> logger)
     {
         _providerSelector = providerSelector;
+        _aiProviderOptions = aiProviderOptions;
         _logger = logger;
     }
 
@@ -21,26 +26,41 @@ public class AIDrawingService : IAIDrawingService
         if (string.IsNullOrEmpty(sanitizedWord))
         {
             _logger.LogWarning("Invalid word for AI drawing (sanitized to empty): '{Word}'", word);
-            yield break;
+            throw new AIDrawingException("Invalid word for AI drawing");
         }
 
         var triedProviders = new HashSet<string>();
-        var maxRetries = 3;
+        var providers = _aiProviderOptions.CurrentValue.Providers;
+        var maxRetries = providers?.Count ?? 0;
+
+        if (maxRetries == 0)
+        {
+            _logger.LogError("No AI providers configured");
+            throw new AIDrawingException(ProvidersExhaustedMessage);
+        }
+
+        var anyCommandsYielded = false;
 
         while (triedProviders.Count < maxRetries)
         {
+            using var timeoutCts = new CancellationTokenSource(DrawingTimeout);
+            using var linkedCts = CancellationTokenSource.CreateLinkedTokenSource(ct, timeoutCts.Token);
+            var combinedCt = linkedCts.Token;
+
             var (chatClient, providerServiceKey) = _providerSelector.GetAvailableProvider();
 
             if (chatClient is null || providerServiceKey is null)
             {
                 _logger.LogError("No AI providers available for drawing (tried {Count} providers)", triedProviders.Count);
-                yield break;
+                throw new AIDrawingException(ProvidersExhaustedMessage);
             }
 
             if (!triedProviders.Add(providerServiceKey))
             {
-                _logger.LogWarning("Provider cycle detected - all available providers exhausted");
-                yield break;
+                _logger.LogWarning(
+                    "Provider {ProviderServiceKey} returned again - selector cycling through same provider (all others exhausted or rate-limited)",
+                    providerServiceKey);
+                throw new AIDrawingException(ProvidersExhaustedMessage);
             }
 
             _logger.LogInformation("Starting AI drawing with provider: {ProviderServiceKey} (attempt {Attempt})",
@@ -84,48 +104,107 @@ public class AIDrawingService : IAIDrawingService
 
             var shouldRetryWithNextProvider = false;
 
-            await using var enumerator = chatClient
-                .GetStreamingResponseAsync(messages, options, ct)
-                .GetAsyncEnumerator(ct);
-
-            while (true)
+            IAsyncEnumerator<ChatResponseUpdate>? enumerator = null;
+            try
             {
-                if (ct.IsCancellationRequested)
-                {
-                    _logger.LogInformation("AI drawing cancelled for word '{Word}'", sanitizedWord);
-                    yield break;
-                }
+                var streamingResponse = chatClient.GetStreamingResponseAsync(messages, options, combinedCt);
+                enumerator = streamingResponse.GetAsyncEnumerator(combinedCt);
+            }
+            catch (OperationCanceledException) when (timeoutCts.IsCancellationRequested)
+            {
+                _logger.LogWarning("AI drawing timed out during stream initialization for provider {ProviderServiceKey}", providerServiceKey);
+                _providerSelector.MarkProviderRateLimited(providerServiceKey);
+                shouldRetryWithNextProvider = true;
+            }
+            catch (Exception ex) when (IsRateLimitException(ex))
+            {
+                _logger.LogWarning(ex,
+                    "Provider {ProviderServiceKey} hit rate limit during stream initialization, marking as unavailable and trying fallback",
+                    providerServiceKey);
 
-                bool hasNext;
-                try
-                {
-                    hasNext = await enumerator.MoveNextAsync();
-                }
-                catch (Exception ex) when (IsRateLimitException(ex))
-                {
-                    _logger.LogWarning(ex,
-                        "Provider {ProviderServiceKey} hit rate limit during AI drawing, marking as unavailable and trying fallback",
-                        providerServiceKey);
+                _providerSelector.MarkProviderRateLimited(providerServiceKey);
+                shouldRetryWithNextProvider = true;
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex,
+                    "AI drawing stream initialization failed for word '{Word}' with provider {ProviderServiceKey}",
+                    sanitizedWord, providerServiceKey);
+                throw new AIDrawingException(ProvidersExhaustedMessage, ex);
+            }
 
-                    _providerSelector.MarkProviderRateLimited(providerServiceKey);
-                    shouldRetryWithNextProvider = true;
-                    break; // Break inner loop to try next provider
-                }
-                catch (Exception ex)
-                {
-                    _logger.LogError(ex, "AI drawing failed for word '{Word}' with provider {ProviderServiceKey}",
-                        sanitizedWord, providerServiceKey);
-                    yield break; // Non-rate-limit errors should not trigger fallback
-                }
+            if (shouldRetryWithNextProvider)
+            {
+                _logger.LogInformation("Retrying AI drawing with next available provider...");
+                continue;
+            }
 
-                if (!hasNext)
+            try
+            {
+                while (true)
                 {
-                    break;
-                }
+                    if (ct.IsCancellationRequested)
+                    {
+                        _logger.LogInformation("AI drawing cancelled for word '{Word}'", sanitizedWord);
+                        yield break; // User-initiated cancellation is fine
+                    }
 
-                while (commandQueue.TryDequeue(out var command))
+                    if (timeoutCts.IsCancellationRequested)
+                    {
+                        _logger.LogWarning("AI drawing timed out for word '{Word}' with provider {ProviderServiceKey}",
+                            sanitizedWord, providerServiceKey);
+                        _providerSelector.MarkProviderRateLimited(providerServiceKey);
+                        shouldRetryWithNextProvider = true;
+                        break;
+                    }
+
+                    bool hasNext;
+                    try
+                    {
+                        hasNext = await enumerator!.MoveNextAsync();
+                    }
+                    catch (OperationCanceledException) when (timeoutCts.IsCancellationRequested)
+                    {
+                        _logger.LogWarning("AI drawing timed out during streaming for provider {ProviderServiceKey}", providerServiceKey);
+                        _providerSelector.MarkProviderRateLimited(providerServiceKey);
+                        shouldRetryWithNextProvider = true;
+                        break;
+                    }
+                    catch (Exception ex) when (IsRateLimitException(ex))
+                    {
+                        _logger.LogWarning(ex,
+                            "Provider {ProviderServiceKey} hit rate limit during AI drawing, marking as unavailable and trying fallback",
+                            providerServiceKey);
+
+                        _providerSelector.MarkProviderRateLimited(providerServiceKey);
+                        shouldRetryWithNextProvider = true;
+                        break; // Break inner loop to try next provider
+                    }
+                    catch (Exception ex)
+                    {
+                        _logger.LogError(ex, "AI drawing failed for word '{Word}' with provider {ProviderServiceKey}",
+                            sanitizedWord, providerServiceKey);
+                        throw new AIDrawingException(ProvidersExhaustedMessage, ex);
+                    }
+
+                    if (!hasNext)
+                    {
+                        break;
+                    }
+
+                    while (commandQueue.TryDequeue(out var command))
+                    {
+                        anyCommandsYielded = true;
+                        timeoutCts.CancelAfter(DrawingTimeout); // Reset timeout on each yielded command
+                        yield return command;
+                    }
+                }
+            }
+            finally
+            {
+                if (enumerator is not null)
                 {
-                    yield return command;
+                    await enumerator.DisposeAsync();
                 }
             }
 
@@ -134,7 +213,18 @@ public class AIDrawingService : IAIDrawingService
                 // Yield any remaining commands after streaming completes
                 while (commandQueue.TryDequeue(out var command))
                 {
+                    anyCommandsYielded = true;
+                    timeoutCts.CancelAfter(DrawingTimeout); // Reset timeout on each yielded command
                     yield return command;
+                }
+
+                if (!anyCommandsYielded)
+                {
+                    _logger.LogWarning(
+                        "Provider {ProviderServiceKey} completed without yielding any commands - likely silent failure, trying fallback",
+                        providerServiceKey);
+                    _providerSelector.MarkProviderRateLimited(providerServiceKey);
+                    continue; // Try next provider
                 }
 
                 _logger.LogDebug("AI drawing completed for word '{Word}' with provider {ProviderServiceKey}",
@@ -147,6 +237,7 @@ public class AIDrawingService : IAIDrawingService
 
         _logger.LogError("All AI providers exhausted after {MaxRetries} attempts for word '{Word}'",
             maxRetries, sanitizedWord);
+        throw new AIDrawingException(ProvidersExhaustedMessage);
     }
 
     private static string BuildPrompt(string word) =>

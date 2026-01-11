@@ -13,10 +13,6 @@ var gpt4OMini = builder
     .AddGitHubModel("gpt-4o-mini", Aspire.Hosting.GitHub.GitHubModel.OpenAI.OpenAIGpt4oMini)
     .WithApiKey(githubModelsApiKey);
 
-var gpt41 = builder
-    .AddGitHubModel("gpt-41", Aspire.Hosting.GitHub.GitHubModel.OpenAI.OpenAIGpt41)
-    .WithApiKey(githubModelsApiKey);
-
 var apiService = builder
     .AddProject<Projects.SketchAI_Api>("apiservice")
     .WithUrls(context =>
@@ -35,7 +31,6 @@ var apiService = builder
     })
     .WithReference(redis)
     .WithReference(gpt4OMini)
-    .WithReference(gpt41)
     .WaitFor(redis);
 
 var webfrontend = builder
