@@ -1,6 +1,7 @@
 import { useState } from "react";
 import ConnectionStatus from "@/components/Common/ConnectionStatus";
 import { MuteButton } from "@/components/Common/MuteButton";
+import { Button } from "@/components/ui";
 import { SettingsIcon } from "@/components/ui/Icons";
 import SettingsModal from "./SettingsModal";
 
@@ -44,13 +45,15 @@ export default function MobileGameHeader({
           <MuteButton />
 
           {/* Settings Button */}
-          <button
+          <Button
+            variant="ghost"
+            size="icon"
             onClick={() => setIsSettingsOpen(true)}
-            className="p-2 rounded-lg bg-card-border hover:bg-card text-white transition-colors"
+            className="bg-card-border hover:bg-card"
             aria-label="Settings"
           >
             <SettingsIcon size={20} />
-          </button>
+          </Button>
         </div>
       </div>
 

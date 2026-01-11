@@ -1,4 +1,5 @@
 import { cn } from "@/lib/utils";
+import { Button } from "@/components/ui";
 
 export type MobileTab = "canvas" | "players" | "chat";
 
@@ -40,8 +41,10 @@ export default function MobileTabNav({
   return (
     <div className="lg:hidden flex gap-1 mb-2 shrink-0">
       {tabs.map((tab) => (
-        <button
+        <Button
           key={tab.id}
+          variant="ghost"
+          size="sm"
           onClick={() => onTabChange(tab.id)}
           className={cn(
             "flex-1 py-2 px-3 rounded-xl font-bold text-sm transition-all flex items-center justify-center gap-1",
@@ -51,7 +54,7 @@ export default function MobileTabNav({
           )}
         >
           <span>{tab.icon}</span> {tab.label}
-        </button>
+        </Button>
       ))}
     </div>
   );

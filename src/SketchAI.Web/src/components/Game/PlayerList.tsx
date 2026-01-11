@@ -1,4 +1,5 @@
 import { ScorePopup } from "@/components/effects/ScorePopup";
+import { Button } from "@/components/ui";
 import { logger } from "@/lib/logger";
 import { cn } from "@/lib/utils";
 import type { Player } from "@/models";
@@ -78,9 +79,9 @@ export default function PlayerList({
     players.forEach((p) => newScores.set(p.username, p.score));
     prevScoresRef.current = newScores;
 
-    // Show popups if there are changes
+    // Show popups if there are changes - use queueMicrotask to avoid sync setState in effect
     if (changes.size > 0) {
-      showPopups(changes);
+      queueMicrotask(() => showPopups(changes));
     }
   }, [players, showPopups]);
 
@@ -237,19 +238,23 @@ export default function PlayerList({
                       onClick={(e) => e.stopPropagation()}
                     >
                       {isHost ? (
-                        <button
+                        <Button
+                          variant="danger"
+                          size="sm"
                           onClick={() => handleKick(player.username)}
-                          className="px-3 py-1.5 bg-danger rounded-lg text-white text-xs font-bold hover:bg-danger-hover transition-colors flex items-center gap-1"
+                          leftIcon={<span>👢</span>}
                         >
-                          <span>👢</span> Kick
-                        </button>
+                          Kick
+                        </Button>
                       ) : (
-                        <button
+                        <Button
+                          variant="warning"
+                          size="sm"
                           onClick={() => handleVoteKick(player.username)}
-                          className="px-3 py-1.5 bg-warning rounded-lg text-white text-xs font-bold hover:bg-warning-hover transition-colors flex items-center gap-1"
+                          leftIcon={<span>🗳️</span>}
                         >
-                          <span>🗳️</span> Vote Kick
-                        </button>
+                          Vote Kick
+                        </Button>
                       )}
                     </motion.div>
                   )}

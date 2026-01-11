@@ -1,5 +1,6 @@
 import { logger } from "@/lib/logger";
 import { useRoomStore, useToastStore } from "@/stores";
+import { Button } from "@/components/ui";
 import { AnimatePresence, motion } from "framer-motion";
 import { useCallback, useEffect, useMemo, useState } from "react";
 
@@ -50,18 +51,24 @@ interface VoteButtonsProps {
 function VoteButtons({ onVote }: VoteButtonsProps) {
   return (
     <div className="flex gap-2">
-      <button
+      <Button
+        variant="success"
+        size="sm"
         onClick={() => onVote(false)}
-        className="flex-1 py-2 rounded-lg text-white text-sm font-bold transition-all duration-200 flex items-center justify-center gap-1 bg-success border-b-4 border-success-dark hover:bg-success-hover active:border-b-0 active:translate-y-1"
+        className="flex-1"
+        leftIcon={<span>👍</span>}
       >
-        <span>👍</span> Keep
-      </button>
-      <button
+        Keep
+      </Button>
+      <Button
+        variant="danger"
+        size="sm"
         onClick={() => onVote(true)}
-        className="flex-1 py-2 rounded-lg text-white text-sm font-bold transition-all duration-200 flex items-center justify-center gap-1 bg-danger border-b-4 border-danger-dark hover:bg-danger-hover active:border-b-0 active:translate-y-1"
+        className="flex-1"
+        leftIcon={<span>👎</span>}
       >
-        <span>👎</span> Kick
-      </button>
+        Kick
+      </Button>
     </div>
   );
 }
@@ -120,7 +127,8 @@ export default function VoteKickModal() {
   );
 
   const { isTarget, isInitiator, totalVotes } = derivedState;
-  const hasEveryoneVoted = totalVotes >= (activeVoteKick?.totalVotersNeeded ?? 0);
+  const hasEveryoneVoted =
+    totalVotes >= (activeVoteKick?.totalVotersNeeded ?? 0);
 
   return (
     <AnimatePresence>

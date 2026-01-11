@@ -1,5 +1,6 @@
 import { motion, AnimatePresence } from "framer-motion";
 import { useToastStore, type Toast } from "@/stores";
+import { Button } from "@/components/ui/Button";
 import { CloseIcon } from "@/components/ui/Icons";
 
 const toastVariants = {
@@ -40,12 +41,14 @@ const ToastItem = ({ toast }: { toast: Toast }) => {
       <p className={`flex-1 text-sm font-medium ${textColors[toast.type]}`}>
         {toast.message}
       </p>
-      <button
+      <Button
+        variant="ghost"
+        size="icon"
         onClick={() => removeToast(toast.id)}
         className="rounded-full p-1 opacity-70 hover:bg-black/10 hover:opacity-100"
       >
         <CloseIcon size={16} />
-      </button>
+      </Button>
     </motion.div>
   );
 };

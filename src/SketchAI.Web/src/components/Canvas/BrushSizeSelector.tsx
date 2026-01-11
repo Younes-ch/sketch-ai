@@ -25,7 +25,7 @@ export default function BrushSizeSelector({
           key={size}
           onClick={() => onSizeSelect(size)}
           className={cn(
-            "rounded-full transition-all duration-150 hover:bg-accent",
+            "rounded-full transition-all duration-150 hover:bg-accent cursor-pointer",
             currentSize === size && "ring-2 ring-accent"
           )}
           style={{

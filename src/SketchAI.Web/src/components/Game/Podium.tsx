@@ -1,8 +1,8 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { cn } from "@/lib/utils";
 import type { Player } from "@/models";
-import { useConfetti } from "@/components/effects/Confetti";
+import { useConfetti } from "@/hooks/useConfetti";
 import { useAudio } from "@/hooks/useAudio";
 
 interface PodiumProps {
@@ -13,6 +13,7 @@ export default function Podium({ players }: PodiumProps) {
   const { fireMultiple } = useConfetti();
   const { play, stop } = useAudio();
   const [revealedPositions, setRevealedPositions] = useState<number[]>([]);
+  const isInitializedRef = useRef(false);
 
   // Sort players by score and get top 3
   const sortedPlayers = [...players].sort((a, b) => b.score - a.score);
@@ -26,7 +27,10 @@ export default function Podium({ players }: PodiumProps) {
 
   // Sequential reveal animation
   useEffect(() => {
-    setRevealedPositions([]);
+    // Only reset on first mount, not on every re-render
+    if (!isInitializedRef.current) {
+      isInitializedRef.current = true;
+    }
 
     // Start drum roll immediately
     play("drum-roll");

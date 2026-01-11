@@ -1,2 +1,3 @@
-export { Confetti, useConfetti } from "./Confetti";
+export { Confetti } from "./Confetti";
+export { useConfetti } from "@/hooks/useConfetti";
 export { ScorePopup } from "./ScorePopup";

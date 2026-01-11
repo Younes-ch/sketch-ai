@@ -1,5 +1,6 @@
 import type { PublicRoom } from "@/models";
 import { PublicRoomCard } from "@/components/Lobby";
+import { Button } from "@/components/ui";
 
 interface PublicRoomsTabProps {
   publicRooms: PublicRoom[];
@@ -30,14 +31,17 @@ export default function PublicRoomsTab({
           {publicRooms.length} room{publicRooms.length !== 1 ? "s" : ""}{" "}
           available
         </p>
-        <button
+        <Button
+          variant="ghost"
+          size="sm"
           onClick={onRefresh}
           disabled={isLoadingRooms}
-          className="text-accent hover:text-accent-hover text-sm font-bold flex items-center gap-1 transition-colors"
+          leftIcon={
+            <span className={isLoadingRooms ? "animate-spin" : ""}>🔄</span>
+          }
         >
-          <span className={isLoadingRooms ? "animate-spin" : ""}>🔄</span>
           Refresh
-        </button>
+        </Button>
       </div>
 
       {/* Room List */}

@@ -2,6 +2,7 @@ import { useState } from "react";
 import { useGameStore } from "@/stores/gameStore";
 import { useRoomStore } from "@/stores/roomStore";
 import { useCanvasStore } from "@/stores/canvasStore";
+import { Button } from "@/components/ui";
 import { cn } from "@/lib/utils";
 import { AISparklesIcon, InfoIcon } from "@/components/ui/Icons";
 import { Tooltip } from "@/components/ui/Tooltip";
@@ -92,34 +93,38 @@ export default function WordHint() {
           <Tooltip
             content={isAIDrawing ? "Stop AI Drawing" : "AI Help - Draw for me"}
           >
-            <button
+            <Button
+              variant="ghost"
+              size="icon"
               onClick={handleAIClick}
               onMouseEnter={() => setIsAIHovered(true)}
               onMouseLeave={() => setIsAIHovered(false)}
               className={cn(
-                "p-1.5 rounded-lg transition-all duration-200 cursor-pointer",
+                "p-1.5",
                 isAIDrawing
                   ? "bg-danger text-white animate-pulse"
                   : isAIHovered
                   ? "bg-accent text-white"
-                  : "bg-transparent text-white/40 hover:text-white/60"
+                  : "text-white/40 hover:text-white/60"
               )}
               aria-label={isAIDrawing ? "Stop AI Drawing" : "Start AI Drawing"}
             >
               <AISparklesIcon size={20} />
-            </button>
+            </Button>
           </Tooltip>
 
           {/* Info Icon */}
           <Tooltip content="Get word explanation">
-            <button
+            <Button
+              variant="ghost"
+              size="icon"
               onClick={handleInfoClick}
               disabled={isTranslating}
               className={cn(
-                "p-1.5 rounded-lg transition-all duration-200 cursor-pointer",
+                "p-1.5",
                 isTranslating
-                  ? "bg-transparent text-white/40 cursor-wait"
-                  : "bg-transparent text-white/40 hover:bg-accent hover:text-white focus:outline-none"
+                  ? "text-white/40 cursor-wait"
+                  : "text-white/40 hover:bg-accent hover:text-white"
               )}
               aria-label="Get word explanation"
             >
@@ -128,7 +133,7 @@ export default function WordHint() {
               ) : (
                 <InfoIcon size={20} />
               )}
-            </button>
+            </Button>
           </Tooltip>
         </div>
       )}

@@ -1,11 +1,13 @@
 import { motion, AnimatePresence } from "framer-motion";
 import {
+  Button,
   CloseIcon,
   VolumeOnIcon,
   VolumeOffIcon,
   ShortcutBadge,
 } from "@/components/ui";
 import { useAudioStore } from "@/stores/audioStore";
+import { useSettingsStore } from "@/stores/settingsStore";
 
 interface SettingsModalProps {
   isOpen: boolean;
@@ -28,6 +30,9 @@ export default function SettingsModal({
   const volume = useAudioStore((s) => s.volume);
   const setVolume = useAudioStore((s) => s.setVolume);
   const setMuted = useAudioStore((s) => s.setMuted);
+
+  const toolbarPosition = useSettingsStore((s) => s.toolbarPosition);
+  const resetToolbarPosition = useSettingsStore((s) => s.resetToolbarPosition);
 
   const handleVolumeChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const newVolume = parseFloat(e.target.value);
@@ -75,12 +80,14 @@ export default function SettingsModal({
                 <h2 className="text-lg font-bold text-white flex items-center gap-2">
                   <span>⚙️</span> Settings
                 </h2>
-                <button
+                <Button
+                  variant="ghost"
+                  size="icon"
                   onClick={onClose}
-                  className="p-1.5 rounded-lg bg-card-border hover:bg-card-border/80 text-white transition-colors"
+                  className="bg-card-border hover:bg-card-border/80"
                 >
                   <CloseIcon size={20} />
-                </button>
+                </Button>
               </div>
 
               {/* Content */}
@@ -94,26 +101,32 @@ export default function SettingsModal({
                 </div>
 
                 {/* Share Button */}
-                <button
-                  onClick={onShare}
-                  className="w-full px-4 py-3 rounded-xl text-white font-bold transition-all duration-200 flex items-center justify-center gap-2 bg-info border-2 border-info-dark hover:bg-info-hover relative"
-                >
-                  <span>🔗</span>
-                  Share Room Link
+                <div className="relative">
+                  <Button
+                    variant="primary"
+                    size="lg"
+                    onClick={onShare}
+                    className="w-full bg-info border-info-dark hover:bg-info-hover"
+                    leftIcon={<span>🔗</span>}
+                  >
+                    Share Room Link
+                  </Button>
                   {showCopied && (
                     <span className="absolute -bottom-8 left-1/2 -translate-x-1/2 bg-success text-white text-xs px-2 py-1 rounded whitespace-nowrap z-10">
                       Link copied!
                     </span>
                   )}
-                </button>
+                </div>
 
                 {/* Volume Control */}
                 <div className="bg-background rounded-xl p-3 border-2 border-card-border">
                   <p className="text-white/60 text-xs mb-3">Sound Volume</p>
                   <div className="flex items-center gap-3">
-                    <button
+                    <Button
+                      variant="ghost"
+                      size="icon"
                       onClick={toggleMute}
-                      className="p-2 rounded-lg bg-card-border hover:bg-card text-white transition-colors shrink-0"
+                      className="bg-card-border hover:bg-card shrink-0"
                       aria-label={isMuted ? "Unmute" : "Mute"}
                     >
                       {isMuted || volume === 0 ? (
@@ -121,7 +134,7 @@ export default function SettingsModal({
                       ) : (
                         <VolumeOnIcon size={20} />
                       )}
-                    </button>
+                    </Button>
                     <input
                       type="range"
                       min="0"
@@ -151,14 +164,44 @@ export default function SettingsModal({
                   </div>
                 </div>
 
+                {/* Toolbar Position - Desktop only */}
+                <div className="hidden lg:block bg-background rounded-xl p-3 border-2 border-card-border">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <p className="text-white/60 text-xs mb-1">
+                        Toolbar Position
+                      </p>
+                      <p className="text-white/40 text-xs">
+                        {toolbarPosition
+                          ? "Custom position"
+                          : "Default (top-left)"}
+                      </p>
+                    </div>
+                    <Button
+                      variant="secondary"
+                      size="sm"
+                      onClick={resetToolbarPosition}
+                      disabled={!toolbarPosition}
+                      className="text-xs"
+                    >
+                      Reset
+                    </Button>
+                  </div>
+                  <p className="text-white/30 text-xs mt-2">
+                    Tip: Drag the toolbar to reposition, double-click to reset
+                  </p>
+                </div>
+
                 {/* Leave Button */}
-                <button
+                <Button
+                  variant="danger"
+                  size="lg"
                   onClick={onLeave}
-                  className="w-full px-4 py-3 rounded-xl text-white font-bold transition-all duration-200 flex items-center justify-center gap-2 bg-danger border-2 border-danger-dark hover:bg-danger-hover"
+                  className="w-full"
+                  leftIcon={<span>🚪</span>}
                 >
-                  <span>🚪</span>
                   Leave Room
-                </button>
+                </Button>
               </div>
             </div>
           </motion.div>
