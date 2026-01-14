@@ -7,7 +7,6 @@ import {
   ShortcutBadge,
 } from "@/components/ui";
 import { useAudioStore } from "@/stores/audioStore";
-import { useSettingsStore } from "@/stores/settingsStore";
 
 interface SettingsModalProps {
   isOpen: boolean;
@@ -30,9 +29,6 @@ export default function SettingsModal({
   const volume = useAudioStore((s) => s.volume);
   const setVolume = useAudioStore((s) => s.setVolume);
   const setMuted = useAudioStore((s) => s.setMuted);
-
-  const toolbarPosition = useSettingsStore((s) => s.toolbarPosition);
-  const resetToolbarPosition = useSettingsStore((s) => s.resetToolbarPosition);
 
   const handleVolumeChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const newVolume = parseFloat(e.target.value);
@@ -162,34 +158,6 @@ export default function SettingsModal({
                     <ShortcutBadge keys={["Ctrl", "⇧", "X"]} label="Clear" />
                     <ShortcutBadge keys={["E"]} label="Eraser" />
                   </div>
-                </div>
-
-                {/* Toolbar Position - Desktop only */}
-                <div className="hidden lg:block bg-background rounded-xl p-3 border-2 border-card-border">
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <p className="text-white/60 text-xs mb-1">
-                        Toolbar Position
-                      </p>
-                      <p className="text-white/40 text-xs">
-                        {toolbarPosition
-                          ? "Custom position"
-                          : "Default (top-left)"}
-                      </p>
-                    </div>
-                    <Button
-                      variant="secondary"
-                      size="sm"
-                      onClick={resetToolbarPosition}
-                      disabled={!toolbarPosition}
-                      className="text-xs"
-                    >
-                      Reset
-                    </Button>
-                  </div>
-                  <p className="text-white/30 text-xs mt-2">
-                    Tip: Drag the toolbar to reposition, double-click to reset
-                  </p>
                 </div>
 
                 {/* Leave Button */}

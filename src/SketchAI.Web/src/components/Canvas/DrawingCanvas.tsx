@@ -17,7 +17,7 @@ import {
 import { DRAWING_COLORS } from "@/constants/colors";
 import {
   CanvasToolbar,
-  DraggableToolbar,
+  VerticalToolbar,
   type ToolType,
 } from "@/components/Canvas";
 
@@ -792,29 +792,34 @@ function DrawingCanvasComponent({ disabled = false }: DrawingCanvasProps) {
         />
       )}
 
-      {/* Canvas */}
-      <canvas
-        ref={canvasRef}
-        width={CANVAS_WIDTH}
-        height={CANVAS_HEIGHT}
-        onMouseDown={handlePointerDown}
-        onMouseMove={handlePointerMove}
-        onMouseUp={stopDrawing}
-        onMouseLeave={stopDrawing}
-        onTouchStart={handlePointerDown}
-        onTouchMove={handlePointerMove}
-        onTouchEnd={stopDrawing}
-        onTouchCancel={stopDrawing}
-        className={cn(
-          "bg-white rounded-lg shadow-inner touch-none border-4 border-card-border",
-          disabled && "opacity-90"
-        )}
-        style={{
-          width: displaySize.width,
-          height: displaySize.height,
-          cursor: getCursor(),
-        }}
-      />
+      {/* Canvas Container */}
+      <div
+        ref={containerRef}
+        className="flex-1 h-full min-w-0 flex items-center justify-center relative touch-none"
+      >
+        <canvas
+          ref={canvasRef}
+          width={CANVAS_WIDTH}
+          height={CANVAS_HEIGHT}
+          onMouseDown={handlePointerDown}
+          onMouseMove={handlePointerMove}
+          onMouseUp={stopDrawing}
+          onMouseLeave={stopDrawing}
+          onTouchStart={handlePointerDown}
+          onTouchMove={handlePointerMove}
+          onTouchEnd={stopDrawing}
+          onTouchCancel={stopDrawing}
+          className={cn(
+            "bg-white rounded-md shadow-inner border-2 border-card-border",
+            disabled && "opacity-90"
+          )}
+          style={{
+            width: displaySize.width,
+            height: displaySize.height,
+            cursor: getCursor(),
+          }}
+        />
+      </div>
 
       {/* Mobile toolbar (floating FAB) */}
       {!disabled && (

@@ -1,6 +1,5 @@
 import { memo } from "react";
 import MobileToolbar from "./MobileToolbar";
-import DesktopToolbar from "./DesktopToolbar";
 import type { CanvasToolbarProps } from "./types";
 
 // Re-export types for backward compatibility
@@ -10,7 +9,6 @@ function CanvasToolbarComponent(props: CanvasToolbarProps) {
   return (
     <>
       <MobileToolbar {...props} />
-      <DesktopToolbar {...props} />
     </>
   );
 }
