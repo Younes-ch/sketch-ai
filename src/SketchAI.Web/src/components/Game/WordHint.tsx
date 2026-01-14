@@ -85,7 +85,7 @@ export default function WordHint() {
   }
 
   return (
-    <div className="bg-background sm:rounded-xl p-2 sm:p-3 sm:mb-3 text-center sm:border-2 sm:border-card-border shrink-0 w-full relative">
+    <div className="bg-background sm:rounded-lg p-1 sm:p-2 sm:mb-1 text-center sm:border-2 sm:border-card-border shrink-0 w-full relative">
       {/* AI Icons - Only visible for drawer during drawing phase */}
       {isDrawingPhase && isDrawer && (
         <div className="absolute top-2 right-2 flex items-center gap-1.5">

@@ -3,7 +3,6 @@ import type { Point } from "@/models";
 // Canvas dimensions - drawing commands use normalized coordinates (0-1)
 export const CANVAS_WIDTH = 1920;
 export const CANVAS_HEIGHT = 1080;
-export const CANVAS_ASPECT_RATIO = CANVAS_WIDTH / CANVAS_HEIGHT;
 
 // Clamp a point to canvas bounds to prevent out-of-bounds coordinates
 export const clampPoint = (point: Point): Point => ({

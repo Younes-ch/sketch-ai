@@ -7,7 +7,6 @@ import { cn } from "@/lib/utils";
 import {
   CANVAS_WIDTH,
   CANVAS_HEIGHT,
-  CANVAS_ASPECT_RATIO,
   clampPoint,
   normalizePoint,
   denormalizePoint,
@@ -68,26 +67,13 @@ function DrawingCanvasComponent({ disabled = false }: DrawingCanvasProps) {
     height: 450,
   });
 
-  // Calculate display size to fill container width while maintaining aspect ratio
   useEffect(() => {
     const updateSize = () => {
       if (containerRef.current) {
-        const containerWidth = containerRef.current.offsetWidth;
-        const containerHeight = containerRef.current.offsetHeight;
-
-        // Use full container width, calculate height from aspect ratio
-        let displayWidth = containerWidth;
-        let displayHeight = displayWidth / CANVAS_ASPECT_RATIO;
-
-        // If height exceeds container, scale down to fit
-        if (displayHeight > containerHeight) {
-          displayHeight = containerHeight;
-          displayWidth = displayHeight * CANVAS_ASPECT_RATIO;
-        }
-
+        // Fill the entire container to avoid whitespace
         setDisplaySize({
-          width: Math.floor(displayWidth),
-          height: Math.floor(displayHeight),
+          width: containerRef.current.offsetWidth,
+          height: containerRef.current.offsetHeight,
         });
       }
     };
@@ -771,25 +757,23 @@ function DrawingCanvasComponent({ disabled = false }: DrawingCanvasProps) {
   }, [disabled, handleClearMemo, handleUndo, localStrokeCount]);
 
   return (
-    <div
-      ref={containerRef}
-      className="relative flex items-center justify-center w-full h-full"
-    >
-      {/* Draggable toolbar for desktop - can be positioned anywhere on canvas */}
+    <div className="relative flex items-center justify-center w-full h-full gap-2">
+      {/* Fixed Toolbar for Desktop */}
       {!disabled && (
-        <DraggableToolbar
-          containerRef={containerRef}
-          currentColor={currentColor}
-          currentTool={currentTool}
-          currentWidth={currentWidth}
-          brushSizes={brushSizes}
-          onColorChange={setCurrentColor}
-          onToolChange={setCurrentTool}
-          onWidthChange={setCurrentWidth}
-          onClear={handleClearMemo}
-          onUndo={handleUndo}
-          canUndo={localStrokeCount > 0}
-        />
+        <div className="hidden lg:flex flex-col justify-center h-full z-10 shrink-0 min-w-fit">
+          <VerticalToolbar
+            currentColor={currentColor}
+            currentTool={currentTool}
+            currentWidth={currentWidth}
+            brushSizes={brushSizes}
+            onColorChange={setCurrentColor}
+            onToolChange={setCurrentTool}
+            onWidthChange={setCurrentWidth}
+            onClear={handleClearMemo}
+            onUndo={handleUndo}
+            canUndo={localStrokeCount > 0}
+          />
+        </div>
       )}
 
       {/* Canvas Container */}
