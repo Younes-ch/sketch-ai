@@ -5,23 +5,17 @@ import {
   DRAWING_COLORS,
   BORDER_COLORS,
 } from "@/constants/colors";
+import type { ToolType, CanvasToolbarProps } from "./types";
 
-export type ToolType = "brush" | "eraser" | "fill";
-
-interface VerticalToolbarProps {
-  currentColor: string;
-  currentTool: ToolType;
-  currentWidth: number;
-  brushSizes: number[];
-  onColorChange: (color: string) => void;
-  onToolChange: (tool: ToolType) => void;
-  onWidthChange: (width: number) => void;
-  onClear: () => void;
-  onUndo: () => void;
-  canUndo: boolean;
+interface ToolButtonProps {
+  active: boolean;
+  onClick: () => void;
+  label: string;
+  shortcut: string;
+  activeColor?: string;
+  children: React.ReactNode;
 }
 
-// Helper component for tool buttons
 function ToolButton({
   active,
   onClick,
@@ -29,14 +23,7 @@ function ToolButton({
   shortcut,
   activeColor = "bg-success",
   children,
-}: {
-  active: boolean;
-  onClick: () => void;
-  label: string;
-  shortcut: string;
-  activeColor?: string;
-  children: React.ReactNode;
-}) {
+}: ToolButtonProps) {
   return (
     <button
       onClick={onClick}
@@ -54,7 +41,15 @@ function ToolButton({
   );
 }
 
-// Helper component for action buttons
+interface ActionButtonProps {
+  onClick: () => void;
+  disabled?: boolean;
+  variant: "danger" | "accent";
+  icon: string;
+  label: string;
+  shortcut?: string;
+}
+
 function ActionButton({
   onClick,
   disabled,
@@ -62,14 +57,7 @@ function ActionButton({
   icon,
   label,
   shortcut,
-}: {
-  onClick: () => void;
-  disabled?: boolean;
-  variant: "danger" | "accent";
-  icon: string;
-  label: string;
-  shortcut?: string;
-}) {
+}: ActionButtonProps) {
   const variantStyles = {
     danger: "bg-danger border-danger-dark hover:bg-danger-hover",
     accent: "bg-accent border-accent-dark hover:bg-accent/80",
@@ -93,16 +81,17 @@ function ActionButton({
   );
 }
 
-// Color Picker with inline grid
+interface ColorPickerProps {
+  currentColor: string;
+  currentTool: ToolType;
+  onColorSelect: (color: string) => void;
+}
+
 function ColorPicker({
   currentColor,
   currentTool,
   onColorSelect,
-}: {
-  currentColor: string;
-  currentTool: ToolType;
-  onColorSelect: (color: string) => void;
-}) {
+}: ColorPickerProps) {
   return (
     <div className="flex flex-col gap-2">
       <div className="grid grid-cols-2 gap-1">
@@ -127,7 +116,6 @@ function ColorPicker({
           />
         ))}
       </div>
-      {/* Custom color at the bottom */}
       <div className="pt-1 border-t border-card-border">
         <input
           type="color"
@@ -141,7 +129,7 @@ function ColorPicker({
   );
 }
 
-function VerticalToolbarComponent({
+function DesktopToolbarComponent({
   currentColor,
   currentTool,
   currentWidth,
@@ -152,22 +140,19 @@ function VerticalToolbarComponent({
   onClear,
   onUndo,
   canUndo,
-}: VerticalToolbarProps) {
+}: CanvasToolbarProps) {
   const displayColor = currentTool === "eraser" ? "#FFFFFF" : currentColor;
 
   return (
     <div className="flex flex-col gap-2 p-2 bg-background/95 backdrop-blur-sm rounded-xl border-2 border-card-border shadow-lg max-h-[calc(100vh-120px)] overflow-y-auto overflow-x-hidden custom-scrollbar">
-      {/* Color Picker Section */}
       <ColorPicker
         currentColor={currentColor}
         currentTool={currentTool}
         onColorSelect={onColorChange}
       />
 
-      {/* Divider */}
       <div className="h-px w-full bg-card-border shrink-0" />
 
-      {/* Tool Buttons */}
       <div className="flex flex-col gap-1 shrink-0">
         <ToolButton
           active={currentTool === "brush"}
@@ -198,10 +183,8 @@ function VerticalToolbarComponent({
         </ToolButton>
       </div>
 
-      {/* Divider */}
       <div className="h-px w-full bg-card-border shrink-0" />
 
-      {/* Size Selector */}
       <div className="flex flex-col gap-1 shrink-0">
         {brushSizes.map((size) => {
           const dotSize = Math.max(6, Math.min(size / 2.5, 16));
@@ -237,10 +220,8 @@ function VerticalToolbarComponent({
         })}
       </div>
 
-      {/* Divider */}
       <div className="h-px w-full bg-card-border shrink-0" />
 
-      {/* Action Buttons */}
       <div className="flex flex-col gap-1 shrink-0">
         <ActionButton
           onClick={onClear}
@@ -261,4 +242,4 @@ function VerticalToolbarComponent({
   );
 }
 
-export const VerticalToolbar = memo(VerticalToolbarComponent);
+export const DesktopToolbar = memo(DesktopToolbarComponent);

@@ -1,6 +1,6 @@
 import { cn } from "@/lib/utils";
 import { DRAWING_COLORS, BORDER_COLORS } from "@/constants/colors";
-import type { ToolType } from "./CanvasToolbar";
+import type { ToolType } from "./types";
 
 interface BrushSizeSelectorProps {
   sizes: number[];

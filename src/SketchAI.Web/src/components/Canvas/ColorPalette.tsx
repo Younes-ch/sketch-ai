@@ -4,7 +4,7 @@ import {
   BORDER_COLORS,
 } from "@/constants/colors";
 import { cn } from "@/lib/utils";
-import type { ToolType } from "./CanvasToolbar";
+import type { ToolType } from "./types";
 
 interface ColorPaletteProps {
   currentColor: string;
