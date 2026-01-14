@@ -414,7 +414,7 @@ public class DrawingHub : Hub
         room.IsAiDrawing = true;
         await _roomService.SaveRoomAsync(room);
 
-        await Clients.Group(roomCode).SendAsync("AIDrawingStarted");
+        await Clients.Caller.SendAsync("AIDrawingStarted");
 
         var ct = _aiCancellationManager.CreateSession(roomCode);
 
@@ -425,7 +425,9 @@ public class DrawingHub : Hub
         // Run AI drawing in background so other hub methods (StopAiDrawing, LeaveRoom) can execute
         _ = Task.Run(async () =>
         {
+            var caller = _hubContext.Clients.Client(drawerConnectionId);
             var completedSuccessfully = false;
+
             try
             {
                 await foreach (var command in _aiDrawingService.GenerateDrawingCommandAsync(wordToDraw, ct))
@@ -458,12 +460,12 @@ public class DrawingHub : Hub
             catch (AIDrawingException ex)
             {
                 _logger.LogWarning(ex, "AI drawing unavailable in room {RoomCode}", roomCode);
-                await _hubContext.Clients.Group(roomCode).SendAsync("AIDrawingError", ex.Message);
+                await caller.SendAsync("AIDrawingError", ex.Message);
             }
             catch (Exception ex)
             {
                 _logger.LogError(ex, "AI drawing failed in room {RoomCode}", roomCode);
-                await _hubContext.Clients.Group(roomCode).SendAsync("AIDrawingError", "AI drawing failed. Please try again.");
+                await caller.SendAsync("AIDrawingError", "AI drawing failed. Please try again.");
             }
             finally
             {
@@ -488,7 +490,7 @@ public class DrawingHub : Hub
                     await _roomService.SaveRoomAsync(currentRoom);
                 }
 
-                await _hubContext.Clients.Group(roomCode).SendAsync("AIDrawingStopped");
+                await caller.SendAsync("AIDrawingStopped");
             }
         });
     }
