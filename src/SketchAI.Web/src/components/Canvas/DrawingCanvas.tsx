@@ -64,7 +64,7 @@ function DrawingCanvasComponent({ disabled = false }: DrawingCanvasProps) {
   const [localStrokeCount, setLocalStrokeCount] = useState(0); // Track local strokes for undo
   const [displaySize, setDisplaySize] = useState({
     width: 800,
-    height: 450,
+    height: 600,
   });
 
   useEffect(() => {
@@ -658,6 +658,38 @@ function DrawingCanvasComponent({ disabled = false }: DrawingCanvasProps) {
 
   // Memoize brush sizes to prevent unnecessary re-renders
   const brushSizes = useMemo(() => [4, 8, 14, 20, 30], []);
+
+  // Handle brush size change on scroll
+  useEffect(() => {
+    const canvas = canvasRef.current;
+    if (!canvas || disabled) return;
+
+    const handleWheel = (e: WheelEvent) => {
+      e.preventDefault();
+
+      setCurrentWidth((prevWidth) => {
+        const currentIndex = brushSizes.indexOf(prevWidth);
+        if (currentIndex === -1) return prevWidth;
+
+        if (e.deltaY < 0) {
+          // Scroll Up -> Increase size (Next index)
+          if (currentIndex < brushSizes.length - 1) {
+            return brushSizes[currentIndex + 1];
+          }
+        } else if (e.deltaY > 0) {
+          // Scroll Down -> Decrease size (Previous index)
+          if (currentIndex > 0) {
+            return brushSizes[currentIndex - 1];
+          }
+        }
+        return prevWidth;
+      });
+    };
+
+    // Use passive: false to allow preventDefault()
+    canvas.addEventListener("wheel", handleWheel, { passive: false });
+    return () => canvas.removeEventListener("wheel", handleWheel);
+  }, [brushSizes, disabled]);
 
   // Memoize clear handler
   const handleClearMemo = useCallback(async () => {
