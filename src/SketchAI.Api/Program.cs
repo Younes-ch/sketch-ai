@@ -8,8 +8,8 @@ builder.AddOpenAIClient("gpt-4o-mini")
 
 var options = new GeminiClientOptions
 {
-    ApiKey = builder.Configuration["AI:ApiKey"] ?? throw new InvalidOperationException("Gemini API key is not configured."),
-    ModelId = builder.Configuration["AI:ModelId"] ?? "gemini-3-flash-preview",
+    ApiKey = builder.Configuration["GOOGLE_GEMINI_KEY"] ?? throw new InvalidOperationException("Gemini API key is not configured."),
+    ModelId = builder.Configuration["GOOGLE_GEMINI_MODEL_ID"] ?? "gemini-3-flash-preview",
 };
 
 builder.Services.AddKeyedChatClient("gemini-model", new GeminiChatClient(options))
