@@ -59,9 +59,9 @@ export default function MobileChatMessages() {
                 className={cn(
                   "text-[11px] break-all",
                   msg.type === "correct-guess" &&
-                    "bg-success/20 -mx-2 px-2 py-0.5 rounded",
+                    "bg-success/20 px-2 py-0.5 rounded",
                   msg.type === "close-guess" &&
-                    "bg-orange-500/20 -mx-2 px-2 py-0.5 rounded"
+                    "bg-orange-500/20 px-2 py-0.5 rounded"
                 )}
               >
                 {/* Generic System Message */}
@@ -110,7 +110,7 @@ export default function MobileChatMessages() {
                 {/* Game Logic Messages */}
                 {msg.type === "correct-guess" ? (
                   <p className="text-success font-medium flex items-center gap-1">
-                    <span>✓</span>
+                    <span>✅</span>
                     {msg.message}
                   </p>
                 ) : msg.type === "close-guess" ? (

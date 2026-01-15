@@ -99,7 +99,7 @@ export default function GamePhaseIndicator() {
   const warningThreshold = roomSettings.drawTimeSeconds * 0.5;
 
   return (
-    <div className="relative overflow-hidden sm:rounded-xl mb-3">
+    <div className="relative overflow-hidden sm:rounded-xl sm:mt-3 mb-3">
       {/* Progress Bar Background */}
       {content.showTimer && (
         <div className="absolute inset-0 bg-card-border/50" />
