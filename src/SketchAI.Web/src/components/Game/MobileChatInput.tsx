@@ -1,6 +1,7 @@
-import { useState, useRef } from "react";
+import { useState, useRef, useEffect } from "react";
 import { useGameStore } from "@/stores/gameStore";
 import { useRoomStore } from "@/stores/roomStore";
+import { useChatStore } from "@/stores/chatStore";
 import { Button } from "@/components/ui";
 import { cn } from "@/lib/utils";
 import { logger } from "@/lib/logger";
@@ -12,10 +13,12 @@ export default function MobileChatInput() {
   const playersWhoGuessed = useGameStore((s) => s.playersWhoGuessed);
   const wordHint = useGameStore((s) => s.wordHint);
   const username = useRoomStore((s) => s.username);
+  const chatMessages = useChatStore((s) => s.messages);
 
   const [inputValue, setInputValue] = useState("");
   const [isSending, setIsSending] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
+  const shouldMaintainFocusRef = useRef(false);
 
   // Check if current user is the drawer
   const isDrawer = currentDrawer?.username === username;
@@ -29,6 +32,14 @@ export default function MobileChatInput() {
   const currentInputLength = inputValue.trim().replace(/\s/g, "").length;
   const showCharacterCount =
     isDrawingPhase && !isDrawer && !hasAlreadyGuessed && wordLength > 0;
+
+  // Maintain focus on input after sending a message (handles close guess re-renders)
+  useEffect(() => {
+    if (shouldMaintainFocusRef.current && !isInputDisabled) {
+      inputRef.current?.focus();
+      shouldMaintainFocusRef.current = false;
+    }
+  }, [chatMessages, isInputDisabled]);
 
   // Determine placeholder text
   const getPlaceholder = () => {
@@ -50,13 +61,13 @@ export default function MobileChatInput() {
     if (!trimmedMessage || isSending || isInputDisabled) return;
 
     setIsSending(true);
+    shouldMaintainFocusRef.current = true;
     try {
       await sendGuess(trimmedMessage);
       setInputValue("");
-      // Keep focus on input after sending - use setTimeout to ensure focus applies after state update
-      setTimeout(() => inputRef.current?.focus(), 0);
     } catch (error) {
       logger.error("Failed to send message", error);
+      shouldMaintainFocusRef.current = false;
     } finally {
       setIsSending(false);
     }
