@@ -131,8 +131,8 @@ export default function GameScreen() {
 
               <WordHint />
               <div className="flex-1 min-h-0 flex items-center justify-center bg-white/5 rounded-lg overflow-hidden m-1">
-                 {/* Canvas Container */}
-                <DrawingCanvas disabled={!canDraw} />
+                {/* Canvas Container */}
+                <DrawingCanvas disabled={!canDraw} layout="desktop" />
               </div>
             </div>
           </div>
@@ -168,53 +168,53 @@ export default function GameScreen() {
 
         {/* Row 4: Canvas (Flexible Height) */}
         <div className="flex-1 min-h-0 flex flex-col relative overflow-hidden">
-            <AnimatePresence mode="wait">
-              {/* Lobby Overlay */}
-              {phase === "lobby" && (
-                <LobbyOverlay
-                  players={players}
-                  isHost={isHost}
-                  roomSettings={roomSettings}
-                  isUpdatingSettings={isUpdatingSettings}
-                  isStarting={isStarting}
-                  onSettingsChange={handleSettingsChange}
-                  onStartGame={handleStartGame}
-                  variant="mobile"
-                />
-              )}
+          <AnimatePresence mode="wait">
+            {/* Lobby Overlay */}
+            {phase === "lobby" && (
+              <LobbyOverlay
+                players={players}
+                isHost={isHost}
+                roomSettings={roomSettings}
+                isUpdatingSettings={isUpdatingSettings}
+                isStarting={isStarting}
+                onSettingsChange={handleSettingsChange}
+                onStartGame={handleStartGame}
+                variant="mobile"
+              />
+            )}
 
-              {/* Word Selection Waiting Overlay */}
-              {phase === "wordSelection" && !isDrawer && (
-                <WordSelectionOverlay
-                  currentDrawer={currentDrawer}
-                  variant="mobile"
-                />
-              )}
+            {/* Word Selection Waiting Overlay */}
+            {phase === "wordSelection" && !isDrawer && (
+              <WordSelectionOverlay
+                currentDrawer={currentDrawer}
+                variant="mobile"
+              />
+            )}
 
-              {/* Round End Overlay */}
-              {phase === "roundEnd" && (
-                <RoundEndOverlay currentWord={currentWord} variant="mobile" />
-              )}
+            {/* Round End Overlay */}
+            {phase === "roundEnd" && (
+              <RoundEndOverlay currentWord={currentWord} variant="mobile" />
+            )}
 
-              {/* Game End Overlay */}
-              {phase === "gameEnd" && (
-                <GameEndOverlay
-                  players={players}
-                  isHost={isHost}
-                  roomSettings={roomSettings}
-                  isUpdatingSettings={isUpdatingSettings}
-                  isStarting={isStarting}
-                  onSettingsChange={handleSettingsChange}
-                  onStartGame={handleStartGame}
-                  variant="mobile"
-                />
-              )}
-            </AnimatePresence>
-            
-            {/* Canvas */}
-            <div className="w-full h-full flex items-center justify-center border-t-2 border-card-border">
-              <DrawingCanvas disabled={!canDraw} />
-            </div>
+            {/* Game End Overlay */}
+            {phase === "gameEnd" && (
+              <GameEndOverlay
+                players={players}
+                isHost={isHost}
+                roomSettings={roomSettings}
+                isUpdatingSettings={isUpdatingSettings}
+                isStarting={isStarting}
+                onSettingsChange={handleSettingsChange}
+                onStartGame={handleStartGame}
+                variant="mobile"
+              />
+            )}
+          </AnimatePresence>
+
+          {/* Canvas */}
+          <div className="w-full h-full flex items-center justify-center border-t-2 border-card-border">
+            <DrawingCanvas disabled={!canDraw} layout="mobile" />
+          </div>
         </div>
 
         {/* Row 5: Players & Chat (Fixed Height, Equal Columns) */}

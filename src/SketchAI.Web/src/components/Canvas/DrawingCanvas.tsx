@@ -24,12 +24,16 @@ import {
 
 interface DrawingCanvasProps {
   disabled?: boolean;
+  layout?: "desktop" | "mobile";
 }
 
 const BATCH_INTERVAL_MS = 50;
 const BRUSH_SIZES: number[] = [4, 8, 14, 20, 30];
 
-function DrawingCanvasComponent({ disabled = false }: DrawingCanvasProps) {
+function DrawingCanvasComponent({
+  disabled = false,
+  layout,
+}: DrawingCanvasProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
   const isDrawingRef = useRef(false);
@@ -40,7 +44,6 @@ function DrawingCanvasComponent({ disabled = false }: DrawingCanvasProps) {
   const currentColorRef = useRef<string>(DRAWING_COLORS.DEFAULT);
   const strokeIdRef = useRef<string | null>(null);
   const commandHistoryRef = useRef<DrawingCommand[]>([]);
-  const undoPendingRef = useRef(false);
 
   const [currentColor, setCurrentColor] = useState<string>(
     DRAWING_COLORS.DEFAULT
@@ -49,12 +52,14 @@ function DrawingCanvasComponent({ disabled = false }: DrawingCanvasProps) {
   const [currentTool, setCurrentTool] = useState<ToolType>("brush");
   const [localStrokeCount, setLocalStrokeCount] = useState(0);
   const [displaySize, setDisplaySize] = useState({ width: 800, height: 600 });
+  const [isDesktopViewport, setIsDesktopViewport] = useState(() => {
+    if (typeof window === "undefined" || !window.matchMedia) return true;
+    return window.matchMedia("(min-width: 1024px)").matches;
+  });
 
   const sendDrawingCommand = useCanvasStore((s) => s.sendDrawingCommand);
   const sendFillCommand = useCanvasStore((s) => s.sendFillCommand);
   const undoLastDrawCommand = useCanvasStore((s) => s.undoLastDrawCommand);
-  const undoAIDrawing = useCanvasStore((s) => s.undoAIDrawing);
-  const aiDrawingStrokeIds = useCanvasStore((s) => s.aiDrawingStrokeIds);
   const signalRClearCanvas = useCanvasStore((s) => s.clearCanvas);
 
   const brushSizes = useMemo(() => [...BRUSH_SIZES], []);
@@ -76,6 +81,23 @@ function DrawingCanvasComponent({ disabled = false }: DrawingCanvasProps) {
     }
     updateSize();
     return () => observer.disconnect();
+  }, []);
+
+  // Track active layout to avoid duplicate keyboard shortcuts
+  useEffect(() => {
+    if (typeof window === "undefined" || !window.matchMedia) return;
+
+    const mediaQuery = window.matchMedia("(min-width: 1024px)");
+    const handleChange = () => setIsDesktopViewport(mediaQuery.matches);
+
+    handleChange();
+    if (mediaQuery.addEventListener) {
+      mediaQuery.addEventListener("change", handleChange);
+      return () => mediaQuery.removeEventListener("change", handleChange);
+    }
+
+    mediaQuery.addListener(handleChange);
+    return () => mediaQuery.removeListener(handleChange);
   }, []);
 
   const { drawCommand, clearCanvas, replayHistoryAsync } = useCanvasRenderer({
@@ -361,32 +383,20 @@ function DrawingCanvasComponent({ disabled = false }: DrawingCanvasProps) {
   }, [clearCanvas, signalRClearCanvas]);
 
   const handleUndo = useCallback(async () => {
-    if (undoPendingRef.current) return;
-
-    undoPendingRef.current = true;
     try {
-      const history = commandHistoryRef.current;
-      const lastCommand = history[history.length - 1];
-      
-      const isLastCommandAI = lastCommand?.strokeId && 
-        aiDrawingStrokeIds.includes(lastCommand.strokeId);
-      
-      if (isLastCommandAI && aiDrawingStrokeIds.length > 0) {
-        await undoAIDrawing();
-      } else {
-        await undoLastDrawCommand();
-      }
+      await undoLastDrawCommand();
     } catch (error) {
       logger.error("Failed to undo", error);
-    } finally {
-      setTimeout(() => {
-        undoPendingRef.current = false;
-      }, 150);
     }
-  }, [undoLastDrawCommand, undoAIDrawing, aiDrawingStrokeIds]);
+  }, [undoLastDrawCommand]);
+
+  const isLayoutActive = useMemo(() => {
+    if (!layout) return true;
+    return layout === "desktop" ? isDesktopViewport : !isDesktopViewport;
+  }, [layout, isDesktopViewport]);
 
   useCanvasKeyboard({
-    disabled,
+    disabled: disabled || !isLayoutActive,
     canUndo: localStrokeCount > 0,
     onClear: handleClear,
     onUndo: handleUndo,
