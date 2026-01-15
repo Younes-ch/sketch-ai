@@ -6,4 +6,5 @@ export interface DrawingCommand {
   color: string;
   width: number;
   strokeId?: string;
+  isAiGenerated?: boolean;
 }

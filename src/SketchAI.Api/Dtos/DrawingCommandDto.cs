@@ -7,4 +7,5 @@ public class DrawingCommandDto
     public string Color { get; set; } = "#000000";
     public int Width { get; set; } = 2;
     public string? StrokeId { get; set; }
+    public bool IsAiGenerated { get; set; }
 }

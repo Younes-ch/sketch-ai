@@ -591,6 +591,12 @@ public class DrawingHub : Hub
         }
     }
 
+    /// <summary>
+    /// Undoes the last drawing operation atomically.
+    /// If the last command was AI-generated, removes ALL AI commands.
+    /// Otherwise, removes all consecutive commands with the same strokeId.
+    /// Always returns the updated canvas history to all clients.
+    /// </summary>
     public async Task UndoLastDrawCommand(string roomCode)
     {
         if (!ValidationHelper.IsValidRoomCode(roomCode))
@@ -606,40 +612,12 @@ public class DrawingHub : Hub
             return;
         }
 
-        var undoCommand = await _canvasService.UndoLastDrawCommandAsync(roomCode);
+        var (removedCount, _) = await _canvasService.UndoLastDrawCommandAsync(roomCode);
 
-        if (undoCommand is not null)
-        {
-            await Clients.Group(roomCode).SendAsync("ReceiveUndo");
-            _logger.LogDebug("Undo sent to room {RoomCode}", roomCode);
-        }
-    }
-
-    public async Task UndoAIDrawing(string roomCode, string[] strokeIds)
-    {
-        if (!ValidationHelper.IsValidRoomCode(roomCode))
-        {
-            _logger.LogWarning("Invalid room code in UndoAIDrawing: {RoomCode}", roomCode);
-            return;
-        }
-
-        var room = await _roomService.GetRoomAsync(roomCode);
-        if (room?.CurrentDrawerConnectionId != Context.ConnectionId)
-        {
-            _logger.LogWarning("Non-drawer attempted AI undo in room {RoomCode}", roomCode);
-            return;
-        }
-
-        if (strokeIds.Length == 0)
-            return;
-
-        var removedCount = await _canvasService.UndoStrokesByIdsAsync(roomCode, strokeIds);
         if (removedCount > 0)
         {
             var history = await _canvasService.GetCanvasHistoryAsync(roomCode);
             await Clients.Group(roomCode).SendAsync("ReceiveCanvasHistory", history);
-            _logger.LogDebug("AI drawing undo: removed {Count} strokes, refreshed canvas for room {RoomCode}",
-                removedCount, roomCode);
         }
     }
 

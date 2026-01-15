@@ -16,25 +16,10 @@ export function useCanvasKeyboard({
   onUndo,
   onToolChange,
 }: UseCanvasKeyboardOptions) {
-  const undoPendingRef = useRef(false);
+  const isUndoKeyPressedRef = useRef(false);
 
-  const handleUndoWithDebounce = useCallback(async () => {
-    if (undoPendingRef.current) return;
-
-    undoPendingRef.current = true;
-    try {
-      await onUndo();
-    } finally {
-      setTimeout(() => {
-        undoPendingRef.current = false;
-      }, 150);
-    }
-  }, [onUndo]);
-
-  useEffect(() => {
-    if (disabled) return;
-
-    const handleKeyDown = (e: KeyboardEvent) => {
+  const handleKeyDown = useCallback(
+    (e: KeyboardEvent) => {
       const target = e.target as HTMLElement;
       if (
         target.tagName === "INPUT" ||
@@ -51,8 +36,12 @@ export function useCanvasKeyboard({
 
       if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "z" && !e.shiftKey) {
         e.preventDefault();
+        if (e.repeat || isUndoKeyPressedRef.current) {
+          return;
+        }
+        isUndoKeyPressedRef.current = true;
         if (canUndo) {
-          handleUndoWithDebounce();
+          onUndo();
         }
       }
 
@@ -72,9 +61,24 @@ export function useCanvasKeyboard({
             break;
         }
       }
-    };
+    },
+    [onClear, onUndo, canUndo, onToolChange]
+  );
+
+  const handleKeyUp = useCallback((e: KeyboardEvent) => {
+    if (e.key.toLowerCase() === "z") {
+      isUndoKeyPressedRef.current = false;
+    }
+  }, []);
+
+  useEffect(() => {
+    if (disabled) return;
 
     window.addEventListener("keydown", handleKeyDown);
-    return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [disabled, onClear, handleUndoWithDebounce, canUndo, onToolChange]);
+    window.addEventListener("keyup", handleKeyUp);
+    return () => {
+      window.removeEventListener("keydown", handleKeyDown);
+      window.removeEventListener("keyup", handleKeyUp);
+    };
+  }, [disabled, handleKeyDown, handleKeyUp]);
 }

@@ -291,7 +291,8 @@ public class AIDrawingService : IAIDrawingService
                 Points = [],
                 Color = "#000000",
                 Width = Math.Clamp(width, 1, 50),
-                StrokeId = Guid.NewGuid().ToString()
+                StrokeId = Guid.NewGuid().ToString(),
+                IsAiGenerated = true
             };
         }
 
@@ -306,7 +307,8 @@ public class AIDrawingService : IAIDrawingService
             Points = [.. clampedPoints],
             Color = validColor,
             Width = Math.Clamp(width, 1, 50),
-            StrokeId = Guid.NewGuid().ToString()
+            StrokeId = Guid.NewGuid().ToString(),
+            IsAiGenerated = true
         };
 
         queue.Enqueue(command);
@@ -328,7 +330,8 @@ public class AIDrawingService : IAIDrawingService
                 Points = [new PointDto { X = 0.5, Y = 0.5 }],
                 Color = "#000000",
                 Width = 0,
-                StrokeId = Guid.NewGuid().ToString()
+                StrokeId = Guid.NewGuid().ToString(),
+                IsAiGenerated = true
             };
         }
 
@@ -342,7 +345,8 @@ public class AIDrawingService : IAIDrawingService
             Points = [clampedPoint],
             Color = validColor,
             Width = 0,
-            StrokeId = Guid.NewGuid().ToString()
+            StrokeId = Guid.NewGuid().ToString(),
+            IsAiGenerated = true
         };
 
         queue.Enqueue(command);

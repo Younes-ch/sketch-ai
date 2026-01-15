@@ -13,18 +13,13 @@ public interface ICanvasService
     Task AddDrawingCommandAsync(string roomCode, DrawingCommandDto command);
 
     /// <summary>
-    /// Removes the last stroke command from history (for undo).
-    /// Returns the removed command, or null if history is empty.
+    /// Atomically undoes the last drawing operation.
+    /// If the last command is AI-generated, removes ALL AI-generated commands.
+    /// Otherwise, removes all consecutive commands with the same strokeId (LIFO behavior).
     /// </summary>
-    Task<DrawingCommandDto?> UndoLastDrawCommandAsync(string roomCode);
-
-    /// <summary>
-    /// Removes multiple stroke commands by their IDs atomically (for AI drawing undo).
-    /// Returns the count of removed commands.
-    /// </summary>
-    /// <param name="roomCode">The room to undo strokes in.</param>
-    /// <param name="strokeIds">The stroke IDs to remove.</param>
-    Task<int> UndoStrokesByIdsAsync(string roomCode, IEnumerable<string> strokeIds);
+    /// <param name="roomCode">The room to undo in.</param>
+    /// <returns>Tuple containing the count of removed commands and whether AI commands were removed.</returns>
+    Task<(int RemovedCount, bool WasAiGenerated)> UndoLastDrawCommandAsync(string roomCode);
 
     /// <summary>
     /// Retrieves all drawing commands for a room's canvas.

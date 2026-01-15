@@ -10,7 +10,6 @@ import { useToastStore } from "./toastStore";
 type DrawingCommandCallback = (command: DrawingCommand) => void;
 type CanvasHistoryCallback = (history: DrawingCommand[]) => void;
 type ClearCanvasCallback = () => void;
-type UndoCallback = () => void;
 type FillCommandCallback = (command: DrawingCommand) => void;
 
 // Track whether the real canvas component is subscribed to events
@@ -31,15 +30,12 @@ interface CanvasStore {
   // AI Drawing state
   isAIDrawing: boolean;
   aiDrawingError: string | null;
-  aiDrawingStrokeIds: string[]; // Track stroke IDs from AI drawing for undo;
 
   // Actions
   setPendingCanvasHistory: (history: DrawingCommand[] | null) => void;
   clearPendingCanvasHistory: () => void;
   setIsAIDrawing: (isDrawing: boolean) => void;
   setAIDrawingError: (error: string | null) => void;
-  addAIDrawingStrokeId: (strokeId: string) => void;
-  clearAIDrawingStrokeIds: () => void;
 
   // SignalR actions
   sendDrawingCommand: (command: DrawingCommand) => Promise<void>;
@@ -48,14 +44,12 @@ interface CanvasStore {
   clearCanvas: () => Promise<void>;
   startAIDrawing: () => Promise<void>;
   stopAIDrawing: () => Promise<void>;
-  undoAIDrawing: () => Promise<void>;
 
   // Event subscription methods - these now handle connection state changes
   // and will auto-bind callbacks when connection becomes available
   onReceiveDrawingCommand: (callback: DrawingCommandCallback) => () => void;
   onReceiveCanvasHistory: (callback: CanvasHistoryCallback) => () => void;
   onCanvasCleared: (callback: ClearCanvasCallback) => () => void;
-  onReceiveUndo: (callback: UndoCallback) => () => void;
   onReceiveFillCommand: (callback: FillCommandCallback) => () => void;
   onReceiveAIDrawingCommand: (callback: DrawingCommandCallback) => () => void;
 
@@ -111,22 +105,15 @@ function createConnectionAwareSubscription<T extends (...args: any[]) => void>(
   };
 }
 
-export const useCanvasStore = create<CanvasStore>((set, get) => ({
+export const useCanvasStore = create<CanvasStore>((set) => ({
   pendingCanvasHistory: null,
   isAIDrawing: false,
   aiDrawingError: null,
-  aiDrawingStrokeIds: [],
 
   setPendingCanvasHistory: (history) => set({ pendingCanvasHistory: history }),
   clearPendingCanvasHistory: () => set({ pendingCanvasHistory: null }),
   setIsAIDrawing: (isDrawing) => set({ isAIDrawing: isDrawing }),
   setAIDrawingError: (error) => set({ aiDrawingError: error }),
-  addAIDrawingStrokeId: (strokeId) => set((state) => (
-    state.aiDrawingStrokeIds.includes(strokeId)
-      ? state
-      : { aiDrawingStrokeIds: [...state.aiDrawingStrokeIds, strokeId] }
-  )),
-  clearAIDrawingStrokeIds: () => set({ aiDrawingStrokeIds: [] }),
 
   sendDrawingCommand: async (command) => {
     const { connection, isConnected } = useConnectionStore.getState();
@@ -173,7 +160,7 @@ export const useCanvasStore = create<CanvasStore>((set, get) => ({
     }
 
     try {
-      set({ aiDrawingError: null, aiDrawingStrokeIds: [], isAIDrawing: true });
+      set({ aiDrawingError: null, isAIDrawing: true });
       await connection.invoke("StartAiDrawing");
     } catch (error) {
       logger.error("Failed to start AI drawing", error);
@@ -204,32 +191,6 @@ export const useCanvasStore = create<CanvasStore>((set, get) => ({
     }
   },
 
-  undoAIDrawing: async () => {
-    const { connection, isConnected } = useConnectionStore.getState();
-    const { roomCode } = useRoomStore.getState();
-    const { aiDrawingStrokeIds } = get();
-    
-    if (!isConnected() || !connection || !roomCode) {
-      logger.warn("Cannot undo AI drawing: not connected or not in room");
-      return;
-    }
-
-    if (aiDrawingStrokeIds.length === 0) {
-      logger.warn("No AI drawing strokes to undo");
-      return;
-    }
-
-    try {
-      // Use batch undo endpoint for atomic removal
-      await connection.invoke("UndoAIDrawing", roomCode, aiDrawingStrokeIds);
-      set({ aiDrawingStrokeIds: [] });
-      logger.info(`Undid ${aiDrawingStrokeIds.length} AI drawing strokes`);
-    } catch (error) {
-      logger.error("Failed to undo AI drawing", error);
-      useToastStore.getState().addToast(parseHubError(error), "error", 5000);
-    }
-  },
-
   onReceiveDrawingCommand: (callback) => {
     return createConnectionAwareSubscription("ReceiveDrawingCommand", callback);
   },
@@ -240,10 +201,6 @@ export const useCanvasStore = create<CanvasStore>((set, get) => ({
 
   onCanvasCleared: (callback) => {
     return createConnectionAwareSubscription("CanvasCleared", callback);
-  },
-
-  onReceiveUndo: (callback) => {
-    return createConnectionAwareSubscription("ReceiveUndo", callback);
   },
 
   onReceiveFillCommand: (callback) => {
@@ -259,13 +216,11 @@ export const useCanvasStore = create<CanvasStore>((set, get) => ({
       pendingCanvasHistory: null,
       isAIDrawing: false,
       aiDrawingError: null,
-      aiDrawingStrokeIds: [],
     }),
 }));
 
 // Setup SignalR event handlers for canvas events
 export function setupCanvasEventHandlers() {
-  const seenStrokeIds = new Set<string>();
   const connection = useConnectionStore.getState().connection;
   if (!connection) return () => {};
 
@@ -285,8 +240,6 @@ export function setupCanvasEventHandlers() {
     logger.info("AI drawing started");
     useCanvasStore.getState().setIsAIDrawing(true);
     useCanvasStore.getState().setAIDrawingError(null);
-    useCanvasStore.getState().clearAIDrawingStrokeIds();
-    seenStrokeIds.clear();
   };
 
   const handleAIDrawingStopped = () => {
@@ -301,25 +254,15 @@ export function setupCanvasEventHandlers() {
     useToastStore.getState().addToast(error, "error", 5000);
   };
 
-  // Track AI drawing stroke IDs for undo functionality
-  const handleAIDrawingCommand = (command: DrawingCommand) => {
-    if (command.strokeId && !seenStrokeIds.has(command.strokeId)) {
-      seenStrokeIds.add(command.strokeId);
-      useCanvasStore.getState().addAIDrawingStrokeId(command.strokeId);
-    }
-  };
-
   connection.on("ReceiveCanvasHistory", handleCanvasHistoryFallback);
   connection.on("AIDrawingStarted", handleAIDrawingStarted);
   connection.on("AIDrawingStopped", handleAIDrawingStopped);
   connection.on("AIDrawingError", handleAIDrawingError);
-  connection.on("AIDrawingCommand", handleAIDrawingCommand);
 
   return () => {
     connection.off("ReceiveCanvasHistory", handleCanvasHistoryFallback);
     connection.off("AIDrawingStarted", handleAIDrawingStarted);
     connection.off("AIDrawingStopped", handleAIDrawingStopped);
     connection.off("AIDrawingError", handleAIDrawingError);
-    connection.off("AIDrawingCommand", handleAIDrawingCommand);
   };
 }

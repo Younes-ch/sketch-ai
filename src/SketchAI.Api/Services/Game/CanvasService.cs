@@ -10,45 +10,45 @@ public class CanvasService : ICanvasService
         PropertyNamingPolicy = JsonNamingPolicy.CamelCase
     };
 
-    private const string UndoStrokeLuaScript = @"
-            local key = KEYS[1]
-            local strokeId = ARGV[1]
-            local count = 0
-
-            while true do
-                local value = redis.call('LINDEX', key, -1)
-                if not value then
-                    break
-                end
-                
-                local command = cjson.decode(value)
-                if command.strokeId ~= strokeId then
-                    break
-                end
-                
-                redis.call('RPOP', key)
-                count = count + 1
-            end
-
-            return count
-            ";
-
-    private const string UndoStrokesByIdsLuaScript = @"
-            local key = KEYS[1]
-            local strokeIds = {}
-            for i = 1, #ARGV do
-                strokeIds[ARGV[i]] = true
-            end
-            
+    /// <summary>
+    /// Atomic undo script that handles both regular strokes and AI-generated commands.
+    /// 
+    /// Logic:
+    /// 1. Pop the last command from the list
+    /// 2. If the last command is AI-generated, remove ALL AI-generated commands from the entire list
+    /// 3. If the last command is NOT AI-generated, remove all consecutive commands from the tail 
+    ///    that share the same strokeId (LIFO behavior for multi-segment strokes)
+    /// 
+    /// Returns: JSON object with removedCount and wasAiGenerated flag
+    /// </summary>
+    private const string AtomicUndoLuaScript = """
+        local key = KEYS[1]
+        local count = 0
+        
+        -- Pop the last command
+        local lastValue = redis.call('RPOP', key)
+        if not lastValue then
+            return cjson.encode({ removedCount = 0, wasAiGenerated = false })
+        end
+        
+        local ok, lastCommand = pcall(cjson.decode, lastValue)
+        if not ok then
+            return cjson.encode({ removedCount = 1, wasAiGenerated = false })
+        end
+        
+        count = 1
+        local wasAiGenerated = lastCommand.isAiGenerated == true
+        
+        if wasAiGenerated then
+            -- Remove ALL AI-generated commands from the list
             local len = redis.call('LLEN', key)
-            local count = 0
             local i = 0
             
             while i < len do
                 local value = redis.call('LINDEX', key, i)
                 if value then
-                    local ok, command = pcall(cjson.decode, value)
-                    if ok and command.strokeId and strokeIds[command.strokeId] then
+                    local parseOk, command = pcall(cjson.decode, value)
+                    if parseOk and command.isAiGenerated == true then
                         redis.call('LSET', key, i, '__DELETED__')
                         count = count + 1
                     end
@@ -57,8 +57,29 @@ public class CanvasService : ICanvasService
             end
             
             redis.call('LREM', key, 0, '__DELETED__')
-            return count
-            ";
+        else
+            -- Remove consecutive commands with the same strokeId from the tail
+            local strokeId = lastCommand.strokeId
+            if strokeId then
+                while true do
+                    local value = redis.call('LINDEX', key, -1)
+                    if not value then
+                        break
+                    end
+                    
+                    local parseOk, command = pcall(cjson.decode, value)
+                    if not parseOk or command.strokeId ~= strokeId then
+                        break
+                    end
+                    
+                    redis.call('RPOP', key)
+                    count = count + 1
+                end
+            end
+        end
+        
+        return cjson.encode({ removedCount = count, wasAiGenerated = wasAiGenerated })
+        """;
 
     public CanvasService(IConnectionMultiplexer redis, ILogger<CanvasService> logger)
     {
@@ -83,86 +104,36 @@ public class CanvasService : ICanvasService
         }
     }
 
-    public async Task<DrawingCommandDto?> UndoLastDrawCommandAsync(string roomCode)
+    public async Task<(int RemovedCount, bool WasAiGenerated)> UndoLastDrawCommandAsync(string roomCode)
     {
-        var key = RedisKeys.CanvasHistory(roomCode);
-
-        var lastCommandValue = await RedisHelper.SafeExecuteAsync(
-            () => _db.ListRightPopAsync(key),
-            _logger,
-            $"UndoLastDrawCommand:{roomCode}",
-            RedisValue.Null);
-
-        if (lastCommandValue.IsNullOrEmpty)
-            return null;
-
-        DrawingCommandDto? lastCommand;
-        try
-        {
-            lastCommand = JsonSerializer.Deserialize<DrawingCommandDto>(lastCommandValue.ToString(), JsonOptions);
-            if (lastCommand is null)
-                return null;
-
-        }
-        catch (JsonException ex)
-        {
-            _logger.LogError(ex, "Failed to deserialize drawing command during undo in room {RoomCode}", roomCode);
-            return null;
-        }
-
-
-        if (!string.IsNullOrEmpty(lastCommand.StrokeId))
-        {
-            var strokeIdToRemove = lastCommand.StrokeId;
-            var removedCount = await RedisHelper.SafeExecuteAsync(
-                () => _db.ScriptEvaluateAsync(
-                    UndoStrokeLuaScript,
-                    [key],
-                    [strokeIdToRemove]),
-                _logger,
-                $"UndoStrokeLuaScript:{roomCode}",
-                RedisResult.Create(0, ResultType.Integer));
-
-            var totalRemoved = removedCount is null || removedCount.IsNull ? 1 : (int)removedCount + 1;
-
-            _logger.LogDebug("Undo: removed {Count} commands with strokeId {StrokeId} from room {RoomCode}",
-                totalRemoved, strokeIdToRemove, roomCode);
-        }
-
-        return lastCommand;
-    }
-
-    public async Task<int> UndoStrokesByIdsAsync(string roomCode, IEnumerable<string> strokeIds)
-    {
-        var strokeIdArray = strokeIds.ToArray();
-        if (strokeIdArray.Length == 0)
-            return 0;
-
-        if (strokeIdArray.Any(string.IsNullOrWhiteSpace))
-        {
-            _logger.LogWarning("Attempted to undo strokes with empty stroke IDs in room {RoomCode}", roomCode);
-            strokeIdArray = strokeIdArray.Where(id => !string.IsNullOrWhiteSpace(id)).ToArray();
-            if (strokeIdArray.Length == 0)
-                return 0;
-        }
-
         var key = RedisKeys.CanvasHistory(roomCode);
 
         var result = await RedisHelper.SafeExecuteAsync(
-            () => _db.ScriptEvaluateAsync(
-                UndoStrokesByIdsLuaScript,
-                [key],
-                strokeIdArray.Select(id => (RedisValue)id).ToArray()),
+            () => _db.ScriptEvaluateAsync(AtomicUndoLuaScript, [key]),
             _logger,
-            $"UndoStrokesByIds:{roomCode}",
-            RedisResult.Create(0, ResultType.Integer));
+            $"AtomicUndo:{roomCode}",
+            RedisResult.Create("{\"removedCount\":0,\"wasAiGenerated\":false}", ResultType.BulkString));
 
-        var removedCount = result is null || result.IsNull ? 0 : (int)result;
+        if (result is null || result.IsNull)
+            return (0, false);
 
-        _logger.LogDebug("Batch undo: removed {Count} commands for {StrokeCount} stroke IDs from room {RoomCode}",
-            removedCount, strokeIdArray.Length, roomCode);
+        try
+        {
+            var resultJson = result.ToString();
+            using var doc = JsonDocument.Parse(resultJson);
+            var removedCount = doc.RootElement.GetProperty("removedCount").GetInt32();
+            var wasAiGenerated = doc.RootElement.GetProperty("wasAiGenerated").GetBoolean();
 
-        return removedCount;
+            _logger.LogDebug("Undo: removed {Count} commands (AI: {WasAi}) from room {RoomCode}",
+                removedCount, wasAiGenerated, roomCode);
+
+            return (removedCount, wasAiGenerated);
+        }
+        catch (JsonException ex)
+        {
+            _logger.LogError(ex, "Failed to parse undo result in room {RoomCode}", roomCode);
+            return (0, false);
+        }
     }
 
     public async Task<List<DrawingCommandDto>> GetCanvasHistoryAsync(string roomCode)

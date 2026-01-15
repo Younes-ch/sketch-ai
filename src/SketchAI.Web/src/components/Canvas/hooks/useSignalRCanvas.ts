@@ -23,7 +23,6 @@ export function useSignalRCanvas({
   const onReceiveDrawingCommand = useCanvasStore((s) => s.onReceiveDrawingCommand);
   const onReceiveCanvasHistory = useCanvasStore((s) => s.onReceiveCanvasHistory);
   const onCanvasCleared = useCanvasStore((s) => s.onCanvasCleared);
-  const onReceiveUndo = useCanvasStore((s) => s.onReceiveUndo);
   const onReceiveFillCommand = useCanvasStore((s) => s.onReceiveFillCommand);
   const onReceiveAIDrawingCommand = useCanvasStore((s) => s.onReceiveAIDrawingCommand);
   const pendingCanvasHistory = useCanvasStore((s) => s.pendingCanvasHistory);
@@ -47,28 +46,6 @@ export function useSignalRCanvas({
     },
     [commandHistoryRef, clearCanvas, replayHistoryAsync, clearPendingCanvasHistory, onLocalStrokeCountChange]
   );
-
-  const handleUndo = useCallback(() => {
-    logger.info("Received undo command - replaying canvas");
-    const history = commandHistoryRef.current;
-
-    if (history.length === 0) return;
-
-    const lastCommand = history[history.length - 1];
-    const strokeIdToRemove = lastCommand.strokeId;
-
-    if (strokeIdToRemove) {
-      commandHistoryRef.current = history.filter(
-        (cmd) => cmd.strokeId !== strokeIdToRemove
-      );
-    } else {
-      commandHistoryRef.current = history.slice(0, -1);
-    }
-
-    clearCanvas();
-    replayHistoryAsync(commandHistoryRef.current);
-    onLocalStrokeCountChange((prev) => Math.max(0, prev - 1));
-  }, [commandHistoryRef, clearCanvas, replayHistoryAsync, onLocalStrokeCountChange]);
 
   useEffect(() => {
     if (!pendingCanvasHistory || pendingCanvasHistory.length === 0) {
@@ -101,8 +78,6 @@ export function useSignalRCanvas({
       onLocalStrokeCountChange(0);
     });
 
-    const unsubUndo = onReceiveUndo(handleUndo);
-
     const unsubFill = onReceiveFillCommand((command: DrawingCommand) => {
       logger.info("Received fill command");
       commandHistoryRef.current.push(command);
@@ -110,7 +85,7 @@ export function useSignalRCanvas({
     });
 
     const unsubAIDrawing = onReceiveAIDrawingCommand((command: DrawingCommand) => {
-      logger.info("Received AI drawing command", command.strokeId);
+      logger.debug("Received AI drawing command", command.strokeId);
       if (command.strokeId && !seenAiStrokeIdsRef.current.has(command.strokeId)) {
         seenAiStrokeIdsRef.current.add(command.strokeId);
         onLocalStrokeCountChange((prev) => prev + 1);
@@ -122,7 +97,6 @@ export function useSignalRCanvas({
       unsubDrawing();
       unsubHistory();
       unsubClear();
-      unsubUndo();
       unsubFill();
       unsubAIDrawing();
       seenAiStrokeIds.clear();
@@ -132,13 +106,11 @@ export function useSignalRCanvas({
     onReceiveDrawingCommand,
     onReceiveCanvasHistory,
     onCanvasCleared,
-    onReceiveUndo,
     onReceiveFillCommand,
     onReceiveAIDrawingCommand,
     drawCommand,
     clearCanvas,
     handleReceiveHistory,
-    handleUndo,
     onLocalStrokeCountChange,
   ]);
 
