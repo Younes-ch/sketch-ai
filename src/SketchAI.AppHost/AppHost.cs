@@ -6,7 +6,6 @@ var redis = builder
 
 var p_githubModelsApiKey = builder.AddParameter("gh-models-api-key", secret: true);
 var p_googleGeminiApiKey = builder.AddParameter("google-gemini-api-key", secret: true);
-var p_googleGeminiModelId = builder.AddParameter("google-gemini-model-id");
 
 var gpt4OMini = builder
     .AddGitHubModel("gpt-4o-mini", Aspire.Hosting.GitHub.GitHubModel.OpenAI.OpenAIGpt4oMini)
@@ -31,7 +30,6 @@ var apiService = builder
     .WithReference(redis)
     .WithReference(gpt4OMini)
     .WithEnvironment("GOOGLE_GEMINI_KEY", p_googleGeminiApiKey)
-    .WithEnvironment("GOOGLE_GEMINI_MODEL_ID", p_googleGeminiModelId)
     .WaitFor(redis);
 
 var webfrontend = builder

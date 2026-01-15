@@ -6,14 +6,7 @@ builder.AddOpenAIClient("gpt-4o-mini")
        .AddKeyedChatClient("gpt-4o-mini")
        .UseFunctionInvocation();
 
-var options = new GeminiClientOptions
-{
-    ApiKey = builder.Configuration["GOOGLE_GEMINI_KEY"] ?? throw new InvalidOperationException("Gemini API key is not configured."),
-    ModelId = builder.Configuration["GOOGLE_GEMINI_MODEL_ID"] ?? "gemini-3-flash-preview",
-};
-
-builder.Services.AddKeyedChatClient("gemini-model", new GeminiChatClient(options))
-                .UseFunctionInvocation();
+builder.Services.AddGoogleModels(builder.Configuration);
 
 
 // Add services to the container.
