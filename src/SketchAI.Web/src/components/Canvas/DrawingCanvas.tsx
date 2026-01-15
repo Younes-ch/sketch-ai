@@ -365,7 +365,13 @@ function DrawingCanvasComponent({ disabled = false }: DrawingCanvasProps) {
 
     undoPendingRef.current = true;
     try {
-      if (aiDrawingStrokeIds.length > 0) {
+      const history = commandHistoryRef.current;
+      const lastCommand = history[history.length - 1];
+      
+      const isLastCommandAI = lastCommand?.strokeId && 
+        aiDrawingStrokeIds.includes(lastCommand.strokeId);
+      
+      if (isLastCommandAI && aiDrawingStrokeIds.length > 0) {
         await undoAIDrawing();
       } else {
         await undoLastDrawCommand();
@@ -377,7 +383,7 @@ function DrawingCanvasComponent({ disabled = false }: DrawingCanvasProps) {
         undoPendingRef.current = false;
       }, 150);
     }
-  }, [undoLastDrawCommand, undoAIDrawing, aiDrawingStrokeIds.length]);
+  }, [undoLastDrawCommand, undoAIDrawing, aiDrawingStrokeIds]);
 
   useCanvasKeyboard({
     disabled,
