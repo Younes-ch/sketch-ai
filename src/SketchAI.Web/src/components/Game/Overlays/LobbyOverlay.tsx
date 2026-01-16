@@ -1,7 +1,7 @@
-import { motion } from "framer-motion";
 import { RoomSettingsPanel } from "@/components/Lobby";
 import { cn } from "@/lib/utils";
-import type { Player, RoomSettings } from "@/models";
+import { type Player, type RoomSettings, WORD_PRESETS } from "@/models";
+import { motion } from "framer-motion";
 
 interface LobbyOverlayProps {
   players: Player[];
@@ -12,6 +12,19 @@ interface LobbyOverlayProps {
   onSettingsChange: (settings: Partial<RoomSettings>) => void;
   onStartGame: () => void;
   variant?: "desktop" | "mobile";
+}
+
+function getWordSourceSummary(settings: RoomSettings): string {
+  if (settings.customWords) {
+    return "📑 Custom words";
+  }
+  if (settings.wordPreset) {
+    const preset = WORD_PRESETS.find((p) => p.id === settings.wordPreset);
+    return preset ? `${preset.emoji} ${preset.name}` : settings.wordPreset;
+  }
+  return `🎯${
+    settings.difficulty.charAt(0).toUpperCase() + settings.difficulty.slice(1)
+  }`;
 }
 
 export function LobbyOverlay({
@@ -84,8 +97,9 @@ export function LobbyOverlay({
           <p>
             ⏱️ {roomSettings.drawTimeSeconds}s • 🔄 {roomSettings.totalRounds}{" "}
             round
-            {roomSettings.totalRounds !== 1 ? "s" : ""} • 🎯{" "}
-            {roomSettings.difficulty}
+            {roomSettings.totalRounds !== 1 ? "s" : ""} •
+            {getWordSourceSummary(roomSettings)} • 👥 {players.length}/
+            {roomSettings.maxPlayers} players
           </p>
         </div>
       )}

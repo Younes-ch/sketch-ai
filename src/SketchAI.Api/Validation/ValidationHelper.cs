@@ -15,6 +15,9 @@ public static partial class ValidationHelper
     private const int RoomCodeLength = 6;
     private const int MinBrushWidth = 1;
     private const int MaxBrushWidth = 50;
+    private const int MaxCustomWordsLength = 2000;
+    private const int MinCustomWordCount = 3;
+    private const int MaxCustomWordLength = 50;
 
     // Valid drawing command types
     private static readonly HashSet<string> ValidCommandTypes = ["stroke", "clear", "fill"];
@@ -59,8 +62,51 @@ public static partial class ValidationHelper
             return (false,
                 $"Word choices count must be between {gameSettings.MinWordChoices}-{gameSettings.MaxWordChoices}");
 
-        if (!gameSettings.AllowedDifficulties.Contains(roomSettings.Difficulty))
-            return (false, "Difficulty is not recognized");
+        if (!string.IsNullOrWhiteSpace(roomSettings.CustomWords))
+        {
+            var customWordsValidation = ValidateCustomWords(roomSettings.CustomWords, roomSettings.WordChoiceCount);
+            if (!customWordsValidation.IsValid)
+                return customWordsValidation;
+        }
+        else if (!string.IsNullOrWhiteSpace(roomSettings.WordPreset))
+        {
+            if (!gameSettings.AllowedPresets.Contains(roomSettings.WordPreset.ToLowerInvariant()))
+                return (false, "Word preset is not recognized");
+        }
+        else
+        {
+            if (!gameSettings.AllowedDifficulties.Contains(roomSettings.Difficulty))
+                return (false, "Difficulty is not recognized");
+        }
+
+        return (true, null);
+    }
+
+    /// <summary>
+    /// Validates custom words string.
+    /// </summary>
+    /// <param name="customWords">Comma-separated custom words string.</param>
+    /// <param name="minWordCount">Minimum number of words required (at least equal to word choice count).</param>
+    /// <returns>Validation result.</returns>
+    public static (bool IsValid, string? ErrorMessage) ValidateCustomWords(string customWords, int minWordCount = MinCustomWordCount)
+    {
+        if (customWords.Length > MaxCustomWordsLength)
+            return (false, $"Custom words must be less than {MaxCustomWordsLength} characters");
+
+        var words = customWords
+            .Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
+            .Select(w => WordHelper.SanitizeWord(w))
+            .Where(w => !string.IsNullOrWhiteSpace(w))
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .ToList();
+
+        var requiredCount = Math.Max(minWordCount, MinCustomWordCount);
+        if (words.Count < requiredCount)
+            return (false, $"At least {requiredCount} unique custom words are required");
+
+        var longWords = words.Where(w => w.Length > MaxCustomWordLength).ToList();
+        if (longWords.Count > 0)
+            return (false, $"Words must be less than {MaxCustomWordLength} characters");
 
         return (true, null);
     }

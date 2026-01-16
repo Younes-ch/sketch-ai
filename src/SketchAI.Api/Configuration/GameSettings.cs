@@ -21,4 +21,15 @@ public class GameSettings
         100, 120, 150, 180, 210, 240
     ];
     public List<string> AllowedDifficulties { get; set; } = ["easy", "medium", "hard", "mixed"];
+    public List<string> AllowedPresets { get; set; } =
+    [
+        "lol-champions",
+        "valorant-agents",
+        "animals",
+        "country-flags",
+        "food-and-drinks",
+        "sports",
+        "professions",
+        "video-games",
+    ];
 }
