@@ -20,6 +20,7 @@ public class AIDrawingService : IAIDrawingService
 
     public async IAsyncEnumerable<DrawingCommandDto> GenerateDrawingCommandAsync(
         string word,
+        string? preset = null,
         [EnumeratorCancellation] CancellationToken ct = default)
     {
         var sanitizedWord = WordHelper.SanitizeWord(word);
@@ -89,7 +90,7 @@ public class AIDrawingService : IAIDrawingService
                 name: "draw_fill",
                 description: "Fill an area on the canvas starting from a point. Use for coloring large areas.");
 
-            var prompt = BuildPrompt(sanitizedWord);
+            var prompt = BuildPrompt(sanitizedWord, preset);
             var messages = new List<ChatMessage>
             {
                 new(ChatRole.System, "You are a drawing function caller. Never output text. Only call draw_stroke and draw_fill functions."),
@@ -240,20 +241,21 @@ public class AIDrawingService : IAIDrawingService
         throw new AIDrawingException(ProvidersExhaustedMessage);
     }
 
-    private static string BuildPrompt(string word) =>
+    private static string BuildPrompt(string word, string? preset = null) =>
         $$"""
          You are a drawing AI. Your ONLY task is to call drawing functions. Do NOT write any text responses.
 
          CANVAS: Normalized coordinates 0.0-1.0. (0,0)=top-left, (1,1)=bottom-right.
 
          WORD TO DRAW: "{{word}}"
+         {{(preset is not null ? $"CATEGORY: {preset}" : "")}}
 
          DRAWING TOOLS:
          - draw_stroke(points, color, width): Draw lines/shapes. Points is an array of {x, y} coordinates.
          - draw_fill(point, color): Flood-fill an enclosed area starting from a single point.
 
          INSTRUCTIONS:
-         1. Draw a simple, recognizable representation of "{{word}}"
+         1. Draw a simple, recognizable representation of "{{word}}" {{(preset is not null ? $"from the category '{preset}'" : "")}}.
          2. Use draw_stroke for lines, shapes, and outlines (pass array of points)
          3. Use draw_fill for flood-filling enclosed areas with color (single start point)
          4. Use multiple colors - be creative but keep it simple

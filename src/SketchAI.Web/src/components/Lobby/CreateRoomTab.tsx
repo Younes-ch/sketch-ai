@@ -1,6 +1,6 @@
 import { cn } from "@/lib/utils";
-import { useState } from "react";
-import { defaultRoomSettings, type RoomSettings } from "@/models";
+import { useState, useMemo } from "react";
+import { defaultRoomSettings, WORD_PRESETS, type RoomSettings } from "@/models";
 import RoomSettingsPanel from "./RoomSettingsPanel";
 import { Button } from "@/components/ui";
 
@@ -11,6 +11,34 @@ interface CreateRoomTabProps {
   isJoining: boolean;
   isDisabled: boolean;
   error: string | null;
+}
+
+// Helper to get word source summary
+function getWordSourceSummary(settings: RoomSettings): string {
+  if (settings.customWords) {
+    const wordCount = settings.customWords
+      .split(",")
+      .filter((w) => w.trim().length > 0).length;
+    return `${wordCount} custom words`;
+  }
+  if (settings.wordPreset) {
+    const preset = WORD_PRESETS.find((p) => p.id === settings.wordPreset);
+    return preset ? `${preset.emoji} ${preset.name}` : settings.wordPreset;
+  }
+  return (
+    settings.difficulty.charAt(0).toUpperCase() + settings.difficulty.slice(1)
+  );
+}
+
+// Helper to check if custom words are valid
+function isCustomWordsValid(settings: RoomSettings): boolean {
+  if (!settings.customWords) return true;
+  const words = settings.customWords
+    .split(",")
+    .map((w) => w.trim())
+    .filter((w) => w.length > 0);
+  const uniqueWords = [...new Set(words.map((w) => w.toLowerCase()))];
+  return uniqueWords.length >= Math.max(3, settings.wordChoiceCount);
 }
 
 export default function CreateRoomTab({
@@ -33,6 +61,18 @@ export default function CreateRoomTab({
   const handleSubmit = (e: React.FormEvent) => {
     onSubmit(e, settings);
   };
+
+  const wordSourceSummary = useMemo(
+    () => getWordSourceSummary(settings),
+    [settings]
+  );
+
+  const hasValidCustomWords = useMemo(
+    () => isCustomWordsValid(settings),
+    [settings]
+  );
+
+  const isFormDisabled = isDisabled || !hasValidCustomWords;
 
   return (
     <form onSubmit={handleSubmit} className="flex flex-col gap-4">
@@ -83,8 +123,7 @@ export default function CreateRoomTab({
             <p className="text-white/50 text-xs">
               {settings.totalRounds} round
               {settings.totalRounds === 1 ? "" : "s"} • {settings.maxPlayers}{" "}
-              players max • {settings.drawTimeSeconds}s draw time •{" "}
-              {settings.difficulty}
+              players max • {settings.drawTimeSeconds}s • {wordSourceSummary}
             </p>
           </div>
         </div>
@@ -114,12 +153,19 @@ export default function CreateRoomTab({
         </div>
       )}
 
+      {!hasValidCustomWords && settings.customWords && (
+        <div className="bg-warning/20 border-2 border-warning rounded-xl p-3 text-warning text-sm animate-in slide-in-from-top-2 fade-in-0">
+          Please add at least {Math.max(3, settings.wordChoiceCount)} unique
+          custom words to create a room
+        </div>
+      )}
+
       <Button
         type="submit"
         variant="primary"
         size="lg"
         isLoading={isJoining}
-        disabled={isDisabled}
+        disabled={isFormDisabled}
         className="mt-2 text-xl font-black w-full"
       >
         {isJoining ? "Creating..." : "CREATE & PLAY!"}

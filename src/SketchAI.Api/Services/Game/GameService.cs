@@ -58,7 +58,7 @@ public class GameService : IGameService
 
         var drawer = room.Players.First(p => p.IsHost);
         room.Phase = GamePhase.WordSelection;
-        room.WordChoices = _wordService.GetRandomWords(room.Settings.WordChoiceCount, room.Settings.Difficulty);
+        room.WordChoices = _wordService.GetRandomWordsForRoom(room.Settings);
         room.CurrentDrawerConnectionId = drawer.ConnectionId;
         room.RoundNumber = 1;
         room.CurrentWord = null;
@@ -369,7 +369,7 @@ public class GameService : IGameService
         room.Phase = GamePhase.WordSelection;
         room.CurrentDrawerConnectionId = nextDrawer.ConnectionId;
         room.CurrentWord = null;
-        room.WordChoices = _wordService.GetRandomWords(room.Settings.WordChoiceCount, room.Settings.Difficulty);
+        room.WordChoices = _wordService.GetRandomWordsForRoom(room.Settings);
         room.PlayersWhoGuessed.Clear();
         room.RoundStartedAt = null;
 

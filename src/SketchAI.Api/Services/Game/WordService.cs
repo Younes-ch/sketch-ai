@@ -3,15 +3,34 @@
 public class WordService : IWordService
 {
     private readonly Dictionary<string, List<string>> _wordsByDifficulty;
+    private readonly Dictionary<string, List<string>> _wordPresets;
 
     public WordService()
     {
         var wordsFilePath = Path.Combine(AppContext.BaseDirectory, "Data", "words.json");
-        var wordsFileContent = File.ReadAllText(wordsFilePath);
-        _wordsByDifficulty = JsonSerializer.Deserialize<Dictionary<string, List<string>>>(wordsFileContent) ?? [];
+        if (File.Exists(wordsFilePath))
+        {
+            var wordsFileContent = File.ReadAllText(wordsFilePath);
+            _wordsByDifficulty = JsonSerializer.Deserialize<Dictionary<string, List<string>>>(wordsFileContent) ?? [];
+        }
+        else
+        {
+            _wordsByDifficulty = [];
+        }
+
+        var presetsFilePath = Path.Combine(AppContext.BaseDirectory, "Data", "word-presets.json");
+        if (File.Exists(presetsFilePath))
+        {
+            var presetsFileContent = File.ReadAllText(presetsFilePath);
+            _wordPresets = JsonSerializer.Deserialize<Dictionary<string, List<string>>>(presetsFileContent) ?? [];
+        }
+        else
+        {
+            _wordPresets = [];
+        }
     }
 
-    public List<string> GetRandomWords(int count = 3, string difficulty = "mixed")
+    public List<string> GetRandomWordsByDifficulty(int count = 3, string difficulty = "mixed")
     {
         List<string> wordPool = [];
         if (difficulty != "mixed")
@@ -31,7 +50,70 @@ public class WordService : IWordService
             }
         }
 
-        return wordPool.Shuffle().Take(count).ToList();
+        return wordPool.Shuffle().Take(Math.Min(count, wordPool.Count)).ToList();
+    }
+
+    public List<string> GetRandomWordsFromPreset(string presetName, int count = 3)
+    {
+        if (string.IsNullOrWhiteSpace(presetName))
+        {
+            throw new ArgumentException("Preset name cannot be empty", nameof(presetName));
+        }
+
+        var normalizedPreset = presetName.ToLowerInvariant();
+        if (!_wordPresets.TryGetValue(normalizedPreset, out var presetWords))
+        {
+            throw new ArgumentException($"Unknown preset: {presetName}", nameof(presetName));
+        }
+
+        return presetWords.Count == 0
+            ? throw new InvalidOperationException($"Preset '{presetName}' has no words")
+            : presetWords.Shuffle().Take(Math.Min(count, presetWords.Count)).ToList();
+    }
+
+    public List<string> GetRandomWordsFromCustomList(string customWords, int count = 3)
+    {
+        if (string.IsNullOrWhiteSpace(customWords))
+        {
+            throw new ArgumentException("Custom words cannot be empty", nameof(customWords));
+        }
+
+        var words = customWords
+            .Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
+            .Select(WordHelper.SanitizeWord)
+            .Where(w => !string.IsNullOrWhiteSpace(w))
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .ToList();
+
+        if (words.Count == 0)
+        {
+            throw new ArgumentException("No valid words found in custom words list", nameof(customWords));
+        }
+
+        return words.Shuffle().Take(Math.Min(count, words.Count)).ToList();
+    }
+
+    public List<string> GetRandomWordsForRoom(RoomSettingsDto settings)
+    {
+        var count = settings.WordChoiceCount;
+
+        // Priority: Custom words > Preset > Difficulty
+        if (!string.IsNullOrWhiteSpace(settings.CustomWords))
+        {
+            return GetRandomWordsFromCustomList(settings.CustomWords, count);
+        }
+
+        if (!string.IsNullOrWhiteSpace(settings.WordPreset))
+        {
+            return GetRandomWordsFromPreset(settings.WordPreset, count);
+        }
+
+        return GetRandomWordsByDifficulty(count, settings.Difficulty);
+    }
+
+    public List<string> GetAvailablePresets()
+    {
+        return [.. _wordPresets.Keys.OrderBy(k => k)];
     }
 
     public string GetWordHint(string word)

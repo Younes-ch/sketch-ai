@@ -430,7 +430,7 @@ public class DrawingHub : Hub
 
             try
             {
-                await foreach (var command in _aiDrawingService.GenerateDrawingCommandAsync(wordToDraw, ct))
+                await foreach (var command in _aiDrawingService.GenerateDrawingCommandAsync(wordToDraw, room.Settings.WordPreset, ct))
                 {
                     // Check if cancelled before sending
                     if (ct.IsCancellationRequested)

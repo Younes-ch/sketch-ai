@@ -64,17 +64,15 @@ export function GameEndOverlay({
           transition={{ delay: 2.5 }}
           className={cn(
             "w-full max-w-xs bg-card/50 rounded-xl p-4 border border-card-border",
-            isMobile ? "mt-3 hidden" : "mt-4"
+            isMobile ? "mt-3" : "mt-4"
           )}
         >
-          {!isMobile && (
-            <RoomSettingsPanel
-              settings={roomSettings}
-              onChange={onSettingsChange}
-              disabled={isUpdatingSettings}
-              compact
-            />
-          )}
+          <RoomSettingsPanel
+            settings={roomSettings}
+            onChange={onSettingsChange}
+            disabled={isUpdatingSettings}
+            compact
+          />
         </motion.div>
       )}
 
