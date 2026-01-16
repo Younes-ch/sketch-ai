@@ -9,6 +9,11 @@ public static class RedisKeys
     public static string WordExplanation(string word, string targetLanguage) =>
         $"word_explanation:{word.ToLowerInvariant()}:{targetLanguage.ToLowerInvariant()}";
 
+    public static string ImageHints(string word, string? preset) =>
+        string.IsNullOrEmpty(preset)
+            ? $"image_hints:{word.ToLowerInvariant()}"
+            : $"image_hints:{word.ToLowerInvariant()}:{preset.ToLowerInvariant()}";
+
     public static string PublicRooms => "public_rooms";
     public static string RoomsInDrawingPhase => "drawing_phase_rooms";
 

@@ -10,6 +10,7 @@ public class DrawingHub : Hub
     private readonly IGameService _gameService;
     private readonly IWordService _wordService;
     private readonly IWordExplanationService _wordExplanationService;
+    private readonly IImageHintService _imageHintService;
     private readonly IAIDrawingService _aiDrawingService;
     private readonly IAIDrawingCancellationManager _aiCancellationManager;
     private readonly IHubContext<DrawingHub> _hubContext;
@@ -22,6 +23,7 @@ public class DrawingHub : Hub
         IGameService gameService,
         IWordService wordService,
         IWordExplanationService wordExplanationService,
+        IImageHintService imageHintService,
         IAIDrawingService aiDrawingService,
         IAIDrawingCancellationManager aiCancellationManager,
         IHubContext<DrawingHub> hubContext,
@@ -33,6 +35,7 @@ public class DrawingHub : Hub
         _gameService = gameService;
         _wordService = wordService;
         _wordExplanationService = wordExplanationService;
+        _imageHintService = imageHintService;
         _aiDrawingService = aiDrawingService;
         _aiCancellationManager = aiCancellationManager;
         _hubContext = hubContext;
@@ -299,6 +302,53 @@ public class DrawingHub : Hub
 
         var result = await _wordExplanationService.ExplainWordAsync(word, targetLanguage, Context.ConnectionAborted);
         await Clients.Caller.SendAsync("ReceiveWordExplanation", result);
+    }
+
+    /// <summary>
+    /// Gets image hints for a word to help the drawer visualize what to draw.
+    /// Only available during drawing phase for the current drawer.
+    /// </summary>
+    public async Task GetImageHints(string word)
+    {
+        var roomCode = await _roomService.GetRoomCodeByConnectionIdAsync(Context.ConnectionId);
+
+        if (roomCode is null)
+        {
+            _logger.LogWarning("GetImageHints failed: Connection {ConnectionId} is not in any room", Context.ConnectionId);
+            throw new HubException("You are not in a room");
+        }
+
+        var room = await _roomService.GetRoomAsync(roomCode) ?? throw new HubException("Room not found");
+
+        if (room.Phase != GamePhase.Drawing)
+        {
+            throw new HubException("Image hints are only available during drawing phase");
+        }
+
+        if (room.CurrentDrawerConnectionId != Context.ConnectionId)
+        {
+            throw new HubException("Only the drawer can request image hints");
+        }
+
+        if (room.CurrentWord is not null && !room.CurrentWord.Equals(word, StringComparison.OrdinalIgnoreCase))
+        {
+            throw new HubException("Word does not match the current drawing word");
+        }
+
+        var preset = room.Settings.WordPreset;
+
+        try
+        {
+            var imageUrls = await _imageHintService.GetImageHintsAsync(word, preset, Context.ConnectionAborted);
+            var result = new ImageHintDto(word, preset, imageUrls);
+
+            await Clients.Caller.SendAsync("ReceiveImageHints", result);
+        }
+        catch (InvalidOperationException ex)
+        {
+            _logger.LogWarning("GetImageHints failed for word '{Word}': {Message}", word, ex.Message);
+            throw new HubException(ex.Message);
+        }
     }
 
     /// <summary>

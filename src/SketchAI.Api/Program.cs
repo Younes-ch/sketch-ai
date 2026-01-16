@@ -23,6 +23,17 @@ builder.Services.AddSingleton<IAIProviderSelector, AIProviderSelector>();
 builder.Services.AddSingleton<IAIDrawingService, AIDrawingService>();
 builder.Services.AddSingleton<IWordExplanationService, WordExplanationService>();
 builder.Services.AddSingleton<IAIDrawingCancellationManager, AIDrawingCancellationManager>();
+builder.Services.AddSingleton<IImageHintService, ImageHintService>();
+
+// HTTP clients for external APIs
+builder.Services.AddHttpClient("SerperClient", client =>
+{
+    var serperApiKey = builder.Configuration["SERPER_API_KEY"] ?? throw new InvalidOperationException("Serper Api Key is not configured");
+    client.BaseAddress = new Uri("https://google.serper.dev");
+    client.DefaultRequestHeaders.Add("Accept", "application/json");
+    client.DefaultRequestHeaders.Add("X-API-KEY", serperApiKey);
+    client.Timeout = TimeSpan.FromSeconds(10);
+});
 
 // Background services
 builder.Services.AddHostedService<RoundTimerService>();
