@@ -6,7 +6,6 @@ public class ImageHintService : IImageHintService
     private readonly IHttpClientFactory _httpClientFactory;
     private readonly ILogger<ImageHintService> _logger;
     private const int ImageCount = 3;
-    private static readonly TimeSpan CacheDuration = TimeSpan.FromHours(24);
 
     // Preset display names for better search context
     private static readonly Dictionary<string, string> PresetDisplayNames = new(StringComparer.OrdinalIgnoreCase)
@@ -86,7 +85,7 @@ public class ImageHintService : IImageHintService
 
         var json = JsonSerializer.Serialize(imageUrls, JsonOptions);
         await RedisHelper.SafeExecuteAsync(
-            () => _db.StringSetAsync(cacheKey, json, CacheDuration),
+            () => _db.StringSetAsync(cacheKey, json, RedisKeys.ImageHintsExpiry),
             _logger,
             $"CacheImageHints:{cacheKey}",
             false);

@@ -20,5 +20,6 @@ public static class RedisKeys
     public static readonly TimeSpan RoomExpiry = TimeSpan.FromHours(2);
     public static readonly TimeSpan CanvasExpiry = TimeSpan.FromHours(2);
     public static readonly TimeSpan WordExplanationExpiry = TimeSpan.FromHours(24);
+    public static readonly TimeSpan ImageHintsExpiry = TimeSpan.FromDays(7);
     public static readonly TimeSpan RoomLockExpiry = TimeSpan.FromSeconds(5);
 }
