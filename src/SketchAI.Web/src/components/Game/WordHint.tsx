@@ -35,7 +35,6 @@ export default function WordHint() {
   const isDrawer = currentDrawer?.username === username;
   const isDrawingPhase = phase === "drawing";
 
-  // Show the actual word for the drawer, or the hint for guessers
   const rawDisplayText = isDrawer && currentWord ? currentWord : wordHint || "";
 
   // Replace spaces with multiple non-breaking spaces to make word boundaries visible
@@ -92,7 +91,6 @@ export default function WordHint() {
     }
   };
 
-  // Don't show if there's no word/hint to display
   if (!displayText && phase !== "drawing") {
     return null;
   }

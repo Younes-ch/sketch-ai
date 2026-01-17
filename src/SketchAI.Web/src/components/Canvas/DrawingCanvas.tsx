@@ -64,7 +64,6 @@ function DrawingCanvasComponent({
 
   const brushSizes = useMemo(() => [...BRUSH_SIZES], []);
 
-  // Container resize handling
   useEffect(() => {
     const updateSize = () => {
       if (containerRef.current) {
@@ -83,7 +82,6 @@ function DrawingCanvasComponent({
     return () => observer.disconnect();
   }, []);
 
-  // Track active layout to avoid duplicate keyboard shortcuts
   useEffect(() => {
     if (typeof window === "undefined" || !window.matchMedia) return;
 
@@ -137,10 +135,8 @@ function DrawingCanvasComponent({
     (points: Point[], effectiveColor: string) => {
       if (points.length < 2) return;
 
-      // Tolerance controls how aggressively points are removed (in canvas coordinates)
-      // Higher = more simplification, lower = more precision
       const SIMPLIFY_TOLERANCE = 1.5;
-      const SIMPLIFY_HIGH_QUALITY = true; // Use Douglas-Peucker (slower but better quality)
+      const SIMPLIFY_HIGH_QUALITY = true;
       const simplifiedPoints = simplify(
         points,
         SIMPLIFY_TOLERANCE,

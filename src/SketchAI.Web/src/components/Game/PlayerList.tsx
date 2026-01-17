@@ -35,35 +35,28 @@ export default function PlayerList({
   const addToast = useToastStore((s) => s.addToast);
 
   const [selectedPlayer, setSelectedPlayer] = useState<string | null>(null);
-  // Track score popups that should be visible (persists for animation duration)
   const [visiblePopups, setVisiblePopups] = useState<Map<string, number>>(
     new Map()
   );
-  // Track previous scores for animation
   const prevScoresRef = useRef<Map<string, number>>(new Map());
-  // Track pending timeout
   const popupTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const currentDrawerUsername = currentDrawer?.username;
   const isDrawingPhase = phase === "drawing" || phase === "wordSelection";
 
-  // Callback to show popups - can be called from effect
   const showPopups = useCallback((changes: Map<string, number>) => {
-    // Clear any existing timeout
     if (popupTimeoutRef.current) {
       clearTimeout(popupTimeoutRef.current);
     }
 
     setVisiblePopups(changes);
 
-    // Clear after animation duration
     popupTimeoutRef.current = setTimeout(() => {
       setVisiblePopups(new Map());
       popupTimeoutRef.current = null;
     }, 1200);
   }, []);
 
-  // Detect score changes and show popups
   useEffect(() => {
     const changes = new Map<string, number>();
 
@@ -74,18 +67,15 @@ export default function PlayerList({
       }
     });
 
-    // Update previous scores for next comparison
     const newScores = new Map<string, number>();
     players.forEach((p) => newScores.set(p.username, p.score));
     prevScoresRef.current = newScores;
 
-    // Show popups if there are changes - use queueMicrotask to avoid sync setState in effect
     if (changes.size > 0) {
       queueMicrotask(() => showPopups(changes));
     }
   }, [players, showPopups]);
 
-  // Cleanup timeout on unmount
   useEffect(() => {
     return () => {
       if (popupTimeoutRef.current) {
@@ -98,22 +88,18 @@ export default function PlayerList({
     if (activeVoteKick && selectedPlayer) {
       setSelectedPlayer(null);
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+
   }, [activeVoteKick]);
 
-  // Get visible popup points for a player
   const getPopupPoints = (username: string): number => {
     return visiblePopups.get(username) ?? 0;
   };
 
   const handlePlayerClick = useCallback(
     (playerUsername: string) => {
-      // Don't allow actions on yourself
       if (playerUsername === currentUsername) return;
-      // Don't allow actions on host
       const clickedPlayer = players.find((p) => p.username === playerUsername);
       if (clickedPlayer?.isHost) return;
-      // Toggle selection
       setSelectedPlayer(
         selectedPlayer === playerUsername ? null : playerUsername
       );
@@ -151,7 +137,6 @@ export default function PlayerList({
     [activeVoteKick, startVoteKick, addToast]
   );
 
-  // Can show player actions if not self, not host, and has enough players
   const canShowActions = (playerUsername: string) => {
     if (playerUsername === currentUsername) return false;
     const player = players.find((p) => p.username === playerUsername);
@@ -159,7 +144,6 @@ export default function PlayerList({
     return true;
   };
 
-  // Sort players by score descending
   const sortedPlayers = [...players].sort((a, b) => b.score - a.score);
 
   return (

@@ -203,7 +203,7 @@ export default function JoinScreen({
             />
           </div>
 
-          {/* Username Input - Always Visible */}
+          {/* Username Input */}
           <div className="mb-4">
             <Input
               id="username"

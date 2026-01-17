@@ -13,7 +13,6 @@ interface CreateRoomTabProps {
   error: string | null;
 }
 
-// Helper to get word source summary
 function getWordSourceSummary(settings: RoomSettings): string {
   if (settings.customWords) {
     const wordCount = settings.customWords
@@ -30,7 +29,6 @@ function getWordSourceSummary(settings: RoomSettings): string {
   );
 }
 
-// Helper to check if custom words are valid
 function isCustomWordsValid(settings: RoomSettings): boolean {
   if (!settings.customWords) return true;
   const words = settings.customWords

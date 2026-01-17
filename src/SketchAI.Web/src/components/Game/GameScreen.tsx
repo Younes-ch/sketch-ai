@@ -144,7 +144,9 @@ export default function GameScreen() {
         </div>
       </div>
 
-      {/* Mobile Layout - Grid-based */}
+      {/* **************************************************************************************************** */}
+
+      {/* Mobile Layout */}
       <div className="lg:hidden flex flex-col h-full w-full overflow-hidden bg-background">
         {/* Row 1: Header */}
         <div className="shrink-0 w-full">

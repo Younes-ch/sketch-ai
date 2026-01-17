@@ -29,20 +29,17 @@ export default function ChatPanel({ variant = "desktop" }: ChatPanelProps) {
   const [isUserScrolledUp, setIsUserScrolledUp] = useState(false);
   const shouldMaintainFocusRef = useRef(false);
 
-  // Check if current user is the drawer
   const isDrawer = currentDrawer?.username === username;
   const isDrawingPhase = phase === "drawing";
   const hasAlreadyGuessed = username ? playersWhoGuessed.has(username) : false;
   const isInputDisabled =
     isSending || (isDrawingPhase && (isDrawer || hasAlreadyGuessed));
 
-  // Calculate word length from hint (count non-space characters)
   const wordLength = wordHint ? wordHint.replace(/\s/g, "").length : 0;
   const currentInputLength = inputValue.trim().replace(/\s/g, "").length;
   const showCharacterCount =
     isDrawingPhase && !isDrawer && !hasAlreadyGuessed && wordLength > 0;
 
-  // Determine placeholder text
   const getPlaceholder = () => {
     if (isDrawingPhase && isDrawer) {
       return "You're drawing!";
@@ -56,7 +53,6 @@ export default function ChatPanel({ variant = "desktop" }: ChatPanelProps) {
     return "Type your guess...";
   };
 
-  // Check if user is at the bottom of the scroll container
   const isAtBottom = useCallback(() => {
     const container = messagesContainerRef.current;
     if (!container) return true;
@@ -67,7 +63,6 @@ export default function ChatPanel({ variant = "desktop" }: ChatPanelProps) {
     );
   }, []);
 
-  // Handle scroll events to detect manual scrolling
   const handleScroll = useCallback(() => {
     setIsUserScrolledUp(!isAtBottom());
   }, [isAtBottom]);
@@ -79,7 +74,7 @@ export default function ChatPanel({ variant = "desktop" }: ChatPanelProps) {
     }
   }, [chatMessages, isUserScrolledUp]);
 
-  // Maintain focus on input after sending a message (handles close guess re-renders)
+  // Maintain focus on input after sending a message
   useEffect(() => {
     if (shouldMaintainFocusRef.current && !isInputDisabled) {
       inputRef.current?.focus();
@@ -87,13 +82,11 @@ export default function ChatPanel({ variant = "desktop" }: ChatPanelProps) {
     }
   }, [chatMessages, isInputDisabled]);
 
-  // Scroll to bottom helper
   const scrollToBottom = useCallback(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
     setIsUserScrolledUp(false);
   }, []);
 
-  // Handle sending message
   const handleSubmit = async () => {
     const trimmedMessage = inputValue.trim();
     if (!trimmedMessage || isSending || isInputDisabled) return;
@@ -111,7 +104,6 @@ export default function ChatPanel({ variant = "desktop" }: ChatPanelProps) {
     }
   };
 
-  // Handle Enter key
   const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
     if (e.key === "Enter") {
       e.preventDefault();
@@ -231,7 +223,7 @@ export default function ChatPanel({ variant = "desktop" }: ChatPanelProps) {
                   </p>
                 )}
 
-                {/* Game Logic Messages */}
+                {/* Guess Messages */}
                 {msg.type === "correct-guess" ? (
                   <p className="text-success font-medium flex items-center gap-1">
                     <span>✓</span>
