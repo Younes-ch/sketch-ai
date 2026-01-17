@@ -2,6 +2,7 @@ export * from './chatMessage';
 export * from './drawingCommand';
 export * from './gamePhase';
 export * from './gameState';
+export * from './imageHint';
 export * from './player';
 export * from './point';
 export * from './publicRoom';

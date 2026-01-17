@@ -1,11 +1,12 @@
 import { create } from "zustand";
-import type { GameState, Player, WordExplanation } from "@/models";
+import type { GameState, Player, WordExplanation, ImageHint } from "@/models";
 import { initialGameState } from "@/models";
 import { logger } from "@/lib/logger";
 import { parseHubError } from "@/lib/utils";
 import { useConnectionStore } from "./connectionStore";
 import { useRoomStore } from "./roomStore";
 import { useChatStore } from "./chatStore";
+import { useToastStore } from "./toastStore";
 
 interface GameStore extends GameState {
   playersWhoGuessed: Set<string>;
@@ -15,6 +16,11 @@ interface GameStore extends GameState {
   wordExplanation: WordExplanation | null;
   isTranslating: boolean;
   translationError: string | null;
+
+  // Image hints state
+  imageHint: ImageHint | null;
+  isLoadingImageHints: boolean;
+  imageHintError: string | null;
 
   // Actions
   setGameState: (state: Partial<GameState>) => void;
@@ -29,6 +35,8 @@ interface GameStore extends GameState {
   sendGuess: (message: string) => Promise<void>;
   getWordExplanation: (word: string, targetLanguage: string) => Promise<void>;
   clearWordExplanation: () => void;
+  getImageHints: (word: string) => Promise<void>;
+  clearImageHints: () => void;
 
   // Reset
   reset: () => void;
@@ -43,6 +51,11 @@ export const useGameStore = create<GameStore>((set) => ({
   wordExplanation: null,
   isTranslating: false,
   translationError: null,
+
+  // Image hints initial state
+  imageHint: null,
+  isLoadingImageHints: false,
+  imageHintError: null,
 
   setGameState: (state) => set((prev) => ({ ...prev, ...state })),
   
@@ -109,6 +122,35 @@ export const useGameStore = create<GameStore>((set) => ({
       translationError: null,
     }),
 
+  getImageHints: async (word) => {
+    const { connection, isConnected } = useConnectionStore.getState();
+    if (!isConnected() || !connection) {
+      useToastStore.getState().addToast("Not connected to server", "error");
+      return;
+    }
+
+    set({ isLoadingImageHints: true, imageHintError: null, imageHint: null });
+
+    try {
+      await connection.invoke("GetImageHints", word);
+    } catch (error) {
+      logger.error("Failed to get image hints", error);
+      const errorMessage = parseHubError(error);
+      useToastStore.getState().addToast(errorMessage, "error", 5000);
+      set({
+        imageHintError: null,
+        isLoadingImageHints: false,
+      });
+    }
+  },
+
+  clearImageHints: () =>
+    set({
+      imageHint: null,
+      isLoadingImageHints: false,
+      imageHintError: null,
+    }),
+
   reset: () =>
     set({
       ...initialGameState,
@@ -117,6 +159,9 @@ export const useGameStore = create<GameStore>((set) => ({
       wordExplanation: null,
       isTranslating: false,
       translationError: null,
+      imageHint: null,
+      isLoadingImageHints: false,
+      imageHintError: null,
     }),
 }));
 
@@ -187,6 +232,25 @@ export function setupGameEventHandlers() {
     useGameStore.setState({
       wordExplanation: explanation,
       isTranslating: false,
+    });
+  };
+
+  const handleReceiveImageHints = (imageHint: ImageHint) => {
+    logger.info("Received image hints:", imageHint);
+    
+    // Check if we got valid image URLs
+    if (!imageHint.imageUrls || imageHint.imageUrls.length === 0) {
+      useGameStore.setState({
+        imageHint: null,
+        isLoadingImageHints: false,
+        imageHintError: "No images found for this word. Try drawing from memory!",
+      });
+      return;
+    }
+    
+    useGameStore.setState({
+      imageHint: imageHint,
+      isLoadingImageHints: false,
     });
   };
 
@@ -384,6 +448,7 @@ export function setupGameEventHandlers() {
   connection.on("DrawerLeft", handleDrawerLeft);
   connection.on("GameReset", handleGameReset);
   connection.on("ReceiveWordExplanation", handleReceiveWordExplanation);
+  connection.on("ReceiveImageHints", handleReceiveImageHints);
 
   return () => {
     connection.off("GameStarted", handleGameStarted);
@@ -399,5 +464,6 @@ export function setupGameEventHandlers() {
     connection.off("DrawerLeft", handleDrawerLeft);
     connection.off("GameReset", handleGameReset);
     connection.off("ReceiveWordExplanation", handleReceiveWordExplanation);
+    connection.off("ReceiveImageHints", handleReceiveImageHints);
   };
 }

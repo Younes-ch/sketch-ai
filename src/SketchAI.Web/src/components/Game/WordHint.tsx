@@ -4,9 +4,10 @@ import { useRoomStore } from "@/stores/roomStore";
 import { useCanvasStore } from "@/stores/canvasStore";
 import { Button } from "@/components/ui";
 import { cn } from "@/lib/utils";
-import { AISparklesIcon, InfoIcon } from "@/components/ui/Icons";
+import { AISparklesIcon, InfoIcon, LightbulbIcon } from "@/components/ui/Icons";
 import { Tooltip } from "@/components/ui/Tooltip";
 import { TranslationModal } from "@/components/Game/TranslationModal";
+import { ImageHintModal } from "@/components/Game/ImageHintModal";
 import { DEFAULT_LANGUAGE, LANGUAGE_PREF_KEY } from "@/constants/languages";
 
 export default function WordHint() {
@@ -19,12 +20,17 @@ export default function WordHint() {
   const wordExplanation = useGameStore((s) => s.wordExplanation);
   const translationError = useGameStore((s) => s.translationError);
   const clearWordExplanation = useGameStore((s) => s.clearWordExplanation);
+  const getImageHints = useGameStore((s) => s.getImageHints);
+  const isLoadingImageHints = useGameStore((s) => s.isLoadingImageHints);
+  const imageHint = useGameStore((s) => s.imageHint);
+  const clearImageHints = useGameStore((s) => s.clearImageHints);
   const username = useRoomStore((s) => s.username);
   const isAIDrawing = useCanvasStore((s) => s.isAIDrawing);
   const startAIDrawing = useCanvasStore((s) => s.startAIDrawing);
   const stopAIDrawing = useCanvasStore((s) => s.stopAIDrawing);
 
   const [isAIHovered, setIsAIHovered] = useState(false);
+  const [isBulbHovered, setIsBulbHovered] = useState(false);
 
   const isDrawer = currentDrawer?.username === username;
   const isDrawingPhase = phase === "drawing";
@@ -79,6 +85,13 @@ export default function WordHint() {
     }
   };
 
+  const handleBulbClick = () => {
+    if (currentWord && !isLoadingImageHints) {
+      setIsBulbHovered(false);
+      getImageHints(currentWord);
+    }
+  };
+
   // Don't show if there's no word/hint to display
   if (!displayText && phase !== "drawing") {
     return null;
@@ -110,6 +123,33 @@ export default function WordHint() {
               aria-label={isAIDrawing ? "Stop AI Drawing" : "Start AI Drawing"}
             >
               <AISparklesIcon size={20} />
+            </Button>
+          </Tooltip>
+
+          {/* Lightbulb Icon - Visual Hints */}
+          <Tooltip content="Get visual hints">
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={handleBulbClick}
+              onMouseEnter={() => setIsBulbHovered(true)}
+              onMouseLeave={() => setIsBulbHovered(false)}
+              disabled={isLoadingImageHints}
+              className={cn(
+                "p-1.5",
+                isLoadingImageHints
+                  ? "text-warning/60 cursor-wait"
+                  : isBulbHovered
+                  ? "bg-warning/20 text-warning"
+                  : "text-white/40 hover:text-warning/80"
+              )}
+              aria-label="Get visual hints"
+            >
+              {isLoadingImageHints ? (
+                <div className="w-5 h-5 border-2 border-warning/40 border-t-warning rounded-full animate-spin" />
+              ) : (
+                <LightbulbIcon size={20} />
+              )}
             </Button>
           </Tooltip>
 
@@ -159,6 +199,13 @@ export default function WordHint() {
         isLoading={isTranslating}
         error={translationError}
         onClose={clearWordExplanation}
+      />
+
+      {/* Image Hints Modal */}
+      <ImageHintModal
+        imageHint={imageHint}
+        isLoading={isLoadingImageHints}
+        onClose={clearImageHints}
       />
     </div>
   );
