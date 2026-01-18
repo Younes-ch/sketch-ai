@@ -3,9 +3,10 @@
 public class RoomService : IRoomService
 {
     private readonly IDatabase _db;
+    private readonly IVoteKickTimerService _voteKickTimerService;
     private readonly IOptions<GameSettings> _gameSettings;
-    private readonly ILogger<RoomService> _logger;
     private readonly IDistributedLockProvider _lockProvider;
+    private readonly ILogger<RoomService> _logger;
 
     private static readonly JsonSerializerOptions JsonOptions = new()
     {
@@ -14,11 +15,13 @@ public class RoomService : IRoomService
 
     public RoomService(
         IConnectionMultiplexer redis,
+        IVoteKickTimerService voteKickTimerService,
         IOptions<GameSettings> gameSettings,
-        ILogger<RoomService> logger,
-        IDistributedLockProvider lockProvider)
+        IDistributedLockProvider lockProvider,
+        ILogger<RoomService> logger)
     {
         _db = redis.GetDatabase();
+        _voteKickTimerService = voteKickTimerService;
         _gameSettings = gameSettings;
         _logger = logger;
         _lockProvider = lockProvider;
@@ -511,10 +514,7 @@ public class RoomService : IRoomService
 
         await SaveRoomAsync(room);
 
-        await RedisHelper.SafeExecuteAsync(
-            () => _db.SetAddAsync(RedisKeys.ActiveVoteKicks, roomCode),
-            _logger,
-            $"TrackActiveVoteKickInRoom:{roomCode}");
+        await _voteKickTimerService.AddToActiveVoteKicksAsync(roomCode);
 
         _logger.LogInformation("Votekick started in room {RoomCode} by {Initiator} against {Target}",
             roomCode, initiator.Username, targetUsername);
@@ -597,10 +597,7 @@ public class RoomService : IRoomService
             room.ActiveVoteKick = null;
             await SaveRoomAsync(room);
 
-            await RedisHelper.SafeExecuteAsync(
-                () => _db.SetRemoveAsync(RedisKeys.ActiveVoteKicks, roomCode),
-                _logger,
-                $"UntrackActiveVoteKickInRoom:{roomCode}");
+            await _voteKickTimerService.RemoveFromActiveVoteKicksAsync(roomCode);
 
             _logger.LogInformation(
                "Votekick completed in room {RoomCode}: {Result} ({KickVotes}/{TotalVoters} kick, needed {Threshold})",
@@ -637,10 +634,7 @@ public class RoomService : IRoomService
         room.ActiveVoteKick = null;
         await SaveRoomAsync(room);
 
-        await RedisHelper.SafeExecuteAsync(
-            () => _db.SetRemoveAsync(RedisKeys.ActiveVoteKicks, roomCode),
-            _logger,
-            $"UntrackActiveVoteKickFromRoom:{roomCode}");
+        await _voteKickTimerService.RemoveFromActiveVoteKicksAsync(roomCode);
 
         _logger.LogInformation("Votekick cancelled in room {RoomCode}", roomCode);
     }
@@ -670,7 +664,6 @@ public class RoomService : IRoomService
             return null;
         }
 
-        // Timer expired - calculate result
         var kickVotes = room.ActiveVoteKick.VotesToKick.Count;
         var keepVotes = room.ActiveVoteKick.VotesToKeep.Count;
         var totalVotersNeeded = room.ActiveVoteKick.TotalVotersNeeded;
@@ -689,10 +682,7 @@ public class RoomService : IRoomService
         room.ActiveVoteKick = null;
         await SaveRoomAsync(room);
 
-        await RedisHelper.SafeExecuteAsync(
-            () => _db.SetRemoveAsync(RedisKeys.ActiveVoteKicks, roomCode),
-            _logger,
-            $"UntrackExpiredVoteKickFromRoom:{roomCode}");
+        await _voteKickTimerService.RemoveFromActiveVoteKicksAsync(roomCode);
 
         _logger.LogInformation(
             "Votekick expired in room {RoomCode}: {Result} ({KickVotes}/{TotalVoters} kick, needed {Threshold})",

@@ -16,10 +16,4 @@ public interface IVoteKickTimerService
     /// Removes a room from the active vote kick tracking set.
     /// </summary>
     Task RemoveFromActiveVoteKicksAsync(string roomCode);
-
-    /// <summary>
-    /// Processes vote kick expiration for a room.
-    /// Returns the result if the vote kick expired, null otherwise.
-    /// </summary>
-    Task<VoteKickResult?> ProcessVoteKickExpirationAsync(Room room);
 }
