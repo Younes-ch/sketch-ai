@@ -24,7 +24,7 @@ builder.Services.AddSingleton<IAIDrawingService, AIDrawingService>();
 builder.Services.AddSingleton<IWordExplanationService, WordExplanationService>();
 builder.Services.AddSingleton<IAIDrawingCancellationManager, AIDrawingCancellationManager>();
 builder.Services.AddSingleton<IImageHintService, ImageHintService>();
-builder.Services.AddScoped<IVoteKickTimerService, VoteKickTimerService>();
+builder.Services.AddSingleton<IVoteKickTimerService, VoteKickTimerService>();
 
 
 // HTTP clients for external APIs

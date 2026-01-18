@@ -148,6 +148,28 @@ public class RoomService : IRoomService
 
     public async Task<List<Room>> GetPublicRoomsAsync()
     {
+        var (rooms, _) = await GetPublicRoomsInternalAsync();
+        return rooms;
+    }
+
+    public async Task<(List<Room> Rooms, int TotalCount)> GetPublicRoomsAsync(int page, int pageSize)
+    {
+        var (allRooms, totalCount) = await GetPublicRoomsInternalAsync();
+
+        // Apply pagination
+        var paginatedRooms = allRooms
+            .Skip((page - 1) * pageSize)
+            .Take(pageSize)
+            .ToList();
+
+        _logger.LogDebug("Returning page {Page} with {Count} rooms (total: {TotalCount})",
+            page, paginatedRooms.Count, totalCount);
+
+        return (paginatedRooms, totalCount);
+    }
+
+    private async Task<(List<Room> Rooms, int TotalCount)> GetPublicRoomsInternalAsync()
+    {
         var publicRoomCodes = await RedisHelper.SafeExecuteAsync(
             () => _db.SetMembersAsync(RedisKeys.PublicRooms),
             _logger,
@@ -181,7 +203,7 @@ public class RoomService : IRoomService
         }
 
         _logger.LogDebug("Found {Count} available public rooms", rooms.Count);
-        return rooms;
+        return (rooms, rooms.Count);
     }
 
     public bool IsRoomFull(Room? room)

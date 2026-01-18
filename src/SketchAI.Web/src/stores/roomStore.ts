@@ -2,6 +2,7 @@ import { create } from "zustand";
 import {
   type Player,
   type PublicRoom,
+  type PaginatedPublicRooms,
   type RoomSettings,
   type VoteKick,
   defaultRoomSettings
@@ -14,12 +15,22 @@ import { useChatStore } from "./chatStore";
 import { useCanvasStore } from "./canvasStore";
 import { useToastStore } from "./toastStore";
 
+interface PublicRoomsPagination {
+  page: number;
+  pageSize: number;
+  totalCount: number;
+  totalPages: number;
+  hasNextPage: boolean;
+  hasPreviousPage: boolean;
+}
+
 interface RoomStore {
   roomCode: string | null;
   username: string | null;
   isHost: boolean;
   players: Player[];
   publicRooms: PublicRoom[];
+  publicRoomsPagination: PublicRoomsPagination;
   isLoadingRooms: boolean;
   roomSettings: RoomSettings;
   activeVoteKick: VoteKick | null;
@@ -34,7 +45,7 @@ interface RoomStore {
   addPlayer: (player: Player) => void;
   removePlayer: (username: string) => void;
   updateHostStatus: (newHostUsername: string) => void;
-  setPublicRooms: (rooms: PublicRoom[]) => void;
+  setPublicRoomsData: (data: PaginatedPublicRooms) => void;
   setIsLoadingRooms: (value: boolean) => void;
   setRoomSettings: (settings: RoomSettings) => void;
   setActiveVoteKick: (voteKick: VoteKick | null) => void;
@@ -45,7 +56,7 @@ interface RoomStore {
   createRoom: (username: string, roomCode: string, isPublic: boolean, settings: RoomSettings) => Promise<void>;
   joinRoom: (username: string, roomCode: string) => Promise<void>;
   leaveRoom: () => Promise<void>;
-  getPublicRooms: () => Promise<void>;
+  getPublicRooms: (page?: number, pageSize?: number) => Promise<void>;
   updateRoomSettings: (settings: Partial<RoomSettings>) => Promise<void>;
   kickPlayer: (targetUsername: string) => Promise<void>;
   startVoteKick: (targetUsername: string) => Promise<void>;
@@ -55,12 +66,22 @@ interface RoomStore {
   reset: () => void;
 }
 
+const defaultPagination: PublicRoomsPagination = {
+  page: 1,
+  pageSize: 0,
+  totalCount: 0,
+  totalPages: 0,
+  hasNextPage: false,
+  hasPreviousPage: false
+};
+
 export const useRoomStore = create<RoomStore>((set, get) => ({
   roomCode: null,
   username: null,
   isHost: false,
   players: [],
   publicRooms: [],
+  publicRoomsPagination: { ...defaultPagination },
   isLoadingRooms: false,
   roomSettings: { ...defaultRoomSettings },
   activeVoteKick: null,
@@ -71,7 +92,17 @@ export const useRoomStore = create<RoomStore>((set, get) => ({
   setUsername: (name) => set({ username: name }),
   setIsHost: (value) => set({ isHost: value }),
   setPlayers: (players) => set({ players }),
-  setPublicRooms: (rooms) => set({ publicRooms: rooms }),
+  setPublicRoomsData: (data) => set({
+    publicRooms: data.rooms,
+    publicRoomsPagination: {
+      page: data.page,
+      pageSize: data.pageSize,
+      totalCount: data.totalCount,
+      totalPages: data.totalPages,
+      hasNextPage: data.hasNextPage,
+      hasPreviousPage: data.hasPreviousPage
+    }
+  }),
   setIsLoadingRooms: (value) => set({ isLoadingRooms: value }),
   setRoomSettings: (settings) => set({ roomSettings: settings }),
   setActiveVoteKick: (voteKick) => set({ activeVoteKick: voteKick }),
@@ -142,12 +173,12 @@ export const useRoomStore = create<RoomStore>((set, get) => ({
     useCanvasStore.getState().reset();
   },
 
-  getPublicRooms: async () => {
+  getPublicRooms: async (page = 1, pageSize?: number) => {
     const { connection, isConnected } = useConnectionStore.getState();
     if (!isConnected() || !connection) return;
 
     useRoomStore.getState().setIsLoadingRooms(true);
-    await connection.invoke("GetPublicRooms");
+    await connection.invoke("GetPublicRooms", page, pageSize ?? null);
   },
 
   updateRoomSettings: async (settings) => {
@@ -211,6 +242,7 @@ export const useRoomStore = create<RoomStore>((set, get) => ({
       isHost: false,
       players: [],
       publicRooms: [],
+      publicRoomsPagination: { ...defaultPagination },
       roomSettings: { ...defaultRoomSettings },
       activeVoteKick: null,
       wasKicked: false,
@@ -296,9 +328,9 @@ export function setupRoomEventHandlers() {
     })
   };
 
-  const handleReceivePublicRooms = (rooms: PublicRoom[]) => {
-    logger.info(`Received ${rooms.length} public rooms`);
-    useRoomStore.getState().setPublicRooms(rooms);
+  const handleReceivePublicRooms = (data: PaginatedPublicRooms) => {
+    logger.info(`Received ${data.rooms.length} public rooms (page ${data.page}/${data.totalPages}, total: ${data.totalCount})`);
+    useRoomStore.getState().setPublicRoomsData(data);
     useRoomStore.getState().setIsLoadingRooms(false);
   };
 
