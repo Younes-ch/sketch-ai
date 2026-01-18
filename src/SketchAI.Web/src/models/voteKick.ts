@@ -4,6 +4,8 @@ export interface VoteKick {
   votesToKick: number;
   votesToKeep: number;
   totalVotersNeeded: number;
+  startedAt: string;
+  durationSeconds: number;
 }
 
 export interface VoteKickResult {
@@ -11,4 +13,5 @@ export interface VoteKickResult {
   shouldKick: boolean;
   votesToKick: number;
   votesToKeep: number;
+  timedOut?: boolean;
 }

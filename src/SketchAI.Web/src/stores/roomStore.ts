@@ -318,6 +318,8 @@ export function setupRoomEventHandlers() {
     votesToKick: number;
     votesToKeep: number;
     totalVotersNeeded: number;
+    startedAt: string;
+    durationSeconds: number;
   }) => {
     logger.info(`Votekick started against ${data.targetUsername} by ${data.initiatorUsername}`);
     useRoomStore.getState().setActiveVoteKick({
@@ -326,6 +328,8 @@ export function setupRoomEventHandlers() {
       votesToKick: data.votesToKick,
       votesToKeep: data.votesToKeep,
       totalVotersNeeded: data.totalVotersNeeded,
+      startedAt: data.startedAt,
+      durationSeconds: data.durationSeconds,
     });
     useChatStore.getState().addMessage({
       id: crypto.randomUUID(),
@@ -341,6 +345,8 @@ export function setupRoomEventHandlers() {
     votesToKick: number;
     votesToKeep: number;
     totalVotersNeeded: number;
+    startedAt: string;
+    durationSeconds: number;
   }) => {
     logger.info(`Votekick updated: ${data.votesToKick} kick, ${data.votesToKeep} keep`);
     const current = useRoomStore.getState().activeVoteKick;
@@ -350,6 +356,8 @@ export function setupRoomEventHandlers() {
         votesToKick: data.votesToKick,
         votesToKeep: data.votesToKeep,
         totalVotersNeeded: data.totalVotersNeeded,
+        startedAt: data.startedAt,
+        durationSeconds: data.durationSeconds,
       });
     }
   };
@@ -359,15 +367,17 @@ export function setupRoomEventHandlers() {
     shouldKick: boolean;
     votesToKick: number;
     votesToKeep: number;
+    timedOut?: boolean;
   }) => {
-    logger.info(`Votekick ended: ${data.targetUsername} ${data.shouldKick ? "kicked" : "kept"}`);
+    const reason = data.timedOut ? " (time expired)" : "";
+    logger.info(`Votekick ended: ${data.targetUsername} ${data.shouldKick ? "kicked" : "kept"}${reason}`);
     useRoomStore.getState().setActiveVoteKick(null);
     useChatStore.getState().addMessage({
       id: crypto.randomUUID(),
       username: "System",
       message: data.shouldKick
-        ? `Vote passed: ${data.targetUsername} was kicked (${data.votesToKick}-${data.votesToKeep})`
-        : `Vote failed: ${data.targetUsername} stays (${data.votesToKick}-${data.votesToKeep})`,
+        ? `Vote passed: ${data.targetUsername} was kicked (${data.votesToKick}-${data.votesToKeep})${reason}`
+        : `Vote failed: ${data.targetUsername} stays (${data.votesToKick}-${data.votesToKeep})${reason}`,
       timestamp: new Date(),
       type: "system",
     });

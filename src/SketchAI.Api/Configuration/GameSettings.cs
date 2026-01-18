@@ -15,6 +15,7 @@ public class GameSettings
     public int MaxWordChoices { get; set; } = 5;
     public int MaxAiDrawingsPerPlayer { get; set; } = 1;
     public int AiDrawingCooldownSeconds { get; set; } = 30;
+    public int VoteKickDurationSeconds { get; set; } = 30;
     public List<int> AllowedDrawTimes { get; set; } =
     [
         15, 20, 30, 40, 50, 60, 70, 80, 90,

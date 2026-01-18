@@ -775,7 +775,9 @@ public class DrawingHub : Hub
             InitiatorUsername = initiator?.Username ?? "Unknown",
             VotesToKick = room.ActiveVoteKick.VotesToKick.Count,
             VotesToKeep = room.ActiveVoteKick.VotesToKeep.Count,
-            room.ActiveVoteKick.TotalVotersNeeded
+            room.ActiveVoteKick.TotalVotersNeeded,
+            room.ActiveVoteKick.StartedAt,
+            room.ActiveVoteKick.DurationSeconds
         });
     }
 
@@ -814,7 +816,8 @@ public class DrawingHub : Hub
                 result.TargetUsername,
                 result.ShouldKick,
                 result.VotesToKick,
-                result.VotesToKeep
+                result.VotesToKeep,
+                TimedOut = false
             });
         }
         else if (room?.ActiveVoteKick is not null)
@@ -825,7 +828,9 @@ public class DrawingHub : Hub
                 room.ActiveVoteKick.TargetUsername,
                 VotesToKick = room.ActiveVoteKick.VotesToKick.Count,
                 VotesToKeep = room.ActiveVoteKick.VotesToKeep.Count,
-                room.ActiveVoteKick.TotalVotersNeeded
+                room.ActiveVoteKick.TotalVotersNeeded,
+                room.ActiveVoteKick.StartedAt,
+                room.ActiveVoteKick.DurationSeconds
             });
         }
     }

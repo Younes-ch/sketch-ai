@@ -502,6 +502,7 @@ public class RoomService : IRoomService
             TargetConnectionId = targetPlayer.ConnectionId,
             InitiatorUsername = initiator.Username,
             StartedAt = DateTime.UtcNow,
+            DurationSeconds = _gameSettings.Value.VoteKickDurationSeconds,
             TotalVotersNeeded = room.Players.Count - 1
         };
 
@@ -509,6 +510,11 @@ public class RoomService : IRoomService
         room.ActiveVoteKick.VotesToKick.Add(initiatorConnectionId);
 
         await SaveRoomAsync(room);
+
+        await RedisHelper.SafeExecuteAsync(
+            () => _db.SetAddAsync(RedisKeys.ActiveVoteKicks, roomCode),
+            _logger,
+            $"TrackActiveVoteKickInRoom:{roomCode}");
 
         _logger.LogInformation("Votekick started in room {RoomCode} by {Initiator} against {Target}",
             roomCode, initiator.Username, targetUsername);
@@ -574,7 +580,9 @@ public class RoomService : IRoomService
         {
             var kickVotes = room.ActiveVoteKick.VotesToKick.Count;
             var keepVotes = room.ActiveVoteKick.VotesToKeep.Count;
-            var shouldKick = kickVotes > keepVotes;
+            var totalVotersNeeded = room.ActiveVoteKick.TotalVotersNeeded;
+            var majorityThreshold = (totalVotersNeeded / 2) + 1;
+            var shouldKick = kickVotes >= majorityThreshold;
 
             var result = new VoteKickResult
             {
@@ -589,8 +597,18 @@ public class RoomService : IRoomService
             room.ActiveVoteKick = null;
             await SaveRoomAsync(room);
 
-            _logger.LogInformation("Votekick completed in room {RoomCode}: {Result} ({KickVotes} kick, {KeepVotes} keep)",
-                roomCode, shouldKick ? "KICKED" : "KEPT", kickVotes, keepVotes);
+            await RedisHelper.SafeExecuteAsync(
+                () => _db.SetRemoveAsync(RedisKeys.ActiveVoteKicks, roomCode),
+                _logger,
+                $"UntrackActiveVoteKickInRoom:{roomCode}");
+
+            _logger.LogInformation(
+               "Votekick completed in room {RoomCode}: {Result} ({KickVotes}/{TotalVoters} kick, needed {Threshold})",
+               roomCode,
+               shouldKick ? "KICKED" : "KEPT",
+               kickVotes,
+               totalVotersNeeded,
+               majorityThreshold);
 
             return (result, null);
         }
@@ -618,6 +636,11 @@ public class RoomService : IRoomService
 
         room.ActiveVoteKick = null;
         await SaveRoomAsync(room);
+
+        await RedisHelper.SafeExecuteAsync(
+            () => _db.SetRemoveAsync(RedisKeys.ActiveVoteKicks, roomCode),
+            _logger,
+            $"UntrackActiveVoteKickFromRoom:{roomCode}");
 
         _logger.LogInformation("Votekick cancelled in room {RoomCode}", roomCode);
     }
