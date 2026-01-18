@@ -157,8 +157,17 @@ public interface IRoomService
     Task<(VoteKickResult? Result, string? ErrorMessage)> CastVoteKickAsync(string roomCode, string voterConnectionId, bool voteToKick);
 
     /// <summary>
-    /// Cancels an active votekick (if target leaves or timeout).
+    /// Cancels an active votekick (if target leaves, timeout, or other reasons).
+    /// Also removes the room from active vote kick tracking.
     /// </summary>
     /// <param name="roomCode">The room code.</param>
     Task CancelVoteKickAsync(string roomCode);
+
+    /// <summary>
+    /// Attempts to expire a vote kick if the timer has elapsed.
+    /// Acquires lock to prevent race conditions with CastVoteKickAsync.
+    /// </summary>
+    /// <param name="roomCode">The room code.</param>
+    /// <returns>The vote result if expired, null if not expired or already processed.</returns>
+    Task<VoteKickResult?> TryExpireVoteKickAsync(string roomCode);
 }

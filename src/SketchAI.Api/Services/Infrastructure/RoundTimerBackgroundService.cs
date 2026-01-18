@@ -3,12 +3,12 @@ namespace SketchAI.Api.Services.Infrastructure;
 /// <summary>
 /// Background service that manages round timing, hint reveals, and round expiry.
 /// </summary>
-public class RoundTimerService : BackgroundService
+public class RoundTimerBackgroundService : BackgroundService
 {
     private readonly IServiceScopeFactory _scopeFactory;
     private readonly IHubContext<DrawingHub> _hubContext;
     private readonly IAIDrawingCancellationManager _aiCancellationManager;
-    private readonly ILogger<RoundTimerService> _logger;
+    private readonly ILogger<RoundTimerBackgroundService> _logger;
 
     /// <summary>
     /// Hint reveal thresholds as percentages of draw time elapsed.
@@ -16,11 +16,11 @@ public class RoundTimerService : BackgroundService
     /// </summary>
     private static readonly double[] HintRevealPercentages = [0.25, 0.50, 0.75];
 
-    public RoundTimerService(
+    public RoundTimerBackgroundService(
         IServiceScopeFactory scopeFactory,
         IHubContext<DrawingHub> hubContext,
         IAIDrawingCancellationManager aiCancellationManager,
-        ILogger<RoundTimerService> logger)
+        ILogger<RoundTimerBackgroundService> logger)
     {
         _scopeFactory = scopeFactory;
         _hubContext = hubContext;

@@ -4,6 +4,63 @@ import { Button } from "@/components/ui";
 import { AnimatePresence, motion } from "framer-motion";
 import { useCallback, useEffect, useMemo, useState } from "react";
 
+interface TimerProgressProps {
+  startedAt: string;
+  durationSeconds: number;
+}
+
+function TimerProgress({ startedAt, durationSeconds }: TimerProgressProps) {
+  const [remainingSeconds, setRemainingSeconds] = useState(durationSeconds);
+  const [progress, setProgress] = useState(100);
+
+  useEffect(() => {
+    const startTime = new Date(startedAt).getTime();
+
+    const updateTimer = () => {
+      const now = Date.now();
+      const elapsed = (now - startTime) / 1000;
+      const remaining = Math.max(0, durationSeconds - elapsed);
+      const progressPercent = (remaining / durationSeconds) * 100;
+
+      setRemainingSeconds(Math.ceil(remaining));
+      setProgress(progressPercent);
+    };
+
+    // Initial update
+    updateTimer();
+
+    // Update every 100ms for smooth animation
+    const interval = setInterval(updateTimer, 100);
+
+    return () => clearInterval(interval);
+  }, [startedAt, durationSeconds]);
+
+  const isUrgent = remainingSeconds <= 10;
+
+  return (
+    <div className="space-y-1">
+      <div className="flex justify-between items-center text-xs">
+        <span className="text-white/70">⏱️ Time remaining</span>
+        <span
+          className={`font-bold tabular-nums ${
+            isUrgent ? "text-danger animate-pulse" : "text-white"
+          }`}
+        >
+          {remainingSeconds}s
+        </span>
+      </div>
+      <div className="h-1.5 rounded-full overflow-hidden bg-card-border">
+        <motion.div
+          className={`h-full ${isUrgent ? "bg-danger" : "bg-accent"}`}
+          initial={{ width: "100%" }}
+          animate={{ width: `${progress}%` }}
+          transition={{ duration: 0.1, ease: "linear" }}
+        />
+      </div>
+    </div>
+  );
+}
+
 interface VoteProgressProps {
   votesToKeep: number;
   votesToKick: number;
@@ -106,7 +163,7 @@ export default function VoteKickModal() {
       totalVotes:
         (activeVoteKick?.votesToKick ?? 0) + (activeVoteKick?.votesToKeep ?? 0),
     }),
-    [activeVoteKick, username]
+    [activeVoteKick, username],
   );
 
   const handleVote = useCallback(
@@ -123,7 +180,7 @@ export default function VoteKickModal() {
         setIsVoting(false);
       }
     },
-    [castVoteKick, addToast, isVoting]
+    [castVoteKick, addToast, isVoting],
   );
 
   const { isTarget, isInitiator, totalVotes } = derivedState;
@@ -156,6 +213,12 @@ export default function VoteKickModal() {
 
             {/* Content */}
             <div className="p-3 space-y-3">
+              {/* Timer Progress Bar */}
+              <TimerProgress
+                startedAt={activeVoteKick.startedAt}
+                durationSeconds={activeVoteKick.durationSeconds}
+              />
+
               {!isTarget && (
                 <p className="text-white text-sm text-center">
                   <span className="font-bold text-accent">

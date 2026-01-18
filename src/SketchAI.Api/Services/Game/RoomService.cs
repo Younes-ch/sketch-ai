@@ -3,9 +3,10 @@
 public class RoomService : IRoomService
 {
     private readonly IDatabase _db;
+    private readonly IVoteKickTimerService _voteKickTimerService;
     private readonly IOptions<GameSettings> _gameSettings;
-    private readonly ILogger<RoomService> _logger;
     private readonly IDistributedLockProvider _lockProvider;
+    private readonly ILogger<RoomService> _logger;
 
     private static readonly JsonSerializerOptions JsonOptions = new()
     {
@@ -14,11 +15,13 @@ public class RoomService : IRoomService
 
     public RoomService(
         IConnectionMultiplexer redis,
+        IVoteKickTimerService voteKickTimerService,
         IOptions<GameSettings> gameSettings,
-        ILogger<RoomService> logger,
-        IDistributedLockProvider lockProvider)
+        IDistributedLockProvider lockProvider,
+        ILogger<RoomService> logger)
     {
         _db = redis.GetDatabase();
+        _voteKickTimerService = voteKickTimerService;
         _gameSettings = gameSettings;
         _logger = logger;
         _lockProvider = lockProvider;
@@ -502,6 +505,7 @@ public class RoomService : IRoomService
             TargetConnectionId = targetPlayer.ConnectionId,
             InitiatorUsername = initiator.Username,
             StartedAt = DateTime.UtcNow,
+            DurationSeconds = _gameSettings.Value.VoteKickDurationSeconds,
             TotalVotersNeeded = room.Players.Count - 1
         };
 
@@ -509,6 +513,8 @@ public class RoomService : IRoomService
         room.ActiveVoteKick.VotesToKick.Add(initiatorConnectionId);
 
         await SaveRoomAsync(room);
+
+        await _voteKickTimerService.AddToActiveVoteKicksAsync(roomCode);
 
         _logger.LogInformation("Votekick started in room {RoomCode} by {Initiator} against {Target}",
             roomCode, initiator.Username, targetUsername);
@@ -574,7 +580,9 @@ public class RoomService : IRoomService
         {
             var kickVotes = room.ActiveVoteKick.VotesToKick.Count;
             var keepVotes = room.ActiveVoteKick.VotesToKeep.Count;
-            var shouldKick = kickVotes > keepVotes;
+            var totalVotersNeeded = room.ActiveVoteKick.TotalVotersNeeded;
+            var majorityThreshold = (totalVotersNeeded / 2) + 1;
+            var shouldKick = kickVotes >= majorityThreshold;
 
             var result = new VoteKickResult
             {
@@ -589,8 +597,15 @@ public class RoomService : IRoomService
             room.ActiveVoteKick = null;
             await SaveRoomAsync(room);
 
-            _logger.LogInformation("Votekick completed in room {RoomCode}: {Result} ({KickVotes} kick, {KeepVotes} keep)",
-                roomCode, shouldKick ? "KICKED" : "KEPT", kickVotes, keepVotes);
+            await _voteKickTimerService.RemoveFromActiveVoteKicksAsync(roomCode);
+
+            _logger.LogInformation(
+               "Votekick completed in room {RoomCode}: {Result} ({KickVotes}/{TotalVoters} kick, needed {Threshold})",
+               roomCode,
+               shouldKick ? "KICKED" : "KEPT",
+               kickVotes,
+               totalVotersNeeded,
+               majorityThreshold);
 
             return (result, null);
         }
@@ -619,6 +634,64 @@ public class RoomService : IRoomService
         room.ActiveVoteKick = null;
         await SaveRoomAsync(room);
 
+        await _voteKickTimerService.RemoveFromActiveVoteKicksAsync(roomCode);
+
         _logger.LogInformation("Votekick cancelled in room {RoomCode}", roomCode);
+    }
+
+    public async Task<VoteKickResult?> TryExpireVoteKickAsync(string roomCode)
+    {
+        await using var lockHandle = await _lockProvider.TryAcquireLockAsync(
+            RedisKeys.RoomLock(roomCode),
+            RedisKeys.RoomLockExpiry);
+
+        if (lockHandle is null)
+        {
+            _logger.LogWarning("TryExpireVoteKick: Could not acquire lock for room {RoomCode}", roomCode);
+            return null;
+        }
+
+        var room = await GetRoomAsync(roomCode);
+        if (room?.ActiveVoteKick is null)
+        {
+            // Already processed by CastVoteKickAsync or cancelled
+            return null;
+        }
+
+        var elapsed = DateTime.UtcNow - room.ActiveVoteKick.StartedAt;
+        if (elapsed.TotalSeconds < room.ActiveVoteKick.DurationSeconds)
+        {
+            return null;
+        }
+
+        var kickVotes = room.ActiveVoteKick.VotesToKick.Count;
+        var keepVotes = room.ActiveVoteKick.VotesToKeep.Count;
+        var totalVotersNeeded = room.ActiveVoteKick.TotalVotersNeeded;
+        var majorityThreshold = (totalVotersNeeded / 2) + 1;
+        var shouldKick = kickVotes >= majorityThreshold;
+
+        var result = new VoteKickResult
+        {
+            TargetUsername = room.ActiveVoteKick.TargetUsername,
+            TargetConnectionId = room.ActiveVoteKick.TargetConnectionId,
+            ShouldKick = shouldKick,
+            VotesToKick = kickVotes,
+            VotesToKeep = keepVotes
+        };
+
+        room.ActiveVoteKick = null;
+        await SaveRoomAsync(room);
+
+        await _voteKickTimerService.RemoveFromActiveVoteKicksAsync(roomCode);
+
+        _logger.LogInformation(
+            "Votekick expired in room {RoomCode}: {Result} ({KickVotes}/{TotalVoters} kick, needed {Threshold})",
+            roomCode,
+            shouldKick ? "KICKED" : "KEPT",
+            kickVotes,
+            totalVotersNeeded,
+            majorityThreshold);
+
+        return result;
     }
 }

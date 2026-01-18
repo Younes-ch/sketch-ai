@@ -24,6 +24,8 @@ builder.Services.AddSingleton<IAIDrawingService, AIDrawingService>();
 builder.Services.AddSingleton<IWordExplanationService, WordExplanationService>();
 builder.Services.AddSingleton<IAIDrawingCancellationManager, AIDrawingCancellationManager>();
 builder.Services.AddSingleton<IImageHintService, ImageHintService>();
+builder.Services.AddScoped<IVoteKickTimerService, VoteKickTimerService>();
+
 
 // HTTP clients for external APIs
 builder.Services.AddHttpClient("SerperClient", client =>
@@ -36,7 +38,8 @@ builder.Services.AddHttpClient("SerperClient", client =>
 });
 
 // Background services
-builder.Services.AddHostedService<RoundTimerService>();
+builder.Services.AddHostedService<RoundTimerBackgroundService>();
+builder.Services.AddHostedService<VoteKickBackgroundService>();
 builder.Services.AddHostedService<RateLimiterCleanupService>();
 
 // TimeProvider
