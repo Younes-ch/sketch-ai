@@ -644,4 +644,64 @@ public class RoomService : IRoomService
 
         _logger.LogInformation("Votekick cancelled in room {RoomCode}", roomCode);
     }
+
+    public async Task<VoteKickResult?> TryExpireVoteKickAsync(string roomCode)
+    {
+        await using var lockHandle = await _lockProvider.TryAcquireLockAsync(
+            RedisKeys.RoomLock(roomCode),
+            RedisKeys.RoomLockExpiry);
+
+        if (lockHandle is null)
+        {
+            _logger.LogWarning("TryExpireVoteKick: Could not acquire lock for room {RoomCode}", roomCode);
+            return null;
+        }
+
+        var room = await GetRoomAsync(roomCode);
+        if (room?.ActiveVoteKick is null)
+        {
+            // Already processed by CastVoteKickAsync or cancelled
+            return null;
+        }
+
+        var elapsed = DateTime.UtcNow - room.ActiveVoteKick.StartedAt;
+        if (elapsed.TotalSeconds < room.ActiveVoteKick.DurationSeconds)
+        {
+            return null;
+        }
+
+        // Timer expired - calculate result
+        var kickVotes = room.ActiveVoteKick.VotesToKick.Count;
+        var keepVotes = room.ActiveVoteKick.VotesToKeep.Count;
+        var totalVotersNeeded = room.ActiveVoteKick.TotalVotersNeeded;
+        var majorityThreshold = (totalVotersNeeded / 2) + 1;
+        var shouldKick = kickVotes >= majorityThreshold;
+
+        var result = new VoteKickResult
+        {
+            TargetUsername = room.ActiveVoteKick.TargetUsername,
+            TargetConnectionId = room.ActiveVoteKick.TargetConnectionId,
+            ShouldKick = shouldKick,
+            VotesToKick = kickVotes,
+            VotesToKeep = keepVotes
+        };
+
+        room.ActiveVoteKick = null;
+        await SaveRoomAsync(room);
+
+        await RedisHelper.SafeExecuteAsync(
+            () => _db.SetRemoveAsync(RedisKeys.ActiveVoteKicks, roomCode),
+            _logger,
+            $"UntrackExpiredVoteKickFromRoom:{roomCode}");
+
+        _logger.LogInformation(
+            "Votekick expired in room {RoomCode}: {Result} ({KickVotes}/{TotalVoters} kick, needed {Threshold})",
+            roomCode,
+            shouldKick ? "KICKED" : "KEPT",
+            kickVotes,
+            totalVotersNeeded,
+            majorityThreshold);
+
+        return result;
+    }
 }

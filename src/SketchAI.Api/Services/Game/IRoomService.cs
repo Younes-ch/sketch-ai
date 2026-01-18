@@ -162,4 +162,12 @@ public interface IRoomService
     /// </summary>
     /// <param name="roomCode">The room code.</param>
     Task CancelVoteKickAsync(string roomCode);
+
+    /// <summary>
+    /// Attempts to expire a vote kick if the timer has elapsed.
+    /// Acquires lock to prevent race conditions with CastVoteKickAsync.
+    /// </summary>
+    /// <param name="roomCode">The room code.</param>
+    /// <returns>The vote result if expired, null if not expired or already processed.</returns>
+    Task<VoteKickResult?> TryExpireVoteKickAsync(string roomCode);
 }

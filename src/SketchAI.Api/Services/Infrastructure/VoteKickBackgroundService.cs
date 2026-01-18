@@ -35,7 +35,7 @@ public class VoteKickBackgroundService : BackgroundService
             }
         }
 
-        _logger.LogInformation("VoteKickbackgroundService stopped");
+        _logger.LogInformation("VoteKickBackgroundService  stopped");
     }
 
     private async Task ProcessActiveVoteKicksAsync(CancellationToken ct)
@@ -52,7 +52,7 @@ public class VoteKickBackgroundService : BackgroundService
 
             try
             {
-                await ProcessVoteKickAsync(room, voteKickTimerService, roomService);
+                await ProcessVoteKickAsync(room, roomService);
             }
             catch (Exception ex)
             {
@@ -61,24 +61,17 @@ public class VoteKickBackgroundService : BackgroundService
         }
     }
 
-    private async Task ProcessVoteKickAsync(
-        Room room,
-        IVoteKickTimerService voteKickTimerService,
-        IRoomService roomService)
+    private async Task ProcessVoteKickAsync(Room room, IRoomService roomService)
     {
-        var result = await voteKickTimerService.ProcessVoteKickExpirationAsync(room);
+        var result = await roomService.TryExpireVoteKickAsync(room.Id);
 
         if (result is null)
             return;
-
-        await roomService.CancelVoteKickAsync(room.Id);
-        await voteKickTimerService.RemoveFromActiveVoteKicksAsync(room.Id);
 
         if (result.ShouldKick)
         {
             await _hubContext.Clients.Client(result.TargetConnectionId).SendAsync("Kicked", "You have been kicked by vote");
             await roomService.RemovePlayerFromRoomAsync(room.Id, result.TargetConnectionId);
-
             await _hubContext.Clients.Group(room.Id).SendAsync("PlayerLeft", result.TargetUsername);
         }
 
