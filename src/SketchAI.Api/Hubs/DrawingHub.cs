@@ -150,21 +150,35 @@ public class DrawingHub : Hub
     }
 
     /// <summary>
-    /// Gets a list of available public rooms.
+    /// Gets a paginated list of available public rooms.
     /// </summary>
-    public async Task GetPublicRooms()
+    /// <param name="page">The page number (1-based, defaults to 1).</param>
+    /// <param name="pageSize">The number of rooms per page (uses configured default if not specified).</param>
+    public async Task GetPublicRooms(int page = 1, int? pageSize = null)
     {
-        var rooms = await _roomService.GetPublicRoomsAsync();
+        var defaultPageSize = _gameSettings.PublicRoomsDefaultPageSize;
+        var maxPageSize = _gameSettings.PublicRoomsMaxPageSize;
 
-        var publicRoomDtos = rooms.Select(r => new
+        page = Math.Max(1, page);
+        var effectivePageSize = Math.Clamp(pageSize ?? defaultPageSize, 1, maxPageSize);
+
+        var (rooms, totalCount) = await _roomService.GetPublicRoomsAsync(page, effectivePageSize);
+
+        var paginatedResult = new PaginatedPublicRoomsDto
         {
-            RoomCode = r.Id,
-            PlayerCount = r.Players.Count,
-            r.Settings.MaxPlayers,
-            HostUsername = r.Players.FirstOrDefault(p => p.IsHost)?.Username
-        }).ToList();
+            Rooms = rooms.Select(r => new PublicRoomDto
+            {
+                RoomCode = r.Id,
+                PlayerCount = r.Players.Count,
+                MaxPlayers = r.Settings.MaxPlayers,
+                HostUsername = r.Players.FirstOrDefault(p => p.IsHost)?.Username
+            }).ToList(),
+            Page = page,
+            PageSize = effectivePageSize,
+            TotalCount = totalCount
+        };
 
-        await Clients.Caller.SendAsync("ReceivePublicRooms", publicRoomDtos);
+        await Clients.Caller.SendAsync("ReceivePublicRooms", paginatedResult);
     }
 
     /// <summary>

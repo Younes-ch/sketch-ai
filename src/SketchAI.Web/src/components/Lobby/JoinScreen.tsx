@@ -10,7 +10,7 @@ import { parseHubError } from "@/lib/utils";
 import type { PublicRoom, RoomSettings } from "@/models";
 import { useConnectionStore } from "@/stores/connectionStore";
 import { useRoomStore } from "@/stores/roomStore";
-import { useState } from "react";
+import { useState, useCallback } from "react";
 import { Input } from "@/components/ui";
 import { motion, AnimatePresence } from "framer-motion";
 
@@ -20,7 +20,7 @@ interface JoinScreenProps {
     roomCode: string,
     isCreating: boolean,
     isPublic?: boolean,
-    settings?: RoomSettings
+    settings?: RoomSettings,
   ) => Promise<void>;
   initialRoomCode?: string | null;
 }
@@ -33,13 +33,14 @@ export default function JoinScreen({
 }: JoinScreenProps) {
   const connectionState = useConnectionStore((s) => s.connectionState);
   const publicRooms = useRoomStore((s) => s.publicRooms);
+  const publicRoomsPagination = useRoomStore((s) => s.publicRoomsPagination);
   const isLoadingRooms = useRoomStore((s) => s.isLoadingRooms);
   const getPublicRooms = useRoomStore((s) => s.getPublicRooms);
 
   const [username, setUsername] = useState("");
   const [roomCode, setRoomCode] = useState(initialRoomCode ?? "");
   const [activeTab, setActiveTab] = useState<TabType>(
-    initialRoomCode ? "join" : "create"
+    initialRoomCode ? "join" : "create",
   );
   const [isJoining, setIsJoining] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -48,7 +49,7 @@ export default function JoinScreen({
   const handleTabChange = (tab: TabType) => {
     setActiveTab(tab);
     if (tab === "public" && connectionState === "Connected") {
-      getPublicRooms();
+      getPublicRooms(1);
     }
   };
 
@@ -57,7 +58,7 @@ export default function JoinScreen({
     let result = "";
     for (let i = 0; i < 6; i++) {
       result += characters.charAt(
-        Math.floor(Math.random() * characters.length)
+        Math.floor(Math.random() * characters.length),
       );
     }
     return result;
@@ -79,7 +80,7 @@ export default function JoinScreen({
 
   const handleCreateRoom = async (
     e: React.FormEvent,
-    settings: RoomSettings
+    settings: RoomSettings,
   ) => {
     e.preventDefault();
     if (username.trim()) {
@@ -92,7 +93,7 @@ export default function JoinScreen({
           newRoomCode,
           true,
           isPublicRoom,
-          settings
+          settings,
         );
       } catch (err) {
         setError(parseHubError(err));
@@ -116,9 +117,16 @@ export default function JoinScreen({
     }
   };
 
-  const refreshPublicRooms = () => {
-    getPublicRooms();
-  };
+  const refreshPublicRooms = useCallback(() => {
+    getPublicRooms(publicRoomsPagination.page);
+  }, [getPublicRooms, publicRoomsPagination.page]);
+
+  const handlePageChange = useCallback(
+    (page: number) => {
+      getPublicRooms(page);
+    },
+    [getPublicRooms],
+  );
 
   const hasUsername = username.trim().length > 0;
 
@@ -252,7 +260,9 @@ export default function JoinScreen({
                 <PublicRoomsTab
                   publicRooms={publicRooms}
                   isLoadingRooms={isLoadingRooms}
+                  pagination={publicRoomsPagination}
                   onRefresh={refreshPublicRooms}
+                  onPageChange={handlePageChange}
                   onJoinRoom={handleJoinPublicRoom}
                   isJoining={isJoining}
                   hasUsername={hasUsername}

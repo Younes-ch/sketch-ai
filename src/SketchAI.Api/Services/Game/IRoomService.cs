@@ -43,6 +43,14 @@ public interface IRoomService
     Task<List<Room>> GetPublicRoomsAsync();
 
     /// <summary>
+    /// Gets a paginated list of public rooms that are not full.
+    /// </summary>
+    /// <param name="page">The page number (1-based).</param>
+    /// <param name="pageSize">The number of rooms per page.</param>
+    /// <returns>Paginated result containing rooms and pagination metadata.</returns>
+    Task<(List<Room> Rooms, int TotalCount)> GetPublicRoomsAsync(int page, int pageSize);
+
+    /// <summary>
     /// Checks if a room has reached its maximum player capacity.
     /// </summary>
     /// <param name="room">The room code to check.</param>
