@@ -27,8 +27,28 @@ public class RoomService : IRoomService
         _lockProvider = lockProvider;
     }
 
-    public async Task<Room> CreateRoomAsync(string roomCode, bool isPublic, string hostConnectionId, string hostUsername)
+    public async Task<(Room? Room, string? ErrorMessage)> CreateRoomAsync(string roomCode, string roomName, bool isPublic, string hostConnectionId, string hostUsername)
     {
+        await using var lockHandle = await _lockProvider.TryAcquireLockAsync(
+            RedisKeys.RoomCreationLock,
+            RedisKeys.RoomLockExpiry);
+
+        if (lockHandle is null)
+        {
+            _logger.LogWarning("CreateRoom failed: Could not acquire room creation lock");
+            return (null, "Server busy, please try again");
+        }
+
+        if (await RoomExistsAsync(roomCode))
+        {
+            return (null, "Room already exists. Try a different code.");
+        }
+
+        if (await RoomNameExistsAsync(roomName))
+        {
+            return (null, "A room with this name already exists. Please choose a different name.");
+        }
+
         var host = new Player
         {
             ConnectionId = hostConnectionId,
@@ -49,6 +69,7 @@ public class RoomService : IRoomService
         var room = new Room
         {
             Id = roomCode,
+            Name = roomName,
             HostConnectionId = hostConnectionId,
             IsPublic = isPublic,
             Settings = roomSettings,
@@ -60,17 +81,51 @@ public class RoomService : IRoomService
         await SaveRoomAsync(room);
 
         var connectionKey = RedisKeys.ConnectionToRoom(hostConnectionId);
-        await _db.StringSetAsync(connectionKey, roomCode, RedisKeys.RoomExpiry);
+        await RedisHelper.SafeExecuteAsync(
+            () => _db.StringSetAsync(connectionKey, roomCode, RedisKeys.RoomExpiry),
+            _logger,
+            $"TrackHostConnectionIdToRoom:{connectionKey}");
 
+        var normalizedName = roomName.ToUpperInvariant();
+        await RedisHelper.SafeExecuteAsync(
+            () => _db.HashSetAsync(RedisKeys.RoomNames, normalizedName, roomCode),
+            _logger,
+            $"TrackRoomName:{normalizedName}");
         if (isPublic)
         {
             await _db.SetAddAsync(RedisKeys.PublicRooms, roomCode);
         }
 
-        _logger.LogInformation("Room {roomCode} created by {Username} ({ConnectionId})",
-            roomCode, hostUsername, hostConnectionId);
+        _logger.LogInformation("Room {roomCode} ({roomName}) created by {Username} ({ConnectionId})",
+            roomCode, roomName, hostUsername, hostConnectionId);
 
-        return room;
+        return (room, null);
+    }
+
+    public async Task<bool> RoomNameExistsAsync(string roomName)
+    {
+        var normalizedName = roomName.ToUpperInvariant();
+        var existingRoomCode = await RedisHelper.SafeExecuteAsync(
+            () => _db.HashGetAsync(RedisKeys.RoomNames, normalizedName),
+            _logger,
+            $"CheckRoomNameExists:{roomName}");
+
+        if (existingRoomCode.IsNullOrEmpty)
+        {
+            return false;
+        }
+
+        var roomExists = await RoomExistsAsync(existingRoomCode.ToString());
+        if (!roomExists)
+        {
+            await RedisHelper.SafeExecuteAsync(
+                () => _db.HashDeleteAsync(RedisKeys.RoomNames, normalizedName),
+                _logger,
+                $"DeleteRoomNameInRoomNameExistsCheck:{normalizedName}");
+            return false;
+        }
+
+        return true;
     }
 
     public async Task<(Room? Room, string? ErrorMessage)> UpdateRoomSettingsAsync(string roomCode, string connectionId, RoomSettingsDto roomSettings)
@@ -345,8 +400,20 @@ public class RoomService : IRoomService
         _logger.LogInformation("Deleting room {RoomCode} with {PlayerCount} players",
             roomCode, room.Players.Count);
 
-        await _db.SetRemoveAsync(RedisKeys.PublicRooms, roomCode);
-        await _db.SetRemoveAsync(RedisKeys.RoomsInDrawingPhase, roomCode);
+        await RedisHelper.SafeExecuteAsync(
+                () => _db.SetRemoveAsync(RedisKeys.PublicRooms, roomCode),
+                _logger,
+                $"UntrackPublicRoomFromDeleteRoomAsync:{roomCode}");
+        await RedisHelper.SafeExecuteAsync(
+                () => _db.SetRemoveAsync(RedisKeys.RoomsInDrawingPhase, roomCode),
+                _logger,
+                $"UntrackRoomInDrawingPhaseFromDeleteRoomAsync:{roomCode}");
+
+        var normalizedName = room.Name.ToUpperInvariant();
+        await RedisHelper.SafeExecuteAsync(
+                () => _db.HashDeleteAsync(RedisKeys.RoomNames, normalizedName),
+                _logger,
+                $"DeleteRoomNameFromDeleteRoomAsync:{normalizedName}");
 
         // Clean up all connection keys for players in this room
         var keysToDelete = room.Players

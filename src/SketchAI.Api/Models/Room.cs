@@ -3,6 +3,7 @@
 public class Room
 {
     public required string Id { get; set; }
+    public required string Name { get; set; }
     public required string HostConnectionId { get; set; }
     public bool IsPublic { get; set; }
     public required RoomSettingsDto Settings { get; set; }

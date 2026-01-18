@@ -20,6 +20,7 @@ public class PaginatedPublicRoomsDto
 public class PublicRoomDto
 {
     public required string RoomCode { get; set; }
+    public required string Name { get; set; }
     public int PlayerCount { get; set; }
     public int MaxPlayers { get; set; }
     public string? HostUsername { get; set; }

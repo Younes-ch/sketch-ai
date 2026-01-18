@@ -13,6 +13,8 @@ public static partial class ValidationHelper
     private const int MinUsernameLength = 1;
     private const int MaxUsernameLength = 20;
     private const int RoomCodeLength = 6;
+    private const int MinRoomNameLength = 3;
+    private const int MaxRoomNameLength = 30;
     private const int MinBrushWidth = 1;
     private const int MaxBrushWidth = 50;
     private const int MaxCustomWordsLength = 2000;
@@ -28,6 +30,17 @@ public static partial class ValidationHelper
     public static bool IsValidRoomCode(string? roomCode)
     {
         return !string.IsNullOrWhiteSpace(roomCode) && roomCode.Length == RoomCodeLength && RoomCodeRegex().IsMatch(roomCode);
+    }
+
+    /// <summary>
+    /// Validates a room name (3-30 chars, alphanumeric, spaces, and common punctuation).
+    /// </summary>
+    public static bool IsValidRoomName(string? roomName)
+    {
+        return !string.IsNullOrWhiteSpace(roomName)
+            && roomName.Length >= MinRoomNameLength
+            && roomName.Length <= MaxRoomNameLength
+            && RoomNameRegex().IsMatch(roomName);
     }
 
     /// <summary>
@@ -188,6 +201,9 @@ public static partial class ValidationHelper
     // Regex patterns using source generators for performance
     [GeneratedRegex("^[A-Z0-9]{6}$")]
     private static partial Regex RoomCodeRegex();
+
+    [GeneratedRegex("^[a-zA-Z0-9 _'\\-!]+$")]
+    private static partial Regex RoomNameRegex();
 
     [GeneratedRegex("^[a-zA-Z0-9 _-]+$")]
     private static partial Regex UsernameRegex();

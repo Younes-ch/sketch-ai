@@ -2,9 +2,11 @@ import { cn } from "@/lib/utils";
 import { useState, useMemo } from "react";
 import { defaultRoomSettings, WORD_PRESETS, type RoomSettings } from "@/models";
 import RoomSettingsPanel from "./RoomSettingsPanel";
-import { Button } from "@/components/ui";
+import { Button, Input } from "@/components/ui";
 
 interface CreateRoomTabProps {
+  roomName: string;
+  onRoomNameChange: (name: string) => void;
   isPublicRoom: boolean;
   onTogglePublic: () => void;
   onSubmit: (e: React.FormEvent, settings: RoomSettings) => void;
@@ -40,6 +42,8 @@ function isCustomWordsValid(settings: RoomSettings): boolean {
 }
 
 export default function CreateRoomTab({
+  roomName,
+  onRoomNameChange,
   isPublicRoom,
   onTogglePublic,
   onSubmit,
@@ -62,18 +66,36 @@ export default function CreateRoomTab({
 
   const wordSourceSummary = useMemo(
     () => getWordSourceSummary(settings),
-    [settings]
+    [settings],
   );
 
   const hasValidCustomWords = useMemo(
     () => isCustomWordsValid(settings),
-    [settings]
+    [settings],
   );
 
-  const isFormDisabled = isDisabled || !hasValidCustomWords;
+  const isRoomNameValid =
+    roomName.trim().length >= 3 && roomName.trim().length <= 30;
+  const isFormDisabled = isDisabled || !hasValidCustomWords || !isRoomNameValid;
 
   return (
     <form onSubmit={handleSubmit} className="flex flex-col gap-4">
+      {/* Room Name Input */}
+      <div className="space-y-2">
+        <label className="text-white/70 text-sm font-medium">Room Name</label>
+        <Input
+          type="text"
+          value={roomName}
+          onChange={(e) => onRoomNameChange(e.target.value)}
+          placeholder="My Awesome Room"
+          maxLength={30}
+          className="w-full"
+        />
+        <p className="text-white/40 text-xs">
+          {roomName.trim().length}/30 characters (min 3)
+        </p>
+      </div>
+
       {/* Public/Private Toggle */}
       <div className="flex items-center justify-between bg-background rounded-2xl p-4 border-2 border-card-border">
         <div className="flex items-center gap-2">
@@ -94,13 +116,13 @@ export default function CreateRoomTab({
           onClick={onTogglePublic}
           className={cn(
             "relative w-14 h-8 rounded-full transition-colors duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent",
-            isPublicRoom ? "bg-success" : "bg-card-border"
+            isPublicRoom ? "bg-success" : "bg-card-border",
           )}
         >
           <div
             className={cn(
               "absolute top-1 w-6 h-6 bg-white rounded-full transition-transform duration-200",
-              isPublicRoom ? "translate-x-7" : "translate-x-1"
+              isPublicRoom ? "translate-x-7" : "translate-x-1",
             )}
           />
         </button>
@@ -128,7 +150,7 @@ export default function CreateRoomTab({
         <span
           className={cn(
             "text-white/60 transition-transform duration-200",
-            showSettings && "rotate-180"
+            showSettings && "rotate-180",
           )}
         >
           ▼

@@ -4,6 +4,7 @@ public static class RedisKeys
 {
     public static string Room(string roomCode) => $"room:{roomCode}";
     public static string RoomLock(string roomCode) => $"room:{roomCode}:lock";
+    public static string RoomCreationLock => "room:creation:lock";
     public static string CanvasHistory(string roomCode) => $"canvas:history:{roomCode}";
     public static string ConnectionToRoom(string connectionId) => $"connection:{connectionId}";
     public static string WordExplanation(string word, string targetLanguage) =>
@@ -15,6 +16,7 @@ public static class RedisKeys
             : $"image_hints:{word.ToLowerInvariant()}:{preset.ToLowerInvariant()}";
 
     public static string PublicRooms => "public_rooms";
+    public static string RoomNames => "room_names";
     public static string RoomsInDrawingPhase => "drawing_phase_rooms";
     public static string ActiveVoteKicks => "active_votekicks";
 

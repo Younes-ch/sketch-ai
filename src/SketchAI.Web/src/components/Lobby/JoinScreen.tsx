@@ -17,6 +17,7 @@ import { motion, AnimatePresence } from "framer-motion";
 interface JoinScreenProps {
   onJoinGame: (
     username: string,
+    roomName: string,
     roomCode: string,
     isCreating: boolean,
     isPublic?: boolean,
@@ -38,6 +39,7 @@ export default function JoinScreen({
   const getPublicRooms = useRoomStore((s) => s.getPublicRooms);
 
   const [username, setUsername] = useState("");
+  const [roomName, setRoomName] = useState("");
   const [roomCode, setRoomCode] = useState(initialRoomCode ?? "");
   const [activeTab, setActiveTab] = useState<TabType>(
     initialRoomCode ? "join" : "create",
@@ -70,7 +72,12 @@ export default function JoinScreen({
       setIsJoining(true);
       setError(null);
       try {
-        await onJoinGame(username.trim(), roomCode.trim().toUpperCase(), false);
+        await onJoinGame(
+          username.trim(),
+          "",
+          roomCode.trim().toUpperCase(),
+          false,
+        );
       } catch (err) {
         setError(parseHubError(err));
         setIsJoining(false);
@@ -83,13 +90,14 @@ export default function JoinScreen({
     settings: RoomSettings,
   ) => {
     e.preventDefault();
-    if (username.trim()) {
+    if (username.trim() && roomName.trim()) {
       setIsJoining(true);
       setError(null);
       try {
         const newRoomCode = generateRoomCode();
         await onJoinGame(
           username.trim(),
+          roomName.trim(),
           newRoomCode,
           true,
           isPublicRoom,
@@ -110,7 +118,7 @@ export default function JoinScreen({
     setIsJoining(true);
     setError(null);
     try {
-      await onJoinGame(username.trim(), room.roomCode, false);
+      await onJoinGame(username.trim(), "", room.roomCode, false);
     } catch (err) {
       setError(parseHubError(err));
       setIsJoining(false);
@@ -247,6 +255,8 @@ export default function JoinScreen({
 
               {activeTab === "create" && (
                 <CreateRoomTab
+                  roomName={roomName}
+                  onRoomNameChange={setRoomName}
                   isPublicRoom={isPublicRoom}
                   onTogglePublic={() => setIsPublicRoom(!isPublicRoom)}
                   onSubmit={handleCreateRoom}

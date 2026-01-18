@@ -46,11 +46,16 @@ public class DrawingHub : Hub
     /// <summary>
     /// Creates a new room and joins the creator as host.
     /// </summary>
-    public async Task CreateRoom(string username, string roomCode, bool isPublic = true, RoomSettingsDto? roomSettings = null)
+    public async Task CreateRoom(string username, string roomName, string roomCode, bool isPublic = true, RoomSettingsDto? roomSettings = null)
     {
         if (!ValidationHelper.IsValidUsername(username))
         {
             throw new HubException("Invalid username. Use 1-20 alphanumeric characters, spaces, or underscores.");
+        }
+
+        if (!ValidationHelper.IsValidRoomName(roomName))
+        {
+            throw new HubException("Invalid room name. Use 3-30 alphanumeric characters, spaces, or common punctuation.");
         }
 
         if (!ValidationHelper.IsValidRoomCode(roomCode))
@@ -58,23 +63,22 @@ public class DrawingHub : Hub
             throw new HubException("Invalid room code. Must be 6 alphanumeric characters.");
         }
 
-        // Check if room already exists
-        if (await _roomService.RoomExistsAsync(roomCode))
-        {
-            throw new HubException("Room already exists. Try a different code.");
-        }
+        var (room, errorMessage) = await _roomService.CreateRoomAsync(roomCode, roomName, isPublic, Context.ConnectionId, username);
 
-        var room = await _roomService.CreateRoomAsync(roomCode, isPublic, Context.ConnectionId, username);
+        if (room is null)
+        {
+            throw new HubException(errorMessage ?? "Failed to create room");
+        }
 
         if (roomSettings is not null)
         {
-            var (_, errorMessage) = await _roomService.UpdateRoomSettingsAsync(roomCode, Context.ConnectionId, roomSettings);
+            var (_, settingsError) = await _roomService.UpdateRoomSettingsAsync(roomCode, Context.ConnectionId, roomSettings);
 
-            if (errorMessage is not null)
+            if (settingsError is not null)
             {
-                _logger.LogWarning("CreateRoom with custom roomSettings failed - Error: {ErrorMessage}", errorMessage);
+                _logger.LogWarning("CreateRoom with custom roomSettings failed - Error: {ErrorMessage}", settingsError);
                 await _roomService.DeleteRoomAsync(roomCode);
-                throw new HubException(errorMessage);
+                throw new HubException(settingsError);
             }
         }
 
@@ -169,6 +173,7 @@ public class DrawingHub : Hub
             Rooms = rooms.Select(r => new PublicRoomDto
             {
                 RoomCode = r.Id,
+                Name = r.Name,
                 PlayerCount = r.Players.Count,
                 MaxPlayers = r.Settings.MaxPlayers,
                 HostUsername = r.Players.FirstOrDefault(p => p.IsHost)?.Username
