@@ -84,13 +84,6 @@ export default function PlayerList({
     };
   }, []);
 
-  useEffect(() => {
-    if (activeVoteKick && selectedPlayer) {
-      setSelectedPlayer(null);
-    }
-
-  }, [activeVoteKick]);
-
   const getPopupPoints = (username: string): number => {
     return visiblePopups.get(username) ?? 0;
   };
@@ -307,7 +300,7 @@ export default function PlayerList({
                   )}
                 </AnimatePresence>
 
-                <div className="relative overflow-visible z-50">
+                <div className="relative overflow-visible z-30">
                   <motion.span
                     key={player.score}
                     initial={
@@ -315,10 +308,7 @@ export default function PlayerList({
                     }
                     animate={{ scale: 1, color: "#ffffff" }}
                     transition={{ duration: 0.3 }}
-                    className={cn(
-                      "text-white font-bold",
-                      isDesktop ? "text-lg" : "text-lg"
-                    )}
+                    className="text-white font-bold text-lg"
                   >
                     {player.score}
                   </motion.span>

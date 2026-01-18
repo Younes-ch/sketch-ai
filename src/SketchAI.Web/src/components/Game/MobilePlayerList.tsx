@@ -270,7 +270,7 @@ export default function MobilePlayerList({
                 </div>
 
                 {/* Score with popup animation */}
-                <div className="relative overflow-visible z-50">
+                <div className="relative overflow-visible z-30">
                   <motion.span
                     key={player.score}
                     initial={

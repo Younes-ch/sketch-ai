@@ -139,7 +139,7 @@ export default function VoteKickModal() {
           animate={{ opacity: 1, y: 0, scale: 1 }}
           exit={{ opacity: 0, scale: 0.9, y: 50 }}
           transition={{ type: "spring", stiffness: 300, damping: 25 }}
-          className="fixed z-50 w-[calc(100%-2rem)] max-w-xs sm:max-w-sm pointer-events-auto top-4 left-1/2 -translate-x-1/2 sm:top-auto sm:left-4 sm:bottom-4 sm:translate-x-0"
+          className="fixed z-60 w-[calc(100%-2rem)] max-w-xs sm:max-w-sm pointer-events-auto top-4 left-1/2 -translate-x-1/2 sm:top-auto sm:left-4 sm:bottom-4 sm:translate-x-0"
         >
           <div className="bg-card rounded-xl border-2 border-card-border shadow-xl overflow-hidden">
             {/* Header */}
