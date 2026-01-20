@@ -6,22 +6,15 @@ var googleGeminiApiKey = builder.AddParameter("google-gemini-api-key", secret: t
 var serperApiKey = builder.AddParameter("serper-api-key", secret: true);
 
 // ===== Infrastructure =====
-// Redis: Container locally, Azure Managed Redis in production
-IResourceBuilder<IResourceWithConnectionString> redis;
+// Redis container (works on both local and Azure Container Apps)
+var redis = builder.AddRedis("redis");
 
 if (builder.ExecutionContext.IsRunMode)
 {
-    // Local development: Redis container with RedisInsight
-    var redisContainer = builder.AddRedis("redis");
-    redisContainer.WithRedisInsight(r => r
+    // Local development: add RedisInsight for debugging
+    redis.WithRedisInsight(r => r
         .WithHostPort(5540)
         .WithLifetime(ContainerLifetime.Persistent));
-    redis = redisContainer;
-}
-else
-{
-    // Production: Azure Managed Redis
-    redis = builder.AddAzureManagedRedis("redis");
 }
 
 // GitHub Models (AI)

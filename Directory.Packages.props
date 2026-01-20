@@ -12,7 +12,6 @@
   <ItemGroup Label="For AppHost">
     <PackageVersion Include="Aspire.Hosting.JavaScript" Version="13.1.0" />
     <PackageVersion Include="Aspire.Hosting.Redis" Version="13.1.0" />
-    <PackageVersion Include="Aspire.Hosting.Azure.Redis" Version="13.1.0" />
     <PackageVersion Include="Aspire.Hosting.GitHub.Models" Version="13.1.0" />
     <PackageVersion Include="Aspire.Hosting.Docker" Version="13.1.0-preview.1.25616.3" />
   </ItemGroup>
