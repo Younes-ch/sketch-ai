@@ -1,9 +1,16 @@
+#pragma warning disable ASPIRECOMPUTE003 // Preview APIs for Azure Container Apps
+
 var builder = DistributedApplication.CreateBuilder(args);
 
 // ===== Parameters (Secrets) =====
 var githubModelsApiKey = builder.AddParameter("gh-models-api-key", secret: true);
 var googleGeminiApiKey = builder.AddParameter("google-gemini-api-key", secret: true);
 var serperApiKey = builder.AddParameter("serper-api-key", secret: true);
+
+// ===== Azure Infrastructure (for deployment) =====
+var containerRegistry = builder.AddAzureContainerRegistry("acr");
+var acaEnv = builder.AddAzureContainerAppEnvironment("aca-env")
+    .WithContainerRegistry(containerRegistry);
 
 // ===== Infrastructure =====
 // Redis container (works on both local and Azure Container Apps)
