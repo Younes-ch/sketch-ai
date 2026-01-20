@@ -15,6 +15,24 @@ interface ConnectionStore {
   isConnected: () => boolean;
 }
 
+// Get the SignalR hub URL
+const getHubUrl = (): string => {
+  // Runtime config injected by Docker/nginx (production)
+  const runtimeConfig = (window as unknown as { __RUNTIME_CONFIG__?: { API_URL?: string } }).__RUNTIME_CONFIG__;
+  if (runtimeConfig?.API_URL) {
+    return `${runtimeConfig.API_URL}/hubs/drawing`;
+  }
+  
+  // Vite env variable (for local development builds)
+  const apiUrl = import.meta.env.VITE_API_URL;
+  if (apiUrl) {
+    return `${apiUrl}/hubs/drawing`;
+  }
+  
+  // Development with Vite proxy
+  return "/hubs/drawing";
+};
+
 export const useConnectionStore = create<ConnectionStore>((set, get) => ({
   connection: null,
   connectionState: "Disconnected",
@@ -25,8 +43,11 @@ export const useConnectionStore = create<ConnectionStore>((set, get) => ({
     // Only skip if we have an active connection
     if (connection && connection.state === signalR.HubConnectionState.Connected) return;
 
+    const hubUrl = getHubUrl();
+    logger.info(`Connecting to SignalR hub at: ${hubUrl}`);
+
     const newConnection = new signalR.HubConnectionBuilder()
-      .withUrl("/hubs/drawing")
+      .withUrl(hubUrl)
       .withAutomaticReconnect()
       .configureLogging(signalR.LogLevel.Information)
       .build();
