@@ -8,8 +8,8 @@ var googleGeminiApiKey = builder.AddParameter("google-gemini-api-key", secret: t
 var serperApiKey = builder.AddParameter("serper-api-key", secret: true);
 
 // ===== Azure Infrastructure (for deployment) =====
-var containerRegistry = builder.AddAzureContainerRegistry("acr");
-var acaEnv = builder.AddAzureContainerAppEnvironment("aca-env")
+var containerRegistry = builder.AddAzureContainerRegistry("sketchai-acr");
+var acaEnv = builder.AddAzureContainerAppEnvironment("sketchai-aca-env")
     .WithContainerRegistry(containerRegistry);
 
 // ===== Infrastructure =====
@@ -42,7 +42,7 @@ var apiService = builder
 if (builder.ExecutionContext.IsPublishMode)
 {
     // Production: Docker container with nginx
-    builder.AddDockerfile("sketch-ai", "../SketchAI.Web", "Dockerfile")
+    builder.AddDockerfile("sketchai-web", "../SketchAI.Web", "Dockerfile")
         .WithHttpEndpoint(targetPort: 80, name: "http")
         .WithExternalHttpEndpoints()
         .WithEnvironment("PORT", "80")
@@ -52,7 +52,7 @@ if (builder.ExecutionContext.IsPublishMode)
 else
 {
     // Development: Vite dev server with proxy
-    builder.AddViteApp("webfrontend", "../SketchAI.Web")
+    builder.AddViteApp("sketchai-web", "../SketchAI.Web")
         .WithNpm()
         .WithExternalHttpEndpoints()
         .WithEnvironment("BROWSER", "none")

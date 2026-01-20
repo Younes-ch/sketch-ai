@@ -47,8 +47,6 @@ export default defineConfig(({ mode }) => {
             port: parseInt(env.PORT) || 5173,
             proxy: {
                 '/hubs/drawing': {
-                    // Aspire injects service URLs as environment variables
-                    // Format: services__<resource-name>__<scheme>__<index> or <RESOURCE_NAME>_<SCHEME>
                     target: process.env['services__sketchai-api__https__0'] ||
                         process.env['services__sketchai-api__http__0'] ||
                         process.env.SKETCHAI_API_HTTPS ||
