@@ -59,8 +59,8 @@ export const useConnectionStore = create<ConnectionStore>((set, get) => ({
     });
 
     newConnection.onreconnected(() => {
-      logger.info("SignalR Reconnected");
-      set({ connectionState: "Connected" });
+      logger.info("SignalR Reconnected - refreshing page to restore session");
+      window.location.reload();
     });
 
     newConnection.onclose(() => {
