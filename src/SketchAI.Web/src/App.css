@@ -1,0 +1,120 @@
+@import "tailwindcss";
+
+@theme {
+  /* Typography - Nunito with system fallbacks */
+  --font-sans: 'Nunito', ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+  
+  /* Background colors */
+  --color-background: #0D1B2A;
+  --color-card: #1B2838;
+  --color-card-border: #2A3F54;
+  --color-card-border-hover: #3A4F64;
+  
+  /* Accent colors */
+  --color-accent: #FFC71E;
+  --color-accent-dark: #E5B31B;
+  --color-accent-hover: #E5B31B;
+  
+  /* Primary color (alias for accent in gaming context) */
+  --color-primary: #6366f1;
+  --color-primary-dark: #4f46e5;
+  --color-primary-hover: #5558e8;
+  
+  /* Status colors */
+  --color-success: #4CAF50;
+  --color-success-dark: #45a049;
+  --color-success-hover: #43A047;
+  
+  --color-info: #2196F3;
+  --color-info-dark: #1976D2;
+  --color-info-hover: #1E88E5;
+  
+  --color-danger: #F44336;
+  --color-danger-dark: #D32F2F;
+  --color-danger-hover: #E53935;
+  
+  --color-warning: #FF9800;
+  --color-warning-dark: #F57C00;
+  --color-warning-hover: #FB8C00;
+  
+  /* Decorative colors */
+  --color-purple: #9C27B0;
+  --color-pink: #E91E63;
+  --color-cyan: #00BCD4;
+}
+
+/* Global focus-visible styles for accessibility */
+@layer base {
+  *:focus-visible {
+    outline: 2px solid var(--color-accent);
+    outline-offset: 2px;
+  }
+  
+  /* Remove default outline on focus (we use focus-visible instead) */
+  *:focus:not(:focus-visible) {
+    outline: none;
+  }
+  
+  /* Smooth scrolling */
+  html {
+    scroll-behavior: smooth;
+  }
+  
+  /* Prevent text selection on game elements */
+  .no-select {
+    user-select: none;
+    -webkit-user-select: none;
+  }
+}
+
+/* Custom animation keyframes */
+@keyframes pulse-warning {
+  0%, 100% {
+    opacity: 1;
+    transform: scale(1);
+  }
+  50% {
+    opacity: 0.8;
+    transform: scale(1.05);
+  }
+}
+
+@keyframes shake {
+  0%, 100% { transform: translateX(0); }
+  10%, 30%, 50%, 70%, 90% { transform: translateX(-2px); }
+  20%, 40%, 60%, 80% { transform: translateX(2px); }
+}
+
+/* Animation utilities */
+@layer utilities {
+  .animate-pulse-warning {
+    animation: pulse-warning 0.5s ease-in-out infinite;
+  }
+  
+  .animate-shake {
+    animation: shake 0.5s ease-in-out;
+  }
+}
+
+/* Custom Scrollbar for Dark Theme */
+.custom-scrollbar {
+  scrollbar-width: thin;
+  scrollbar-color: var(--color-card-border) transparent;
+}
+
+.custom-scrollbar::-webkit-scrollbar {
+  width: 6px;
+}
+
+.custom-scrollbar::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.custom-scrollbar::-webkit-scrollbar-thumb {
+  background-color: var(--color-card-border);
+  border-radius: 20px;
+}
+
+.custom-scrollbar::-webkit-scrollbar-thumb:hover {
+  background-color: var(--color-accent);
+}

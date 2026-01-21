@@ -1,0 +1,20 @@
+<Solution>
+  <Folder Name="/Solution Items/">
+    <File Path=".gitignore" />
+    <File Path=".gitattributes" />
+    <File Path=".editorconfig" />
+    <File Path="README.md" />
+    <File Path="global.json" />
+    <File Path="Directory.Packages.props" />
+  </Folder>
+  
+  <Folder Name="/src/">
+    <Project Path="src/SketchAI.Api/SketchAI.Api.csproj" />
+    <Project Path="src/SketchAI.AppHost/SketchAI.AppHost.csproj" />
+    <Project Path="src/SketchAI.ServiceDefaults/SketchAI.ServiceDefaults.csproj" />
+  </Folder>
+  
+  <Folder Name="/tests/">
+    
+  </Folder> 
+</Solution>

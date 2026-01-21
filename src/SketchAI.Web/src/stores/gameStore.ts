@@ -1,0 +1,469 @@
+import { create } from "zustand";
+import type { GameState, Player, WordExplanation, ImageHint } from "@/models";
+import { initialGameState } from "@/models";
+import { logger } from "@/lib/logger";
+import { parseHubError } from "@/lib/utils";
+import { useConnectionStore } from "./connectionStore";
+import { useRoomStore } from "./roomStore";
+import { useChatStore } from "./chatStore";
+import { useToastStore } from "./toastStore";
+
+interface GameStore extends GameState {
+  playersWhoGuessed: Set<string>;
+  roundStartedAt: Date | null;
+
+  // Word translation state
+  wordExplanation: WordExplanation | null;
+  isTranslating: boolean;
+  translationError: string | null;
+
+  // Image hints state
+  imageHint: ImageHint | null;
+  isLoadingImageHints: boolean;
+  imageHintError: string | null;
+
+  // Actions
+  setGameState: (state: Partial<GameState>) => void;
+  setPlayersWhoGuessed: (players: Set<string>) => void;
+  addPlayerWhoGuessed: (username: string) => void;
+  setRoundStartedAt: (date: Date | null) => void;
+  endRound: () => Promise<void>;
+
+  // SignalR actions
+  startGame: () => Promise<void>;
+  selectWord: (word: string) => Promise<void>;
+  sendGuess: (message: string) => Promise<void>;
+  getWordExplanation: (word: string, targetLanguage: string) => Promise<void>;
+  clearWordExplanation: () => void;
+  getImageHints: (word: string) => Promise<void>;
+  clearImageHints: () => void;
+
+  // Reset
+  reset: () => void;
+}
+
+export const useGameStore = create<GameStore>((set) => ({
+  ...initialGameState,
+  playersWhoGuessed: new Set(),
+  roundStartedAt: null,
+
+  // Word translation initial state
+  wordExplanation: null,
+  isTranslating: false,
+  translationError: null,
+
+  // Image hints initial state
+  imageHint: null,
+  isLoadingImageHints: false,
+  imageHintError: null,
+
+  setGameState: (state) => set((prev) => ({ ...prev, ...state })),
+  
+  setPlayersWhoGuessed: (players) => set({ playersWhoGuessed: players }),
+  
+  addPlayerWhoGuessed: (username) =>
+    set((state) => ({
+      playersWhoGuessed: new Set([...state.playersWhoGuessed, username]),
+    })),
+
+  setRoundStartedAt: (date) => set({ roundStartedAt: date }),
+
+  endRound: async () => {
+    const { connection, isConnected } = useConnectionStore.getState();
+    if (!isConnected() || !connection) return;
+    await connection.invoke("EndRound");
+  },
+
+  startGame: async () => {
+    const { connection, isConnected } = useConnectionStore.getState();
+    if (!isConnected() || !connection) return;
+
+    await connection.invoke("StartGame");
+  },
+
+  selectWord: async (word) => {
+    const { connection, isConnected } = useConnectionStore.getState();
+    if (!isConnected() || !connection) return;
+
+    await connection.invoke("SelectWord", word);
+  },
+
+  sendGuess: async (message) => {
+    const { connection, isConnected } = useConnectionStore.getState();
+    if (!isConnected() || !connection) return;
+
+    await connection.invoke("SendGuess", message);
+  },
+
+  getWordExplanation: async (word, targetLanguage) => {
+    const { connection, isConnected } = useConnectionStore.getState();
+    if (!isConnected() || !connection) {
+      set({ translationError: "Not connected to server" });
+      return;
+    }
+
+    set({ isTranslating: true, translationError: null, wordExplanation: null });
+
+    try {
+      await connection.invoke("GetWordExplanation", word, targetLanguage);
+    } catch (error) {
+      logger.error("Failed to get word explanation", error);
+      set({
+        translationError: parseHubError(error),
+        isTranslating: false,
+      });
+    }
+  },
+
+  clearWordExplanation: () =>
+    set({
+      wordExplanation: null,
+      isTranslating: false,
+      translationError: null,
+    }),
+
+  getImageHints: async (word) => {
+    const { connection, isConnected } = useConnectionStore.getState();
+    if (!isConnected() || !connection) {
+      useToastStore.getState().addToast("Not connected to server", "error");
+      return;
+    }
+
+    set({ isLoadingImageHints: true, imageHintError: null, imageHint: null });
+
+    try {
+      await connection.invoke("GetImageHints", word);
+    } catch (error) {
+      logger.error("Failed to get image hints", error);
+      const errorMessage = parseHubError(error);
+      useToastStore.getState().addToast(errorMessage, "error", 5000);
+      set({
+        imageHintError: null,
+        isLoadingImageHints: false,
+      });
+    }
+  },
+
+  clearImageHints: () =>
+    set({
+      imageHint: null,
+      isLoadingImageHints: false,
+      imageHintError: null,
+    }),
+
+  reset: () =>
+    set({
+      ...initialGameState,
+      playersWhoGuessed: new Set(),
+      roundStartedAt: null,
+      wordExplanation: null,
+      isTranslating: false,
+      translationError: null,
+      imageHint: null,
+      isLoadingImageHints: false,
+      imageHintError: null,
+    }),
+}));
+
+// Game state DTO type from server
+interface GameStateDto {
+  roomCode: string;
+  phase: string;
+  currentDrawerUsername: string;
+  roundNumber: number;
+  totalRounds: number;
+  drawTimeSeconds: number;
+  players: Player[];
+  wordHint: string | null;
+  roundStartedAt: string | null;
+}
+
+// Setup SignalR event handlers for game events
+export function setupGameEventHandlers() {
+  const connection = useConnectionStore.getState().connection;
+  if (!connection) return () => {};
+
+  const handleGameStarted = (gameStateDto: GameStateDto) => {
+    logger.info(`Game started in room ${gameStateDto.roomCode}`);
+    useRoomStore.getState().setPlayers(gameStateDto.players);
+    
+    const currentDrawer = gameStateDto.players.find(
+      (p) => p.username === gameStateDto.currentDrawerUsername
+    ) || null;
+
+    useGameStore.getState().setGameState({
+      phase: "wordSelection",
+      currentDrawer,
+      roundNumber: gameStateDto.roundNumber || 1,
+      totalRounds: gameStateDto.totalRounds,
+      wordHint: "",
+      wordChoices: null,
+      currentWord: null,
+    });
+
+    // Add round start message for round 1
+    useChatStore.getState().addMessage({
+      id: crypto.randomUUID(),
+      username: "System",
+      message: `Round ${gameStateDto.roundNumber || 1} has started!`,
+      timestamp: new Date(),
+      type: "round-start",
+    });
+  };
+
+  const handleWordChoices = (words: string[]) => {
+    logger.info(`Received word choices: ${words.length} words`);
+    useGameStore.getState().setGameState({ wordChoices: words });
+  };
+
+  const handleReceiveWordExplanation = (explanation: WordExplanation) => {
+    logger.info("Received word explanation:", explanation);
+    
+    // Treat "N/A" translation as an error
+    if (explanation.translation === "N/A") {
+      useGameStore.setState({
+        wordExplanation: null,
+        isTranslating: false,
+        translationError: "Translation unavailable. Please try again later.",
+      });
+      return;
+    }
+    
+    useGameStore.setState({
+      wordExplanation: explanation,
+      isTranslating: false,
+    });
+  };
+
+  const handleReceiveImageHints = (imageHint: ImageHint) => {
+    logger.info("Received image hints:", imageHint);
+    
+    // Check if we got valid image URLs
+    if (!imageHint.imageUrls || imageHint.imageUrls.length === 0) {
+      useGameStore.setState({
+        imageHint: null,
+        isLoadingImageHints: false,
+        imageHintError: "No images found for this word. Try drawing from memory!",
+      });
+      return;
+    }
+    
+    useGameStore.setState({
+      imageHint: imageHint,
+      isLoadingImageHints: false,
+    });
+  };
+
+  const handleDrawingStarted = (gameStateDto: GameStateDto) => {
+    logger.info(`Drawing started, hint: ${gameStateDto.wordHint}`);
+    useRoomStore.getState().setPlayers(gameStateDto.players);
+    
+    // Reset players who guessed for the new round
+    useGameStore.getState().setPlayersWhoGuessed(new Set());
+
+    // Set round started time for timer calculation
+    const roundStartedAt = gameStateDto.roundStartedAt
+      ? new Date(gameStateDto.roundStartedAt)
+      : new Date();
+    useGameStore.getState().setRoundStartedAt(roundStartedAt);
+
+    const currentDrawer = gameStateDto.players.find(
+      (p) => p.username === gameStateDto.currentDrawerUsername
+    ) || null;
+
+    useGameStore.getState().setGameState({
+      phase: "drawing",
+      currentDrawer,
+      wordHint: gameStateDto.wordHint || "",
+      wordChoices: null,
+      roundNumber: gameStateDto.roundNumber,
+      totalRounds: gameStateDto.totalRounds,
+      drawTimeSeconds: gameStateDto.drawTimeSeconds,
+      timeRemaining: gameStateDto.drawTimeSeconds,
+    });
+  };
+
+  const handleYourWord = (word: string) => {
+    logger.info(`You are drawing: ${word}`);
+    useGameStore.getState().setGameState({
+      currentWord: word,
+      wordChoices: null,
+    });
+  };
+
+  const handlePlayerGuessedCorrectly = (guesserUsername: string) => {
+    logger.info(`${guesserUsername} guessed correctly!`);
+    useGameStore.getState().addPlayerWhoGuessed(guesserUsername);
+    
+    useChatStore.getState().addMessage({
+      id: crypto.randomUUID(),
+      username: "System",
+      message: `${guesserUsername} guessed the word!`,
+      timestamp: new Date(),
+      type: "correct-guess",
+    });
+  };
+
+  const handleScoresUpdated = (updatedPlayers: Player[]) => {
+    logger.info("Scores updated");
+    useRoomStore.getState().setPlayers(updatedPlayers);
+  };
+
+  const handleRoundEnded = (data: { gameState: GameStateDto; word: string }) => {
+    logger.info(`Round ended, word was: ${data.word}`);
+    useRoomStore.getState().setPlayers(data.gameState.players);
+    useGameStore.getState().setRoundStartedAt(null);
+    
+    useGameStore.getState().setGameState({
+      phase: "roundEnd",
+      currentWord: data.word,
+      wordHint: data.word,
+      wordChoices: null,
+      timeRemaining: 0,
+    });
+
+    useChatStore.getState().addMessage({
+      id: crypto.randomUUID(),
+      username: "System",
+      message: `The word was: ${data.word}`,
+      timestamp: new Date(),
+      type: "round-end",
+    });
+  };
+
+  const handleHintUpdated = (newHint: string) => {
+    logger.info(`Hint updated: ${newHint}`);
+    useGameStore.getState().setGameState({ wordHint: newHint });
+  };
+
+  const handleNextTurnStarted = (gameStateDto: GameStateDto) => {
+    logger.info(`Next turn started, drawer: ${gameStateDto.currentDrawerUsername}`);
+    useRoomStore.getState().setPlayers(gameStateDto.players);
+    useGameStore.getState().setPlayersWhoGuessed(new Set());
+
+    // Check if new round or just next turn in same round
+    const currentRound = useGameStore.getState().roundNumber;
+    const isNewRound = gameStateDto.roundNumber !== currentRound;
+
+    const currentDrawer = gameStateDto.players.find(
+      (p) => p.username === gameStateDto.currentDrawerUsername
+    ) || null;
+
+    useGameStore.getState().setGameState({
+      phase: "wordSelection",
+      currentDrawer,
+      roundNumber: gameStateDto.roundNumber,
+      totalRounds: gameStateDto.totalRounds,
+      drawTimeSeconds: gameStateDto.drawTimeSeconds,
+      wordHint: "",
+      wordChoices: null,
+      currentWord: null,
+      timeRemaining: gameStateDto.drawTimeSeconds,
+    });
+
+    // Add round start message if round changed
+    if (isNewRound) {
+      useChatStore.getState().addMessage({
+        id: crypto.randomUUID(),
+        username: "System",
+        message: `Round ${gameStateDto.roundNumber} has started!`,
+        timestamp: new Date(),
+        type: "round-start",
+      });
+    }
+
+    useChatStore.getState().addMessage({
+        id: crypto.randomUUID(),
+        username: "System",
+        message: `${gameStateDto.currentDrawerUsername}'s turn to draw!`,
+        timestamp: new Date(),
+        type: "turn-start",
+      });
+  };
+
+  const handleGameEnded = (data: { players: Player[], winnerUsernames: string[] }) => {
+    logger.info("Game ended! Winners:", data.winnerUsernames.join(", "));
+    useRoomStore.getState().setPlayers(data.players);
+    
+    useChatStore.getState().reset();
+    
+    useGameStore.getState().setGameState({
+      phase: "gameEnd",
+      currentWord: null,
+      wordHint: "",
+      wordChoices: null,
+      timeRemaining: 0,
+    });
+  };
+
+  const handleDrawerLeft = (drawerUsername: string) => {
+    logger.info(`Drawer ${drawerUsername} left, waiting for next turn...`);
+    
+    useChatStore.getState().addMessage({
+      id: crypto.randomUUID(),
+      username: "System",
+      message: `${drawerUsername} left. Moving to next turn...`,
+      timestamp: new Date(),
+      type: "leave",
+    });
+
+    // Set a transitional state while waiting for next turn
+    useGameStore.getState().setGameState({
+      phase: "roundEnd",
+      wordChoices: null,
+      currentWord: null,
+      timeRemaining: 0,
+    });
+  };
+
+  const handleGameReset = (data: { players: Player[], reason: string }) => {
+    logger.info(`Game reset to lobby: ${data.reason}`);
+    
+    useRoomStore.getState().setPlayers(data.players);
+    
+    useChatStore.getState().reset();
+    
+    useChatStore.getState().addMessage({
+      id: crypto.randomUUID(),
+      username: "System",
+      message: data.reason,
+      timestamp: new Date(),
+      type: "system",
+    });
+
+    // Reset game state back to lobby
+    useGameStore.getState().reset();
+  };
+
+  connection.on("GameStarted", handleGameStarted);
+  connection.on("WordChoices", handleWordChoices);
+  connection.on("DrawingStarted", handleDrawingStarted);
+  connection.on("YourWord", handleYourWord);
+  connection.on("PlayerGuessedCorrectly", handlePlayerGuessedCorrectly);
+  connection.on("ScoresUpdated", handleScoresUpdated);
+  connection.on("RoundEnded", handleRoundEnded);
+  connection.on("HintUpdated", handleHintUpdated);
+  connection.on("NextTurnStarted", handleNextTurnStarted);
+  connection.on("GameEnded", handleGameEnded);
+  connection.on("DrawerLeft", handleDrawerLeft);
+  connection.on("GameReset", handleGameReset);
+  connection.on("ReceiveWordExplanation", handleReceiveWordExplanation);
+  connection.on("ReceiveImageHints", handleReceiveImageHints);
+
+  return () => {
+    connection.off("GameStarted", handleGameStarted);
+    connection.off("WordChoices", handleWordChoices);
+    connection.off("DrawingStarted", handleDrawingStarted);
+    connection.off("YourWord", handleYourWord);
+    connection.off("PlayerGuessedCorrectly", handlePlayerGuessedCorrectly);
+    connection.off("ScoresUpdated", handleScoresUpdated);
+    connection.off("RoundEnded", handleRoundEnded);
+    connection.off("HintUpdated", handleHintUpdated);
+    connection.off("NextTurnStarted", handleNextTurnStarted);
+    connection.off("GameEnded", handleGameEnded);
+    connection.off("DrawerLeft", handleDrawerLeft);
+    connection.off("GameReset", handleGameReset);
+    connection.off("ReceiveWordExplanation", handleReceiveWordExplanation);
+    connection.off("ReceiveImageHints", handleReceiveImageHints);
+  };
+}

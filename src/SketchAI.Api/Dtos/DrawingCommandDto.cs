@@ -1,0 +1,11 @@
+﻿namespace SketchAI.Api.Dtos;
+
+public class DrawingCommandDto
+{
+    public string Type { get; set; } = string.Empty; // "stroke", "fill", "clear"
+    public List<PointDto> Points { get; set; } = [];
+    public string Color { get; set; } = "#000000";
+    public int Width { get; set; } = 2;
+    public string? StrokeId { get; set; }
+    public bool IsAiGenerated { get; set; }
+}

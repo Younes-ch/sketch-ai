@@ -1,0 +1,88 @@
+name: Build and Test
+
+on:
+  pull_request:
+    branches:
+      - main
+      - dev
+  push:
+    branches:
+      - main
+      - dev
+
+env:
+  DOTNET_VERSION: '10.0.x'
+  NODE_VERSION: '22.x'
+
+jobs:
+  build-api:
+    name: Build API
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: ${{ env.DOTNET_VERSION }}
+
+      - name: Restore dependencies
+        run: dotnet restore
+
+      - name: Build
+        run: dotnet build --no-restore --configuration Release
+
+  build-web:
+    name: Build Web
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+          cache-dependency-path: src/SketchAI.Web/package-lock.json
+
+      - name: Install dependencies
+        working-directory: src/SketchAI.Web
+        run: npm ci
+
+      - name: Lint
+        working-directory: src/SketchAI.Web
+        run: npm run lint
+
+      - name: Build
+        working-directory: src/SketchAI.Web
+        run: npm run build
+
+  build-docker:
+    name: Build Docker Images
+    runs-on: ubuntu-latest
+    needs: [build-api, build-web]
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: ${{ env.DOTNET_VERSION }}
+
+      - name: Build API Docker image
+        run: |
+          dotnet publish src/SketchAI.Api/SketchAI.Api.csproj \
+            --configuration Release \
+            -p:PublishProfile=DefaultContainer \
+            -p:ContainerImageName=sketchai-api \
+            -p:ContainerImageTag=test
+
+      - name: Build Web Docker image
+        working-directory: src/SketchAI.Web
+        run: docker build -t sketchai-web:test .
