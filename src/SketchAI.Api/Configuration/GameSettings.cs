@@ -14,6 +14,7 @@ public class GameSettings
     public int MinWordChoices { get; set; } = 2;
     public int MaxWordChoices { get; set; } = 5;
     public int MaxAiDrawingsPerPlayer { get; set; } = 1;
+    public int MaxImageHintsPerPlayer { get; set; } = 2;
     public int AiDrawingCooldownSeconds { get; set; } = 30;
     public int VoteKickDurationSeconds { get; set; } = 30;
     public int PublicRoomsDefaultPageSize { get; set; } = 6;

@@ -354,11 +354,23 @@ public class DrawingHub : Hub
             throw new HubException("Word does not match the current drawing word");
         }
 
+        var drawerPlayer = room.Players.FirstOrDefault(p => p.ConnectionId == Context.ConnectionId)
+            ?? throw new HubException("Player not found");
+
+        if (drawerPlayer.ImageHintsUsed >= _gameSettings.MaxImageHintsPerPlayer)
+        {
+            throw new HubException($"You have used all {_gameSettings.MaxImageHintsPerPlayer} image hint(s) for this game");
+        }
+
         var preset = room.Settings.WordPreset;
 
         try
         {
             var imageUrls = await _imageHintService.GetImageHintsAsync(word, preset, Context.ConnectionAborted);
+
+            drawerPlayer.ImageHintsUsed++;
+            await _roomService.SaveRoomAsync(room);
+
             var result = new ImageHintDto(word, preset, imageUrls);
 
             await Clients.Caller.SendAsync("ReceiveImageHints", result);
