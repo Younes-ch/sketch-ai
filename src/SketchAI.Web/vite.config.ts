@@ -47,8 +47,11 @@ export default defineConfig(({ mode }) => {
             port: parseInt(env.PORT) || 5173,
             proxy: {
                 '/hubs/drawing': {
-                    target: process.env.APISERVICE_HTTPS ||
-                        process.env.APISERVICE_HTTP,
+                    target: process.env['services__sketchai-api__https__0'] ||
+                        process.env['services__sketchai-api__http__0'] ||
+                        process.env.SKETCHAI_API_HTTPS ||
+                        process.env.SKETCHAI_API_HTTP ||
+                        'http://localhost:5000',
                     changeOrigin: true,
                     secure: false,
                     ws: true,

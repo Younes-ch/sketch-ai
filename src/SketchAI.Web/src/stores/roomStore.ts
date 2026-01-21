@@ -53,7 +53,7 @@ interface RoomStore {
   clearKickedState: () => void;
 
   // SignalR actions
-  createRoom: (username: string, roomCode: string, isPublic: boolean, settings: RoomSettings) => Promise<void>;
+  createRoom: (username: string, roomName: string, roomCode: string, isPublic: boolean, settings: RoomSettings) => Promise<void>;
   joinRoom: (username: string, roomCode: string) => Promise<void>;
   leaveRoom: () => Promise<void>;
   getPublicRooms: (page?: number, pageSize?: number) => Promise<void>;
@@ -128,13 +128,13 @@ export const useRoomStore = create<RoomStore>((set, get) => ({
     }));
   },
 
-  createRoom: async (newUsername, newRoomCode, isPublic = false, settings) => {
+  createRoom: async (newUsername, newRoomName, newRoomCode, isPublic = false, settings) => {
     const { connection, isConnected } = useConnectionStore.getState();
     if (!isConnected() || !connection) return;
 
     set({ username: newUsername });
     try {
-      await connection.invoke("CreateRoom", newUsername, newRoomCode, isPublic, settings);
+      await connection.invoke("CreateRoom", newUsername, newRoomName, newRoomCode, isPublic, settings);
     } catch (error) {
       set({ username: null });
       const errorMessage = parseHubError(error);

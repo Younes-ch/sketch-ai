@@ -6,14 +6,22 @@
 public interface IRoomService
 {
     /// <summary>
-    /// Creates a new game room with the specified host.
+    /// Creates a new game room with the specified host, atomically checking for uniqueness.
     /// </summary>
     /// <param name="roomCode">Unique 6-character room code.</param>
+    /// <param name="roomName">Display name for the room.</param>
     /// <param name="isPublic">Whether the room is visible in public room listings.</param>
     /// <param name="hostConnectionId">SignalR connection ID of the host.</param>
     /// <param name="hostUsername">Display name of the host player.</param>
-    /// <returns>The created room.</returns>
-    Task<Room> CreateRoomAsync(string roomCode, bool isPublic, string hostConnectionId, string hostUsername);
+    /// <returns>A tuple containing the created room if successful, or null with an error message if creation failed.</returns>
+    Task<(Room? Room, string? ErrorMessage)> CreateRoomAsync(string roomCode, string roomName, bool isPublic, string hostConnectionId, string hostUsername);
+
+    /// <summary>
+    /// Checks if a room name is already in use by an active room.
+    /// </summary>
+    /// <param name="roomName">The room name to check.</param>
+    /// <returns>True if the name is already taken, false otherwise.</returns>
+    Task<bool> RoomNameExistsAsync(string roomName);
 
     /// <summary>
     /// Asynchronously updates the settings for the specified room if the requesting connection has permission.

@@ -1,0 +1,49 @@
+name: Deploy to Azure Container Apps
+
+on:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+
+env:
+  DOTNET_VERSION: '10.0.x'
+  ASPIRE_CLI_VERSION: '13.1.0'
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: ${{ env.DOTNET_VERSION }}
+
+      - name: Install Aspire CLI
+        run: dotnet tool install -g aspire.cli --version ${{ env.ASPIRE_CLI_VERSION }}
+
+      - name: Login to Azure
+        uses: azure/login@v2
+        with:
+          creds: ${{ secrets.AZURE_CREDENTIALS }}
+
+      - name: Deploy with Aspire CLI
+        env:
+          Parameters__gh-models-api-key: ${{ secrets.GH_MODELS_API_KEY }}
+          Parameters__google-gemini-api-key: ${{ secrets.GOOGLE_GEMINI_API_KEY }}
+          Parameters__serper-api-key: ${{ secrets.SERPER_API_KEY }}
+        run: |
+          aspire deploy \
+            --project src/SketchAI.AppHost/SketchAI.AppHost.csproj \
+            --non-interactive
+
+      - name: Display deployment URLs
+        run: |
+          echo "🎉 Deployment completed!"
+          echo "Web: https://sketchai-web.blacksky-a496d0d8.westeurope.azurecontainerapps.io"
+          echo "API: https://sketchai-api.blacksky-a496d0d8.westeurope.azurecontainerapps.io"
+          echo "Dashboard: https://aspire-dashboard.ext.blacksky-a496d0d8.westeurope.azurecontainerapps.io"

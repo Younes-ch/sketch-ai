@@ -1,5 +1,6 @@
 export interface PublicRoom {
   roomCode: string;
+  name: string;
   playerCount: number;
   maxPlayers: number;
   hostUsername: string;
