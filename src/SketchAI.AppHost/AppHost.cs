@@ -5,10 +5,12 @@ var p_githubModelsApiKey = builder.AddParameter("gh-models-api-key", secret: tru
 var p_googleGeminiApiKey = builder.AddParameter("google-gemini-api-key", secret: true);
 var p_serperApiKey = builder.AddParameter("serper-api-key", secret: true);
 
+#pragma warning disable ASPIRECOMPUTE003
 // ===== Azure Infrastructure (for deployment) =====
 var containerRegistry = builder.AddAzureContainerRegistry("sketchai-acr");
 var acaEnv = builder.AddAzureContainerAppEnvironment("sketchai-aca-env")
-    .WithAzureContainerRegistry(containerRegistry);
+    .WithContainerRegistry(containerRegistry);
+#pragma warning restore ASPIRECOMPUTE003
 
 // ===== Infrastructure =====
 var redis = builder.AddRedis("redis");
