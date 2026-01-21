@@ -92,9 +92,16 @@ builder.Services.Configure<ForwardedHeadersOptions>(options =>
     options.KnownIPNetworks.Clear();
 });
 
+// Request Timeouts and Output Caching
+builder.Services.AddRequestTimeouts();
+builder.Services.AddOutputCache();
+
 var app = builder.Build();
 
 // Middleware pipeline
+app.UseRequestTimeouts();
+app.UseOutputCache();
+
 app.UseForwardedHeaders();
 app.UseCors();
 
