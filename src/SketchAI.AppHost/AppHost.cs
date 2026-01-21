@@ -11,8 +11,15 @@ var acaEnv = builder.AddAzureContainerAppEnvironment("sketchai-aca-env")
     .WithAzureContainerRegistry(containerRegistry);
 
 // ===== Infrastructure =====
-var redis = builder.AddRedis("redis")
-        .WithRedisInsight(r => r.WithHostPort(5540).WithLifetime(ContainerLifetime.Persistent)); ;
+var redis = builder.AddRedis("redis");
+
+if (builder.ExecutionContext.IsRunMode)
+{
+    // Local development: add RedisInsight for debugging
+    redis.WithRedisInsight(r => r
+        .WithHostPort(5540)
+        .WithLifetime(ContainerLifetime.Persistent));
+}
 
 // GitHub Models (AI)
 var gpt4OMini = builder
