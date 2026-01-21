@@ -34,6 +34,11 @@ jobs:
 
       - name: Deploy with Aspire CLI
         env:
+          Azure__SubscriptionId: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+          Azure__TenantId: ${{ secrets.AZURE_TENANT_ID }}
+          Azure__Location: westeurope
+          Azure__ResourceGroup: rg-sketchai-dev-westeu
+          Azure__AllowResourceGroupCreation: true
           Parameters__gh-models-api-key: ${{ secrets.GH_MODELS_API_KEY }}
           Parameters__google-gemini-api-key: ${{ secrets.GOOGLE_GEMINI_API_KEY }}
           Parameters__serper-api-key: ${{ secrets.SERPER_API_KEY }}
