@@ -27,7 +27,8 @@ COPY --from=build /app/dist /usr/share/nginx/html
 RUN echo '#!/bin/sh' > /docker-entrypoint.d/20-envsubst-config.sh && \
     echo 'cat > /usr/share/nginx/html/config.js << EOF' >> /docker-entrypoint.d/20-envsubst-config.sh && \
     echo 'window.__RUNTIME_CONFIG__ = {' >> /docker-entrypoint.d/20-envsubst-config.sh && \
-    echo '  API_URL: "${API_URL}"' >> /docker-entrypoint.d/20-envsubst-config.sh && \
+    echo '  API_URL: "${API_URL}",' >> /docker-entrypoint.d/20-envsubst-config.sh && \
+    echo '  APPLICATIONINSIGHTS_CONNECTION_STRING: "${APPLICATIONINSIGHTS_CONNECTION_STRING}"' >> /docker-entrypoint.d/20-envsubst-config.sh && \
     echo '};' >> /docker-entrypoint.d/20-envsubst-config.sh && \
     echo 'EOF' >> /docker-entrypoint.d/20-envsubst-config.sh && \
     chmod +x /docker-entrypoint.d/20-envsubst-config.sh

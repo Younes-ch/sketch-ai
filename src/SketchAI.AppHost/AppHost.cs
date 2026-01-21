@@ -1,3 +1,5 @@
+using Aspire.Hosting.Azure;
+
 var builder = DistributedApplication.CreateBuilder(args);
 
 // ===== Parameters (Secrets) =====
@@ -12,8 +14,14 @@ var acaEnv = builder.AddAzureContainerAppEnvironment("sketchai-aca-env")
     .WithContainerRegistry(containerRegistry);
 #pragma warning restore ASPIRECOMPUTE003
 
+IResourceBuilder<AzureApplicationInsightsResource>? appInsights = null;
+if (builder.ExecutionContext.IsPublishMode)
+{
+    appInsights = builder.AddAzureApplicationInsights("sketchai-appinsights");
+}
+
 // ===== Infrastructure =====
-var redis = builder.AddRedis("redis");
+var redis = builder.AddRedis("redis").WithLifetime(ContainerLifetime.Persistent);
 
 if (builder.ExecutionContext.IsRunMode)
 {
@@ -42,12 +50,18 @@ var apiService = builder
 if (builder.ExecutionContext.IsPublishMode)
 {
     // Production: Docker container with nginx
-    builder.AddDockerfile("sketchai-web", "../SketchAI.Web", "Dockerfile")
+    var webDockerfile = builder.AddDockerfile("sketchai-web", "../SketchAI.Web", "Dockerfile")
         .WithHttpEndpoint(targetPort: 80, name: "http")
         .WithExternalHttpEndpoints()
         .WithEnvironment("PORT", "80")
         .WithEnvironment("API_URL", apiService.GetEndpoint("https"))
         .WithReference(apiService).WaitFor(apiService);
+
+    if (appInsights != null)
+    {
+        webDockerfile.WithReference(appInsights);
+        apiService.WithReference(appInsights);
+    }
 }
 else
 {

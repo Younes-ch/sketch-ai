@@ -10,8 +10,9 @@
     <PackageVersion Include="Scalar.AspNetCore" Version="2.12.7" />
   </ItemGroup>
   <ItemGroup Label="For AppHost">
-    <PackageVersion Include="Aspire.Hosting.Azure.ContainerRegistry" Version="13.1.0" />
+    <PackageVersion Include="Aspire.Hosting.Azure.ApplicationInsights" Version="13.1.0" />
     <PackageVersion Include="Aspire.Hosting.Azure.AppContainers" Version="13.1.0" />
+    <PackageVersion Include="Aspire.Hosting.Azure.ContainerRegistry" Version="13.1.0" />
     <PackageVersion Include="Aspire.Hosting.JavaScript" Version="13.1.0" />
     <PackageVersion Include="Aspire.Hosting.Redis" Version="13.1.0" />
     <PackageVersion Include="Aspire.Hosting.GitHub.Models" Version="13.1.0" />
