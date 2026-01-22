@@ -42,9 +42,9 @@ export const initializeTelemetry = (): ApplicationInsights | null => {
         enableUnhandledPromiseRejectionTracking: true,
         disableFetchTracking: false,
         autoTrackPageVisitTime: true,
-        // Sampling to reduce costs in production
-        samplingPercentage: 100,
-      },
+        // Adjust sampling percentage to reduce costs in production if needed
+        // 100 = capture all telemetry, lower values reduce data volume
+        samplingPercentage: 100,      },
     });
 
     appInsightsInstance.loadAppInsights();
@@ -70,12 +70,10 @@ export const getAppInsights = (): ApplicationInsights | null => {
  */
 export const trackEvent = (
   name: string,
-  properties?: Record<string, string>,
-  measurements?: Record<string, number>
+  properties?: Record<string, string>
 ): void => {
-  appInsightsInstance?.trackEvent({ name }, { ...properties, ...measurements });
+  appInsightsInstance?.trackEvent({ name, properties });
 };
-
 /**
  * Track an exception/error
  */
@@ -115,20 +113,6 @@ export const trackMetric = (
   properties?: Record<string, string>
 ): void => {
   appInsightsInstance?.trackMetric({ name, average }, properties);
-};
-
-/**
- * Set the authenticated user context
- */
-export const setAuthenticatedUser = (userId: string): void => {
-  appInsightsInstance?.setAuthenticatedUserContext(userId, undefined, true);
-};
-
-/**
- * Clear the authenticated user context
- */
-export const clearAuthenticatedUser = (): void => {
-  appInsightsInstance?.clearAuthenticatedUserContext();
 };
 
 // Re-export SeverityLevel for consumers

@@ -81,7 +81,7 @@ public static class Extensions
         }
 
 
-        if (builder.Environment.IsProduction() && !string.IsNullOrEmpty(builder.Configuration["APPLICATIONINSIGHTS_CONNECTION_STRING"]))
+        if (builder.Environment.IsProduction() && !string.IsNullOrWhiteSpace(builder.Configuration["APPLICATIONINSIGHTS_CONNECTION_STRING"]))
         {
             builder.Services.AddOpenTelemetry()
                .UseAzureMonitor();

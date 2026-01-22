@@ -6,6 +6,8 @@ var builder = DistributedApplication.CreateBuilder(args);
 var p_githubModelsApiKey = builder.AddParameter("gh-models-api-key", secret: true);
 var p_googleGeminiApiKey = builder.AddParameter("google-gemini-api-key", secret: true);
 var p_serperApiKey = builder.AddParameter("serper-api-key", secret: true);
+var p_turnstileSiteKey = builder.AddParameter("turnstile-site-key", secret: false);
+var p_turnstileSecretKey = builder.AddParameter("turnstile-secret-key", secret: true);
 
 #pragma warning disable ASPIRECOMPUTE003
 // ===== Azure Infrastructure (for deployment) =====
@@ -44,7 +46,9 @@ var apiService = builder
     .WithReference(gpt4OMini)
     .WithChildRelationship(gpt4OMini)
     .WithEnvironment("GOOGLE_GEMINI_KEY", p_googleGeminiApiKey)
-    .WithEnvironment("SERPER_API_KEY", p_serperApiKey);
+    .WithEnvironment("SERPER_API_KEY", p_serperApiKey)
+    .WithEnvironment("TURNSTILE_SITE_KEY", p_turnstileSiteKey)
+    .WithEnvironment("TURNSTILE_SECRET_KEY", p_turnstileSecretKey);
 
 // ===== Web Frontend =====
 if (builder.ExecutionContext.IsPublishMode)
@@ -55,6 +59,7 @@ if (builder.ExecutionContext.IsPublishMode)
         .WithExternalHttpEndpoints()
         .WithEnvironment("PORT", "80")
         .WithEnvironment("API_URL", apiService.GetEndpoint("https"))
+        .WithEnvironment("TURNSTILE_SITE_KEY", p_turnstileSiteKey)
         .WithReference(apiService).WaitFor(apiService);
 
     if (appInsights != null)
@@ -71,6 +76,7 @@ else
         .WithExternalHttpEndpoints()
         .WithEndpoint("http", e => e.Port = 9081)
         .WithEnvironment("BROWSER", "none")
+        .WithEnvironment("TURNSTILE_SITE_KEY", p_turnstileSiteKey)
         .WithReference(apiService).WaitFor(apiService);
 
     // ===== OpenAPI Docs Annotation =====

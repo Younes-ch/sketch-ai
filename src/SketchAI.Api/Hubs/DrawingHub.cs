@@ -13,6 +13,7 @@ public class DrawingHub : Hub
     private readonly IImageHintService _imageHintService;
     private readonly IAIDrawingService _aiDrawingService;
     private readonly IAIDrawingCancellationManager _aiCancellationManager;
+    private readonly ICaptchaService _captchaService;
     private readonly IHubContext<DrawingHub> _hubContext;
     private readonly GameSettings _gameSettings;
     private readonly ILogger<DrawingHub> _logger;
@@ -26,6 +27,7 @@ public class DrawingHub : Hub
         IImageHintService imageHintService,
         IAIDrawingService aiDrawingService,
         IAIDrawingCancellationManager aiCancellationManager,
+        ICaptchaService captchaService,
         IHubContext<DrawingHub> hubContext,
         IOptions<GameSettings> gameSettings,
         ILogger<DrawingHub> logger)
@@ -38,6 +40,7 @@ public class DrawingHub : Hub
         _imageHintService = imageHintService;
         _aiDrawingService = aiDrawingService;
         _aiCancellationManager = aiCancellationManager;
+        _captchaService = captchaService;
         _hubContext = hubContext;
         _gameSettings = gameSettings.Value;
         _logger = logger;
@@ -46,8 +49,13 @@ public class DrawingHub : Hub
     /// <summary>
     /// Creates a new room and joins the creator as host.
     /// </summary>
-    public async Task CreateRoom(string username, string roomName, string roomCode, bool isPublic = true, RoomSettingsDto? roomSettings = null)
+    public async Task CreateRoom(string username, string roomName, string roomCode, bool isPublic = true, RoomSettingsDto? roomSettings = null, string? captchaToken = null)
     {
+        if (!await _captchaService.VerifyAsync(captchaToken, Context.ConnectionAborted))
+        {
+            throw new HubException("CAPTCHA verification failed. Please try again.");
+        }
+
         if (!ValidationHelper.IsValidUsername(username))
         {
             throw new HubException("Invalid username. Use 1-20 alphanumeric characters, spaces, or underscores.");

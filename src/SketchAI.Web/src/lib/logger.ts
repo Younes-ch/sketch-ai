@@ -3,6 +3,14 @@ import { trackException, trackTrace, SeverityLevel } from "./telemetry";
 const isDev = import.meta.env.DEV;
 const isProd = import.meta.env.PROD;
 
+const safeStringify = (value: unknown): string => {
+  try {
+    return JSON.stringify(value);
+  } catch {
+    return "[Unserializable]";
+  }
+};
+
 export const logger = {
   debug: (message: string, ...args: unknown[]) => {
     if (isDev) {
@@ -24,7 +32,7 @@ export const logger = {
     if (isProd) {
       // Send warnings to Application Insights in production
       trackTrace(message, SeverityLevel.Warning, {
-        args: JSON.stringify(args),
+        args: safeStringify(args),
       });
     }
   },
@@ -40,7 +48,7 @@ export const logger = {
         error instanceof Error ? error : new Error(String(error ?? message));
       trackException(errorObj, {
         message,
-        args: JSON.stringify(args),
+        args: safeStringify(args),
       });
     }
   },

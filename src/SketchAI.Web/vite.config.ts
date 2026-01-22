@@ -11,6 +11,10 @@ export default defineConfig(({ mode }) => {
             react(),
             tailwindcss()
         ],
+        // Expose specific environment variables to the client
+        define: {
+            'import.meta.env.VITE_TURNSTILE_SITE_KEY': JSON.stringify(process.env.TURNSTILE_SITE_KEY || env.VITE_TURNSTILE_SITE_KEY || ''),
+        },
         resolve: {
             alias: {
                 '@': path.resolve(__dirname, './src')

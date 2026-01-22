@@ -25,10 +25,14 @@ export default class ErrorBoundary extends Component<Props, State> {
     logger.error("ErrorBoundary caught an error", error, errorInfo);
 
     // Track exception in Application Insights
-    trackException(error, {
-      componentStack: errorInfo.componentStack ?? "unknown",
-      source: "ErrorBoundary",
-    });
+    try {
+      trackException(error, {
+        componentStack: errorInfo.componentStack ?? "unknown",
+        source: "ErrorBoundary",
+      })
+    } catch {
+      // Telemetry failure should not affect error handling
+    }
   }
 
   handleReload = () => {

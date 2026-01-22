@@ -1,0 +1,94 @@
+import { Turnstile, type TurnstileInstance } from "@marsidev/react-turnstile";
+import { useRef, useEffect, useMemo, useCallback } from "react";
+import { getSiteKey } from "@/hooks/useCaptcha";
+
+interface CaptchaWidgetProps {
+  onSuccess: (token: string) => void;
+  onExpire: () => void;
+  onError?: () => void;
+}
+
+/**
+ * Cloudflare Turnstile CAPTCHA widget.
+ * Only renders if a site key is configured.
+ */
+export function CaptchaWidget({
+  onSuccess,
+  onExpire,
+  onError,
+}: CaptchaWidgetProps) {
+  const ref = useRef<TurnstileInstance>(null);
+  const siteKey = useMemo(() => getSiteKey(), []);
+
+  // Reset the widget on unmount - capture ref value to avoid stale closure
+  useEffect(() => {
+    const instance = ref.current;
+    return () => {
+      instance?.reset();
+    };
+  }, []);
+
+  // Handle successful captcha verification
+  const handleSuccess = useCallback(
+    (token: string) => {
+      if (!token || token.trim() === "") {
+        console.warn("[Captcha] Received empty token from Turnstile widget");
+        onError?.();
+        return;
+      }
+
+      if (
+        import.meta.env.DEV ||
+        window.location.search.includes("debug=captcha")
+      ) {
+        console.log(`[Captcha] Token received, length: ${token.length}`);
+      }
+
+      onSuccess(token);
+    },
+    [onSuccess, onError],
+  );
+
+  // Handle captcha errors
+  const handleError = useCallback(() => {
+    console.error("[Captcha] Turnstile widget error");
+    onError?.();
+  }, [onError]);
+
+  // If no site key configured, CAPTCHA is disabled - auto-succeed
+  // Note: Backend will also bypass verification if secret key isn't configured
+  useEffect(() => {
+    if (!siteKey) {
+      if (
+        import.meta.env.DEV ||
+        window.location.search.includes("debug=captcha")
+      ) {
+        console.log(
+          "[Captcha] No site key configured, bypassing captcha (development mode)",
+        );
+      }
+      onSuccess("");
+    }
+  }, [siteKey, onSuccess]);
+
+  // Don't render widget if no site key
+  if (!siteKey) {
+    return null;
+  }
+
+  return (
+    <div className="flex justify-center my-4">
+      <Turnstile
+        ref={ref}
+        siteKey={siteKey}
+        onSuccess={handleSuccess}
+        onExpire={onExpire}
+        onError={handleError}
+        options={{
+          theme: "dark",
+          size: "normal",
+        }}
+      />
+    </div>
+  );
+}
