@@ -4,25 +4,29 @@ public static class GoogleModelsExtensions
 {
     public static IServiceCollection AddGoogleModels(this IServiceCollection services, IConfiguration configuration)
     {
-        var apiKey = configuration["GOOGLE_GEMINI_KEY"] ?? throw new InvalidOperationException("Gemini API key is not configured.");
         var aiProviderSettings = configuration.GetSection("AiProviders").Get<AiProviderSettings>();
+        var googleProviders = aiProviderSettings?.Providers
+            .Where(p => p.ProviderType == AiProviderType.Google)
+            .ToList();
 
-        if (aiProviderSettings is not null)
+        if (googleProviders is null || googleProviders.Count == 0)
         {
-            foreach (var provider in aiProviderSettings.Providers)
-            {
-                if (!string.IsNullOrEmpty(provider.Name) && provider.Name.StartsWith("Google", StringComparison.OrdinalIgnoreCase))
-                {
-                    var options = new GeminiClientOptions
-                    {
-                        ApiKey = apiKey,
-                        ModelId = provider.ServiceKey,
-                    };
+            return services;
+        }
 
-                    services.AddKeyedChatClient(provider.ServiceKey, new GeminiChatClient(options))
-                                    .UseFunctionInvocation();
-                }
-            }
+        var apiKey = configuration["GOOGLE_GEMINI_KEY"]
+            ?? throw new InvalidOperationException("Gemini API key is not configured but Google providers are defined.");
+
+        foreach (var provider in googleProviders)
+        {
+            var options = new GeminiClientOptions
+            {
+                ApiKey = apiKey,
+                ModelId = provider.ServiceKey,
+            };
+
+            services.AddKeyedChatClient(provider.ServiceKey, new GeminiChatClient(options))
+                    .UseFunctionInvocation();
         }
 
         return services;
