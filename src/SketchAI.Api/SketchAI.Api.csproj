@@ -11,6 +11,7 @@
     <PackageReference Include="Aspire.StackExchange.Redis" />
     <PackageReference Include="GeminiDotnet.Extensions.AI" />
     <PackageReference Include="Microsoft.AspNetCore.OpenApi" />
+    <PackageReference Include="Microsoft.AspNetCore.SignalR.StackExchangeRedis" />
     <PackageReference Include="Scalar.AspNetCore" />
   </ItemGroup>
 

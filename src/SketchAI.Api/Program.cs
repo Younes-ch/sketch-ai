@@ -47,6 +47,9 @@ builder.Services.AddSignalR(config =>
 {
     config.AddFilter<HubExceptionFilter>();
     config.AddFilter<RateLimitingHubFilter>();
+}).AddStackExchangeRedis(builder.Configuration.GetConnectionString("redis")!, options =>
+{
+    options.Configuration.ChannelPrefix = RedisChannel.Literal("SketchAI");
 });
 
 // CORS

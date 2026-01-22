@@ -23,7 +23,9 @@ if (builder.ExecutionContext.IsPublishMode)
 }
 
 // ===== Infrastructure =====
-var redis = builder.AddRedis("redis").WithLifetime(ContainerLifetime.Persistent);
+var redis = builder.AddRedis("redis")
+    .WithLifetime(ContainerLifetime.Persistent)
+    .WithDataVolume("redis-data");
 
 if (builder.ExecutionContext.IsRunMode)
 {
