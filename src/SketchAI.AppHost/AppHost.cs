@@ -73,7 +73,7 @@ if (builder.ExecutionContext.IsPublishMode)
 else
 {
     // Development: Vite dev server with proxy
-    builder.AddViteApp("sketchai-web", "../SketchAI.Web")
+    var webfrontend = builder.AddViteApp("sketchai-web", "../SketchAI.Web")
         .WithNpm()
         .WithExternalHttpEndpoints()
         .WithEndpoint("http", e => e.Port = 9081)
@@ -96,6 +96,13 @@ else
             Endpoint = context.GetEndpoint("https")
         });
     });
+
+    var publicDevTunnel = builder
+    .AddDevTunnel("public-dev-tunnel")
+    .WithAnonymousAccess()
+    .WithReference(webfrontend)
+    .WaitFor(webfrontend);
+
 }
 
 builder.Build().Run();
