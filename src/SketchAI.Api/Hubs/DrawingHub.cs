@@ -63,7 +63,10 @@ public class DrawingHub : Hub
             throw new HubException("Invalid room code. Must be 6 alphanumeric characters.");
         }
 
-        var (room, errorMessage) = await _roomService.CreateRoomAsync(roomCode, roomName, isPublic, Context.ConnectionId, username);
+        var sanitizedUsername = ValidationHelper.SanitizeUserInput(username);
+        var sanitizedRoomName = ValidationHelper.SanitizeUserInput(roomName);
+
+        var (room, errorMessage) = await _roomService.CreateRoomAsync(roomCode, sanitizedRoomName, isPublic, Context.ConnectionId, sanitizedUsername);
 
         if (room is null)
         {
@@ -201,15 +204,17 @@ public class DrawingHub : Hub
             throw new HubException("Invalid room code. Must be 6 alphanumeric characters.");
         }
 
+        var sanitizedUsername = ValidationHelper.SanitizeUserInput(username);
+
         var room = await _roomService.GetRoomAsync(roomCode);
 
         if (room is null)
         {
-            _logger.LogWarning("Player {Username} tried to join non-existent room {RoomCode}", username, roomCode);
+            _logger.LogWarning("Player {Username} tried to join non-existent room {RoomCode}", sanitizedUsername, roomCode);
             throw new HubException("Room not found");
         }
 
-        var existingPlayer = room.Players.FirstOrDefault(p => p.Username == username);
+        var existingPlayer = room.Players.FirstOrDefault(p => p.Username == sanitizedUsername);
         if (existingPlayer is not null)
         {
             throw new HubException("Username already taken in this room");
@@ -221,7 +226,7 @@ public class DrawingHub : Hub
             throw new HubException("Room is full");
         }
 
-        var player = await _roomService.AddPlayerToRoomAsync(roomCode, Context.ConnectionId, username)
+        var player = await _roomService.AddPlayerToRoomAsync(roomCode, Context.ConnectionId, sanitizedUsername)
                      ?? throw new HubException("Failed to join room");
 
         await Groups.AddToGroupAsync(Context.ConnectionId, roomCode);
@@ -244,7 +249,7 @@ public class DrawingHub : Hub
         {
             await Clients.Caller.SendAsync("ReceiveCanvasHistory", history);
             _logger.LogDebug("Sent {Count} drawing commands to {Username} in room {RoomCode}",
-                history.Count, username, roomCode);
+                history.Count, sanitizedUsername, roomCode);
         }
     }
 
@@ -609,6 +614,8 @@ public class DrawingHub : Hub
         {
             return;
         }
+
+        message = ValidationHelper.SanitizeUserInput(message);
 
         var roomCode = await _roomService.GetRoomCodeByConnectionIdAsync(Context.ConnectionId)
                        ?? throw new HubException("You are not in a room");
