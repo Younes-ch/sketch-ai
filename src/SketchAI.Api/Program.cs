@@ -25,17 +25,14 @@ builder.Services.AddSingleton<IWordExplanationService, WordExplanationService>()
 builder.Services.AddSingleton<IAIDrawingCancellationManager, AIDrawingCancellationManager>();
 builder.Services.AddSingleton<IImageHintService, ImageHintService>();
 builder.Services.AddSingleton<IVoteKickTimerService, VoteKickTimerService>();
+builder.Services.AddSingleton<ICaptchaService, TurnstileCaptchaService>();
 
-// HTTP clients for external APIs
-builder.Services.AddHttpClient("SerperClient", client =>
-{
-    var serperApiKey = builder.Configuration["SERPER_API_KEY"]
-        ?? throw new InvalidOperationException("Serper Api Key is not configured");
-    client.BaseAddress = new Uri("https://google.serper.dev");
-    client.DefaultRequestHeaders.Add("Accept", "application/json");
-    client.DefaultRequestHeaders.Add("X-API-KEY", serperApiKey);
-    client.Timeout = TimeSpan.FromSeconds(10);
-});
+// Configuration for circuit breaker
+builder.Services.Configure<CircuitBreakerSettings>(builder.Configuration.GetSection("CircuitBreaker"));
+var circuitBreakerSettings = builder.Configuration.GetSection("CircuitBreaker").Get<CircuitBreakerSettings>() ?? new CircuitBreakerSettings();
+
+// HTTP clients for external APIs with resilience policies
+builder.Services.AddSerperClient(builder.Configuration, circuitBreakerSettings);
 
 // Background services
 builder.Services.AddHostedService<RoundTimerBackgroundService>();
@@ -52,7 +49,7 @@ builder.Services.AddSignalR(config =>
     config.AddFilter<RateLimitingHubFilter>();
 });
 
-// CORS - allow frontend to connect
+// CORS
 builder.Services.AddCors(options =>
 {
     options.AddDefaultPolicy(policy =>
@@ -99,11 +96,9 @@ builder.Services.AddOutputCache();
 var app = builder.Build();
 
 // Middleware pipeline
-app.UseRequestTimeouts();
-app.UseOutputCache();
-
 app.UseForwardedHeaders();
 app.UseCors();
+app.UseRequestTimeouts();
 
 if (app.Environment.IsDevelopment())
 {
@@ -120,6 +115,7 @@ if (app.Environment.IsDevelopment())
 }
 
 app.UseAuthorization();
+app.UseOutputCache();
 app.MapControllers();
 app.MapHub<DrawingHub>("/hubs/drawing");
 app.MapDefaultEndpoints();

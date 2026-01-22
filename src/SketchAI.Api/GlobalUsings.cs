@@ -14,7 +14,10 @@ global using Microsoft.AspNetCore.HttpOverrides;
 global using Microsoft.AspNetCore.Mvc;
 global using Microsoft.AspNetCore.SignalR;
 global using Microsoft.Extensions.AI;
+global using Microsoft.Extensions.Http.Resilience;
 global using Microsoft.Extensions.Options;
+
+global using Polly;
 
 global using Scalar.AspNetCore;
 
@@ -28,6 +31,7 @@ global using SketchAI.Api.Hubs;
 global using SketchAI.Api.Hubs.Filters;
 global using SketchAI.Api.Models;
 global using SketchAI.Api.Services.AI;
+global using SketchAI.Api.Services.Captcha;
 global using SketchAI.Api.Services.Game;
 global using SketchAI.Api.Services.Infrastructure;
 global using SketchAI.Api.Validation;
