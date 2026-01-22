@@ -20,7 +20,7 @@ export function ImageHintModal({
   const imageHintKey = useMemo(
     () =>
       imageHint ? `${imageHint.word}-${imageHint.imageUrls.join(",")}` : null,
-    [imageHint]
+    [imageHint],
   );
 
   const [loadedImages, setLoadedImages] = useState<Set<number>>(new Set());
@@ -129,7 +129,7 @@ export function ImageHintModal({
               {imageHint.imageUrls.map((url, index) => (
                 <div
                   key={index}
-                  className="relative aspect-4/3 bg-background/30 rounded-xl overflow-hidden border border-white/10 group"
+                  className="relative aspect-square bg-background/50 rounded-xl overflow-hidden border border-white/10 group"
                 >
                   {/* Loading skeleton */}
                   {!loadedImages.has(index) && !failedImages.has(index) && (
@@ -150,7 +150,7 @@ export function ImageHintModal({
                   <img
                     src={url}
                     alt={`Visual hint ${index + 1} for ${imageHint.word}`}
-                    className={`w-full h-full object-cover transition-all duration-300 ${
+                    className={`w-full h-full object-contain transition-all duration-300 ${
                       loadedImages.has(index)
                         ? "opacity-100 group-hover:scale-105"
                         : "opacity-0"

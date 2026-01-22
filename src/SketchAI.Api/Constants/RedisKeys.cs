@@ -20,8 +20,8 @@ public static class RedisKeys
     public static string RoomsInDrawingPhase => "drawing_phase_rooms";
     public static string ActiveVoteKicks => "active_votekicks";
 
-    public static readonly TimeSpan RoomExpiry = TimeSpan.FromHours(2);
-    public static readonly TimeSpan CanvasExpiry = TimeSpan.FromHours(2);
+    public static readonly TimeSpan RoomExpiry = TimeSpan.FromHours(1);
+    public static readonly TimeSpan CanvasExpiry = TimeSpan.FromHours(1);
     public static readonly TimeSpan WordExplanationExpiry = TimeSpan.FromDays(7);
     public static readonly TimeSpan ImageHintsExpiry = TimeSpan.FromDays(7);
     public static readonly TimeSpan RoomLockExpiry = TimeSpan.FromSeconds(5);

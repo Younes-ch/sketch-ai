@@ -13,6 +13,7 @@ public class DrawingHub : Hub
     private readonly IImageHintService _imageHintService;
     private readonly IAIDrawingService _aiDrawingService;
     private readonly IAIDrawingCancellationManager _aiCancellationManager;
+    private readonly ICaptchaService _captchaService;
     private readonly IHubContext<DrawingHub> _hubContext;
     private readonly GameSettings _gameSettings;
     private readonly ILogger<DrawingHub> _logger;
@@ -26,6 +27,7 @@ public class DrawingHub : Hub
         IImageHintService imageHintService,
         IAIDrawingService aiDrawingService,
         IAIDrawingCancellationManager aiCancellationManager,
+        ICaptchaService captchaService,
         IHubContext<DrawingHub> hubContext,
         IOptions<GameSettings> gameSettings,
         ILogger<DrawingHub> logger)
@@ -38,6 +40,7 @@ public class DrawingHub : Hub
         _imageHintService = imageHintService;
         _aiDrawingService = aiDrawingService;
         _aiCancellationManager = aiCancellationManager;
+        _captchaService = captchaService;
         _hubContext = hubContext;
         _gameSettings = gameSettings.Value;
         _logger = logger;
@@ -46,8 +49,13 @@ public class DrawingHub : Hub
     /// <summary>
     /// Creates a new room and joins the creator as host.
     /// </summary>
-    public async Task CreateRoom(string username, string roomName, string roomCode, bool isPublic = true, RoomSettingsDto? roomSettings = null)
+    public async Task CreateRoom(string username, string roomName, string roomCode, bool isPublic = true, RoomSettingsDto? roomSettings = null, string? captchaToken = null)
     {
+        if (!await _captchaService.VerifyAsync(captchaToken, Context.ConnectionAborted))
+        {
+            throw new HubException("CAPTCHA verification failed. Please try again.");
+        }
+
         if (!ValidationHelper.IsValidUsername(username))
         {
             throw new HubException("Invalid username. Use 1-20 alphanumeric characters, spaces, or underscores.");
@@ -63,7 +71,10 @@ public class DrawingHub : Hub
             throw new HubException("Invalid room code. Must be 6 alphanumeric characters.");
         }
 
-        var (room, errorMessage) = await _roomService.CreateRoomAsync(roomCode, roomName, isPublic, Context.ConnectionId, username);
+        var sanitizedUsername = ValidationHelper.SanitizeUserInput(username);
+        var sanitizedRoomName = ValidationHelper.SanitizeUserInput(roomName);
+
+        var (room, errorMessage) = await _roomService.CreateRoomAsync(roomCode, sanitizedRoomName, isPublic, Context.ConnectionId, sanitizedUsername);
 
         if (room is null)
         {
@@ -149,8 +160,13 @@ public class DrawingHub : Hub
         await Clients.Group(roomCode).SendAsync("CanvasCleared");
 
         var gameState = room.ToDto();
-        await Clients.Group(roomCode).SendAsync("GameStarted", gameState);
-        await Clients.Client(room.CurrentDrawerConnectionId).SendAsync("WordChoices", room.WordChoices);
+
+        // Send game state to all players except the drawer
+        await Clients.GroupExcept(roomCode, room.CurrentDrawerConnectionId).SendAsync("GameStarted", gameState);
+
+        // Send game state with word choices to the drawer (avoids race condition with Redis backplane)
+        gameState.WordChoices = room.WordChoices;
+        await Clients.Client(room.CurrentDrawerConnectionId).SendAsync("GameStarted", gameState);
     }
 
     /// <summary>
@@ -201,15 +217,17 @@ public class DrawingHub : Hub
             throw new HubException("Invalid room code. Must be 6 alphanumeric characters.");
         }
 
+        var sanitizedUsername = ValidationHelper.SanitizeUserInput(username);
+
         var room = await _roomService.GetRoomAsync(roomCode);
 
         if (room is null)
         {
-            _logger.LogWarning("Player {Username} tried to join non-existent room {RoomCode}", username, roomCode);
+            _logger.LogWarning("Player {Username} tried to join non-existent room {RoomCode}", sanitizedUsername, roomCode);
             throw new HubException("Room not found");
         }
 
-        var existingPlayer = room.Players.FirstOrDefault(p => p.Username == username);
+        var existingPlayer = room.Players.FirstOrDefault(p => p.Username == sanitizedUsername);
         if (existingPlayer is not null)
         {
             throw new HubException("Username already taken in this room");
@@ -221,7 +239,7 @@ public class DrawingHub : Hub
             throw new HubException("Room is full");
         }
 
-        var player = await _roomService.AddPlayerToRoomAsync(roomCode, Context.ConnectionId, username)
+        var player = await _roomService.AddPlayerToRoomAsync(roomCode, Context.ConnectionId, sanitizedUsername)
                      ?? throw new HubException("Failed to join room");
 
         await Groups.AddToGroupAsync(Context.ConnectionId, roomCode);
@@ -244,7 +262,7 @@ public class DrawingHub : Hub
         {
             await Clients.Caller.SendAsync("ReceiveCanvasHistory", history);
             _logger.LogDebug("Sent {Count} drawing commands to {Username} in room {RoomCode}",
-                history.Count, username, roomCode);
+                history.Count, sanitizedUsername, roomCode);
         }
     }
 
@@ -354,11 +372,23 @@ public class DrawingHub : Hub
             throw new HubException("Word does not match the current drawing word");
         }
 
+        var drawerPlayer = room.Players.FirstOrDefault(p => p.ConnectionId == Context.ConnectionId)
+            ?? throw new HubException("Player not found");
+
+        if (drawerPlayer.ImageHintsUsed >= _gameSettings.MaxImageHintsPerPlayer)
+        {
+            throw new HubException($"You have used all {_gameSettings.MaxImageHintsPerPlayer} image hint(s) for this game");
+        }
+
         var preset = room.Settings.WordPreset;
 
         try
         {
             var imageUrls = await _imageHintService.GetImageHintsAsync(word, preset, Context.ConnectionAborted);
+
+            drawerPlayer.ImageHintsUsed++;
+            await _roomService.SaveRoomAsync(room);
+
             var result = new ImageHintDto(word, preset, imageUrls);
 
             await Clients.Caller.SendAsync("ReceiveImageHints", result);
@@ -597,6 +627,8 @@ public class DrawingHub : Hub
         {
             return;
         }
+
+        message = ValidationHelper.SanitizeUserInput(message);
 
         var roomCode = await _roomService.GetRoomCodeByConnectionIdAsync(Context.ConnectionId)
                        ?? throw new HubException("You are not in a room");
@@ -957,11 +989,19 @@ public class DrawingHub : Hub
                     await _hubContext.Clients.Group(roomCode).SendAsync("CanvasCleared");
 
                     var gameState = room.ToDto();
-                    await _hubContext.Clients.Group(roomCode).SendAsync("NextTurnStarted", gameState);
 
                     if (room.CurrentDrawerConnectionId is not null)
                     {
-                        await _hubContext.Clients.Client(room.CurrentDrawerConnectionId).SendAsync("WordChoices", room.WordChoices);
+                        // Send game state to all players except the drawer
+                        await _hubContext.Clients.GroupExcept(roomCode, room.CurrentDrawerConnectionId).SendAsync("NextTurnStarted", gameState);
+
+                        // Send game state with word choices to the drawer (avoids race condition with Redis backplane)
+                        gameState.WordChoices = room.WordChoices;
+                        await _hubContext.Clients.Client(room.CurrentDrawerConnectionId).SendAsync("NextTurnStarted", gameState);
+                    }
+                    else
+                    {
+                        await _hubContext.Clients.Group(roomCode).SendAsync("NextTurnStarted", gameState);
                     }
                     break;
                 }

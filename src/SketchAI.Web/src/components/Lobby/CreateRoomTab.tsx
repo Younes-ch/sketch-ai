@@ -1,15 +1,21 @@
 import { cn } from "@/lib/utils";
-import { useState, useMemo } from "react";
+import { useState, useMemo, useCallback } from "react";
 import { defaultRoomSettings, WORD_PRESETS, type RoomSettings } from "@/models";
 import RoomSettingsPanel from "./RoomSettingsPanel";
 import { Button, Input } from "@/components/ui";
+import { CaptchaWidget } from "@/components/Common/CaptchaWidget";
+import { useCaptcha } from "@/hooks/useCaptcha";
 
 interface CreateRoomTabProps {
   roomName: string;
   onRoomNameChange: (name: string) => void;
   isPublicRoom: boolean;
   onTogglePublic: () => void;
-  onSubmit: (e: React.FormEvent, settings: RoomSettings) => void;
+  onSubmit: (
+    e: React.FormEvent,
+    settings: RoomSettings,
+    captchaToken?: string,
+  ) => void;
   isJoining: boolean;
   isDisabled: boolean;
   error: string | null;
@@ -55,13 +61,25 @@ export default function CreateRoomTab({
     ...defaultRoomSettings,
   });
   const [showSettings, setShowSettings] = useState(false);
+  const [captchaToken, setCaptchaToken] = useState<string | undefined>(
+    undefined,
+  );
+  const { isEnabled: isCaptchaEnabled } = useCaptcha();
 
   const handleSettingsChange = (updates: Partial<RoomSettings>) => {
     setSettings((prev) => ({ ...prev, ...updates }));
   };
 
+  const handleCaptchaSuccess = useCallback((token: string) => {
+    setCaptchaToken(token);
+  }, []);
+
+  const handleCaptchaExpire = useCallback(() => {
+    setCaptchaToken(undefined);
+  }, []);
+
   const handleSubmit = (e: React.FormEvent) => {
-    onSubmit(e, settings);
+    onSubmit(e, settings, captchaToken);
   };
 
   const wordSourceSummary = useMemo(
@@ -76,7 +94,9 @@ export default function CreateRoomTab({
 
   const isRoomNameValid =
     roomName.trim().length >= 3 && roomName.trim().length <= 30;
-  const isFormDisabled = isDisabled || !hasValidCustomWords || !isRoomNameValid;
+  const isCaptchaValid = !isCaptchaEnabled || !!captchaToken;
+  const isFormDisabled =
+    isDisabled || !hasValidCustomWords || !isRoomNameValid || !isCaptchaValid;
 
   return (
     <form onSubmit={handleSubmit} className="flex flex-col gap-4">
@@ -179,6 +199,12 @@ export default function CreateRoomTab({
           custom words to create a room
         </div>
       )}
+
+      {/* CAPTCHA Widget */}
+      <CaptchaWidget
+        onSuccess={handleCaptchaSuccess}
+        onExpire={handleCaptchaExpire}
+      />
 
       <Button
         type="submit"

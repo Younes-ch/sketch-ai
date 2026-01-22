@@ -1,5 +1,6 @@
 import { Component, type ReactNode, type ErrorInfo } from "react";
 import { logger } from "@/lib/logger";
+import { trackException } from "@/lib/telemetry";
 
 interface Props {
   children: ReactNode;
@@ -22,7 +23,16 @@ export default class ErrorBoundary extends Component<Props, State> {
 
   componentDidCatch(error: Error, errorInfo: ErrorInfo) {
     logger.error("ErrorBoundary caught an error", error, errorInfo);
-    // TODO: Send to Application Insights when configured
+
+    // Track exception in Application Insights
+    try {
+      trackException(error, {
+        componentStack: errorInfo.componentStack ?? "unknown",
+        source: "ErrorBoundary",
+      })
+    } catch {
+      // Telemetry failure should not affect error handling
+    }
   }
 
   handleReload = () => {

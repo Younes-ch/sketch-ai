@@ -22,6 +22,7 @@ interface JoinScreenProps {
     isCreating: boolean,
     isPublic?: boolean,
     settings?: RoomSettings,
+    captchaToken?: string,
   ) => Promise<void>;
   initialRoomCode?: string | null;
 }
@@ -88,6 +89,7 @@ export default function JoinScreen({
   const handleCreateRoom = async (
     e: React.FormEvent,
     settings: RoomSettings,
+    captchaToken?: string,
   ) => {
     e.preventDefault();
     if (username.trim() && roomName.trim()) {
@@ -102,6 +104,7 @@ export default function JoinScreen({
           true,
           isPublicRoom,
           settings,
+          captchaToken,
         );
       } catch (err) {
         setError(parseHubError(err));

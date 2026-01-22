@@ -1,5 +1,6 @@
+using Azure.Monitor.OpenTelemetry.AspNetCore;
+
 using Microsoft.AspNetCore.Builder;
-using Microsoft.AspNetCore.Diagnostics.HealthChecks;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Diagnostics.HealthChecks;
 using Microsoft.Extensions.Logging;
@@ -79,26 +80,55 @@ public static class Extensions
             builder.Services.AddOpenTelemetry().UseOtlpExporter();
         }
 
+
+        if (builder.Environment.IsProduction() && !string.IsNullOrWhiteSpace(builder.Configuration["APPLICATIONINSIGHTS_CONNECTION_STRING"]))
+        {
+            builder.Services.AddOpenTelemetry()
+               .UseAzureMonitor();
+        }
+
         return builder;
     }
 
-    public static TBuilder AddDefaultHealthChecks<TBuilder>(this TBuilder builder) where TBuilder : IHostApplicationBuilder
+    public static IHostApplicationBuilder AddDefaultHealthChecks(
+    this IHostApplicationBuilder builder)
     {
+        builder.Services.AddRequestTimeouts(
+            configure: static timeouts =>
+                timeouts.AddPolicy("HealthChecks", TimeSpan.FromSeconds(5)));
+
+        builder.Services.AddOutputCache(
+            configureOptions: static caching =>
+                caching.AddPolicy("HealthChecks",
+                build: static policy => policy.Expire(TimeSpan.FromSeconds(10))));
+
         builder.Services.AddHealthChecks()
             // Add a default liveness check to ensure app is responsive
-            .AddCheck("self", () => HealthCheckResult.Healthy(), ["live"]);
+            .AddCheck("self", () => HealthCheckResult.Healthy(), ["live"])
+            // Add Redis health check if configured
+            .AddRedis("redis", tags: ["ready"]);
 
         return builder;
     }
 
-    public static WebApplication MapDefaultEndpoints(this WebApplication app)
+    public static WebApplication MapDefaultEndpoints(
+    this WebApplication app)
     {
-        // Health checks for Azure Container Apps orchestration (liveness/readiness probes)
-        app.MapHealthChecks(HealthEndpointPath);
+        var healthChecks = app.MapGroup("");
 
-        app.MapHealthChecks(AlivenessEndpointPath, new HealthCheckOptions
+        healthChecks
+            .CacheOutput("HealthChecks")
+            .WithRequestTimeout("HealthChecks");
+
+        // All health checks must pass for app to be
+        // considered ready to accept traffic after starting
+        healthChecks.MapHealthChecks("/health");
+
+        // Only health checks tagged with the "live" tag
+        // must pass for app to be considered alive
+        healthChecks.MapHealthChecks("/alive", new()
         {
-            Predicate = r => r.Tags.Contains("live")
+            Predicate = static r => r.Tags.Contains("live")
         });
 
         return app;

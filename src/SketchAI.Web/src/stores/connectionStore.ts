@@ -4,6 +4,11 @@ import { logger } from "@/lib/logger";
 
 export type ConnectionState = "Connected" | "Reconnecting" | "Disconnected";
 
+// Use minimal logging in production to avoid information disclosure
+const getSignalRLogLevel = (): signalR.LogLevel => {
+  return import.meta.env.PROD ? signalR.LogLevel.Warning : signalR.LogLevel.Information;
+};
+
 interface ConnectionStore {
   connection: signalR.HubConnection | null;
   connectionState: ConnectionState;
@@ -49,7 +54,7 @@ export const useConnectionStore = create<ConnectionStore>((set, get) => ({
     const newConnection = new signalR.HubConnectionBuilder()
       .withUrl(hubUrl)
       .withAutomaticReconnect()
-      .configureLogging(signalR.LogLevel.Information)
+      .configureLogging(getSignalRLogLevel())
       .build();
 
     // Connection state listeners

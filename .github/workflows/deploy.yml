@@ -4,7 +4,6 @@ on:
   push:
     branches:
       - main
-      - dev
   workflow_dispatch:
 
 env:
@@ -46,10 +45,4 @@ jobs:
           aspire deploy \
             --project src/SketchAI.AppHost/SketchAI.AppHost.csproj \
             --non-interactive
-
-      - name: Display deployment URLs
-        run: |
-          echo "🎉 Deployment completed!"
-          echo "Web: https://sketchai-web.blacksky-a496d0d8.westeurope.azurecontainerapps.io"
-          echo "API: https://sketchai-api.blacksky-a496d0d8.westeurope.azurecontainerapps.io"
-          echo "Dashboard: https://aspire-dashboard.ext.blacksky-a496d0d8.westeurope.azurecontainerapps.io"
+        

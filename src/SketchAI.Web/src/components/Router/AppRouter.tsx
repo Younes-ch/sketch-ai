@@ -30,9 +30,10 @@ export default function AppRouter() {
     isCreating: boolean,
     isPublic: boolean = false,
     settings: RoomSettings = defaultRoomSettings,
+    captchaToken?: string,
   ) => {
     if (isCreating) {
-      await createRoom(name, roomName, room, isPublic, settings);
+      await createRoom(name, roomName, room, isPublic, settings, captchaToken);
     } else {
       await joinRoom(name, room);
     }

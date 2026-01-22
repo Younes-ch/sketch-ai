@@ -198,6 +198,19 @@ public static partial class ValidationHelper
                point.Y is >= NormalizedMin - NormalizedTolerance and <= NormalizedMax + NormalizedTolerance;
     }
 
+    public static string SanitizeUserInput(string input)
+    {
+        if (string.IsNullOrWhiteSpace(input)) return input;
+
+        // HTML encode to prevent XSS
+        var sanitized = WebUtility.HtmlEncode(input);
+
+        // Remove control characters
+        sanitized = ControlCharactersRegex().Replace(sanitized, "");
+
+        return sanitized.Trim();
+    }
+
     // Regex patterns using source generators for performance
     [GeneratedRegex("^[A-Z0-9]{6}$")]
     private static partial Regex RoomCodeRegex();
@@ -210,4 +223,7 @@ public static partial class ValidationHelper
 
     [GeneratedRegex("^#([A-Fa-f0-9]{6}|[A-Fa-f0-9]{3})$")]
     private static partial Regex HexColorRegex();
+
+    [GeneratedRegex(@"[\x00-\x1F\x7F]")]
+    private static partial Regex ControlCharactersRegex();
 }

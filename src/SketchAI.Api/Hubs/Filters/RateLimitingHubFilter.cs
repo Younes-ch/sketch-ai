@@ -8,12 +8,12 @@ public class RateLimitingHubFilter : IHubFilter
     // Store limiters per connection/IP address, keyed by "{connectionId|ipAddress}:{policy}"
     private static readonly ConcurrentDictionary<string, Lazy<LimiterEntry>> Limiters = new();
 
-    private static readonly Dictionary<string, string> MethodPolicies = new(StringComparer.OrdinalIgnoreCase)
+    private static readonly Dictionary<string, RateLimitPolicyConfig> MethodPolicies = new(StringComparer.OrdinalIgnoreCase)
     {
-        ["SendDrawingCommand"] = "drawing",
-        ["ClearCanvas"] = "drawing",
-        ["SendGuess"] = "chat",
-        ["CreateRoom"] = "roomCreation"
+        ["SendDrawingCommand"] = new("drawing", 1),
+        ["ClearCanvas"] = new("drawing", 1),
+        ["SendGuess"] = new("chat", 2),
+        ["CreateRoom"] = new("roomCreation", 60)
     };
 
     private static readonly HashSet<string> IpBasedPolicies = new(StringComparer.OrdinalIgnoreCase) { "roomCreation" };
@@ -25,6 +25,11 @@ public class RateLimitingHubFilter : IHubFilter
         _logger = logger;
         _timeProvider = timeProvider;
     }
+
+    /// <summary>
+    /// Rate limit policy configuration with retry window.
+    /// </summary>
+    private sealed record RateLimitPolicyConfig(string Policy, int RetryAfterSeconds);
 
     /// <summary>
     /// Tracks a rate limiter with its last access time.
@@ -56,14 +61,14 @@ public class RateLimitingHubFilter : IHubFilter
     {
         var methodName = invocationContext.HubMethodName;
 
-        if (!MethodPolicies.TryGetValue(methodName, out var policy))
+        if (!MethodPolicies.TryGetValue(methodName, out var policyConfig))
         {
             return await next(invocationContext);
         }
 
-        var partitionKey = GetPartitionKey(invocationContext, policy);
-        var limiterKey = $"{partitionKey}:{policy}";
-        var entry = Limiters.GetOrAdd(limiterKey, _ => new Lazy<LimiterEntry>(() => new LimiterEntry(CreateLimiter(policy), policy, _timeProvider))).Value;
+        var partitionKey = GetPartitionKey(invocationContext, policyConfig.Policy);
+        var limiterKey = $"{partitionKey}:{policyConfig.Policy}";
+        var entry = Limiters.GetOrAdd(limiterKey, _ => new Lazy<LimiterEntry>(() => new LimiterEntry(CreateLimiter(policyConfig.Policy), policyConfig.Policy, _timeProvider))).Value;
         entry.Touch(_timeProvider);
 
         using var lease = await entry.Limiter.AcquireAsync(permitCount: 1);
@@ -73,9 +78,15 @@ public class RateLimitingHubFilter : IHubFilter
             _logger.LogWarning(
                 "Rate limit exceeded for {Method} by {PartitionType} {PartitionKey}",
                 methodName,
-                IpBasedPolicies.Contains(policy) ? "IP" : "connection",
+                IpBasedPolicies.Contains(policyConfig.Policy) ? "IP" : "connection",
                 partitionKey);
-            throw new HubException("Too many requests. Please slow down.");
+
+            var errorDto = new RateLimitErrorDto
+            {
+                Message = "Too many requests. Please slow down.",
+                RetryAfterSeconds = policyConfig.RetryAfterSeconds
+            };
+            throw new HubException(JsonSerializer.Serialize(errorDto));
         }
 
         return await next(invocationContext);
