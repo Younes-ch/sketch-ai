@@ -160,8 +160,13 @@ public class DrawingHub : Hub
         await Clients.Group(roomCode).SendAsync("CanvasCleared");
 
         var gameState = room.ToDto();
-        await Clients.Group(roomCode).SendAsync("GameStarted", gameState);
-        await Clients.Client(room.CurrentDrawerConnectionId).SendAsync("WordChoices", room.WordChoices);
+
+        // Send game state to all players except the drawer
+        await Clients.GroupExcept(roomCode, room.CurrentDrawerConnectionId).SendAsync("GameStarted", gameState);
+
+        // Send game state with word choices to the drawer (avoids race condition with Redis backplane)
+        gameState.WordChoices = room.WordChoices;
+        await Clients.Client(room.CurrentDrawerConnectionId).SendAsync("GameStarted", gameState);
     }
 
     /// <summary>
@@ -984,11 +989,19 @@ public class DrawingHub : Hub
                     await _hubContext.Clients.Group(roomCode).SendAsync("CanvasCleared");
 
                     var gameState = room.ToDto();
-                    await _hubContext.Clients.Group(roomCode).SendAsync("NextTurnStarted", gameState);
 
                     if (room.CurrentDrawerConnectionId is not null)
                     {
-                        await _hubContext.Clients.Client(room.CurrentDrawerConnectionId).SendAsync("WordChoices", room.WordChoices);
+                        // Send game state to all players except the drawer
+                        await _hubContext.Clients.GroupExcept(roomCode, room.CurrentDrawerConnectionId).SendAsync("NextTurnStarted", gameState);
+
+                        // Send game state with word choices to the drawer (avoids race condition with Redis backplane)
+                        gameState.WordChoices = room.WordChoices;
+                        await _hubContext.Clients.Client(room.CurrentDrawerConnectionId).SendAsync("NextTurnStarted", gameState);
+                    }
+                    else
+                    {
+                        await _hubContext.Clients.Group(roomCode).SendAsync("NextTurnStarted", gameState);
                     }
                     break;
                 }

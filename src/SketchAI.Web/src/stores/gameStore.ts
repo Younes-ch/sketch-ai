@@ -176,6 +176,7 @@ interface GameStateDto {
   players: Player[];
   wordHint: string | null;
   roundStartedAt: string | null;
+  wordChoices: string[] | null; // Only populated for the drawer during WordSelection phase
 }
 
 // Setup SignalR event handlers for game events
@@ -197,7 +198,7 @@ export function setupGameEventHandlers() {
       roundNumber: gameStateDto.roundNumber || 1,
       totalRounds: gameStateDto.totalRounds,
       wordHint: "",
-      wordChoices: null,
+      wordChoices: gameStateDto.wordChoices ?? null, // Use wordChoices from DTO (drawer only)
       currentWord: null,
     });
 
@@ -356,7 +357,7 @@ export function setupGameEventHandlers() {
       totalRounds: gameStateDto.totalRounds,
       drawTimeSeconds: gameStateDto.drawTimeSeconds,
       wordHint: "",
-      wordChoices: null,
+      wordChoices: gameStateDto.wordChoices ?? null, // Use wordChoices from DTO (drawer only)
       currentWord: null,
       timeRemaining: gameStateDto.drawTimeSeconds,
     });

@@ -24,4 +24,10 @@ public class GameStateDto
     /// Round start time for client-side timer calculation.
     /// </summary>
     public DateTime? RoundStartedAt { get; set; }
+
+    /// <summary>
+    /// Word choices for the current drawer to select from.
+    /// Only populated when sending to the drawer during WordSelection phase.
+    /// </summary>
+    public List<string>? WordChoices { get; set; }
 }

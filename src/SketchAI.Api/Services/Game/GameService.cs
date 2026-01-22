@@ -71,6 +71,7 @@ public class GameService : IGameService
         {
             player.Score = 0;
             player.AiDrawingsUsed = 0;
+            player.ImageHintsUsed = 0;
             player.LastAiDrawingAt = null;
         }
 
