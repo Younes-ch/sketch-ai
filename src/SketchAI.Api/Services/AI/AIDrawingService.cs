@@ -4,17 +4,19 @@ public class AIDrawingService : IAIDrawingService
 {
     private readonly IAIProviderSelector _providerSelector;
     private readonly IOptionsMonitor<AiProviderSettings> _aiProviderOptions;
+    private readonly IOptionsMonitor<GameSettings> _gameSettings;
     private readonly ILogger<AIDrawingService> _logger;
-    private static readonly TimeSpan DrawingTimeout = TimeSpan.FromSeconds(20);
     private const string ProvidersExhaustedMessage = "AI drawing is temporarily unavailable. Please try again later.";
 
     public AIDrawingService(
         IAIProviderSelector providerSelector,
         IOptionsMonitor<AiProviderSettings> aiProviderOptions,
+        IOptionsMonitor<GameSettings> gameSettings,
         ILogger<AIDrawingService> logger)
     {
         _providerSelector = providerSelector;
         _aiProviderOptions = aiProviderOptions;
+        _gameSettings = gameSettings;
         _logger = logger;
     }
 
@@ -41,10 +43,11 @@ public class AIDrawingService : IAIDrawingService
         }
 
         var anyCommandsYielded = false;
+        var drawingTimeout = TimeSpan.FromSeconds(_gameSettings.CurrentValue.AiDrawingTimeoutSeconds);
 
         while (triedProviders.Count < maxRetries)
         {
-            using var timeoutCts = new CancellationTokenSource(DrawingTimeout);
+            using var timeoutCts = new CancellationTokenSource(drawingTimeout);
             using var linkedCts = CancellationTokenSource.CreateLinkedTokenSource(ct, timeoutCts.Token);
             var combinedCt = linkedCts.Token;
 
@@ -196,7 +199,7 @@ public class AIDrawingService : IAIDrawingService
                     while (commandQueue.TryDequeue(out var command))
                     {
                         anyCommandsYielded = true;
-                        timeoutCts.CancelAfter(DrawingTimeout); // Reset timeout on each yielded command
+                        timeoutCts.CancelAfter(drawingTimeout); // Reset timeout on each yielded command
                         yield return command;
                     }
                 }
@@ -215,7 +218,7 @@ public class AIDrawingService : IAIDrawingService
                 while (commandQueue.TryDequeue(out var command))
                 {
                     anyCommandsYielded = true;
-                    timeoutCts.CancelAfter(DrawingTimeout); // Reset timeout on each yielded command
+                    timeoutCts.CancelAfter(drawingTimeout); // Reset timeout on each yielded command
                     yield return command;
                 }
 

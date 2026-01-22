@@ -16,6 +16,7 @@ public class GameSettings
     public int MaxAiDrawingsPerPlayer { get; set; } = 1;
     public int MaxImageHintsPerPlayer { get; set; } = 2;
     public int AiDrawingCooldownSeconds { get; set; } = 30;
+    public int AiDrawingTimeoutSeconds { get; set; } = 20;
     public int VoteKickDurationSeconds { get; set; } = 30;
     public int PublicRoomsDefaultPageSize { get; set; } = 6;
     public int PublicRoomsMaxPageSize { get; set; } = 20;
