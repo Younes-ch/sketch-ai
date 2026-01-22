@@ -72,7 +72,7 @@ SketchAI is built using a modern cloud-native architecture with .NET Aspire for 
 ### Backend (.NET 10)
 
 | Technology | Purpose |
-|------------|---------|
+| ------------ | --------- |
 | ASP.NET Core | Web API and SignalR hub |
 | .NET Aspire | Cloud-native orchestration and service discovery |
 | SignalR | Real-time bidirectional communication |
@@ -83,7 +83,7 @@ SketchAI is built using a modern cloud-native architecture with .NET Aspire for 
 ### Frontend (React 19)
 
 | Technology | Purpose |
-|------------|---------|
+| ------------ | --------- |
 | React 19 | UI framework |
 | TypeScript | Type-safe JavaScript |
 | Vite (Rolldown) | Build tool and dev server |
@@ -95,14 +95,14 @@ SketchAI is built using a modern cloud-native architecture with .NET Aspire for 
 ### AI Services
 
 | Provider | Models | Purpose |
-|----------|--------|---------|
+| ---------- | -------- | --------- |
 | Google Gemini | gemini-3-flash-preview, gemini-2.5-flash, gemini-2.5-flash-lite | AI drawing generation |
 | GitHub Models | gpt-4o-mini | Word explanations and translations |
 
 ### Infrastructure
 
 | Service | Purpose |
-|---------|---------|
+| --------- | --------- |
 | Redis | Session state, canvas history, caching, distributed locks |
 | Cloudflare Turnstile | CAPTCHA verification |
 | Serper API | Image search for hints |
@@ -178,7 +178,7 @@ HTTP clients use Polly for resilience:
 Redis is used for multi-level caching:
 
 | Cache Type | Key Pattern | TTL | Purpose |
-|------------|-------------|-----|---------|
+| ------------ | ----------- | --- | ------- |
 | Word Explanations | `word_explanation:{word}:{language}` | 7 Days | Cache AI translations |
 | Image Hints | `image_hints:{word}:{preset}?` | 7 Days | Cache search results |
 | Canvas History | `canvas:history:{roomCode}` | 1 hour | Store drawing commands |
@@ -286,7 +286,7 @@ while (stack.length > 0) {
 
 **Optimizations**:
 
-- Bitset for visited tracking (vs. Set<string>)
+- Bitset for visited tracking (vs. `Set<string>`)
 - Scanline filling for cache locality
 - Color tolerance for anti-aliased edges
 - 20-50x faster than naive stack-based approach
@@ -338,6 +338,11 @@ sketch-ai/
 ├── src/
 │   ├── SketchAI.Api/           # Backend API
 │   │   ├── Configuration/      # Settings classes
+│   │   ├── Constants/          # Redis keys, TTL expiry, etc.
+│   │   ├── Dtos/               # Data transfer objects
+│   │   ├── Exceptions/         # Custom exceptions
+│   │   ├── Extensions/         # Extension methods
+│   │   ├── Helpers/            # Utility classes
 │   │   ├── Controllers/        # REST endpoints
 │   │   ├── Hubs/               # SignalR hub and filters
 │   │   ├── Models/             # Domain models
@@ -345,6 +350,8 @@ sketch-ai/
 │   │   │   ├── AI/             # AI drawing, explanations, hints
 │   │   │   ├── Game/           # Game logic, words, canvas
 │   │   │   └── Infrastructure/ # Background services, locks
+│   │   │   └── Captcha/        # Turnstile verification
+│   │   ├── Validation/         # Input validators
 │   │   └── Data/               # Word lists and presets
 │   │
 │   ├── SketchAI.Web/           # Frontend SPA
