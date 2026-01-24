@@ -41,6 +41,8 @@ jobs:
           Parameters__gh-models-api-key: ${{ secrets.GH_MODELS_API_KEY }}
           Parameters__google-gemini-api-key: ${{ secrets.GOOGLE_GEMINI_API_KEY }}
           Parameters__serper-api-key: ${{ secrets.SERPER_API_KEY }}
+          Parameters__turnstile-site-key: ${{ secrets.TURNSTILE_SITE_KEY }}
+          Parameters__turnstile-secret-key: ${{ secrets.TURNSTILE_SECRET_KEY }}
         run: |
           aspire deploy \
             --project src/SketchAI.AppHost/SketchAI.AppHost.csproj \
