@@ -106,6 +106,8 @@ SketchAI is built using a modern cloud-native architecture with .NET Aspire for 
 | Redis | Session state, canvas history, caching, distributed locks |
 | Cloudflare Turnstile | CAPTCHA verification |
 | Serper API | Image search for hints |
+| Docker | Containerization and deployment |
+| Azure | Cloud hosting and services |
 
 ---
 
