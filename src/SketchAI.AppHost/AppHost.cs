@@ -23,17 +23,20 @@ if (builder.ExecutionContext.IsPublishMode)
 }
 
 // ===== Infrastructure =====
-var redis = builder.AddRedis("redis")
-    .WithLifetime(ContainerLifetime.Persistent)
-    .WithDataVolume("redis-data");
+var redis = builder.AddAzureRedis("redis")
+    .WithAccessKeyAuthentication()
+    .RunAsContainer(container =>
+    {
+        container.WithLifetime(ContainerLifetime.Persistent)
+                 .WithDataVolume("redis-data");
 
-if (builder.ExecutionContext.IsRunMode)
-{
-    // Local development: add RedisInsight for debugging
-    redis.WithRedisInsight(r => r
-        .WithHostPort(5540)
-        .WithLifetime(ContainerLifetime.Persistent));
-}
+        if (builder.ExecutionContext.IsRunMode)
+        {
+            container.WithRedisInsight(r => r
+                .WithHostPort(5540)
+                .WithLifetime(ContainerLifetime.Persistent));
+        }
+    });
 
 // GitHub Models (AI)
 var gpt4OMini = builder

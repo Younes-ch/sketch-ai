@@ -12,6 +12,7 @@
     <PackageReference Include="Aspire.Hosting.Azure.AppContainers" />
     <PackageReference Include="Aspire.Hosting.Azure.ApplicationInsights" />
     <PackageReference Include="Aspire.Hosting.Azure.ContainerRegistry" />
+    <PackageReference Include="Aspire.Hosting.Azure.Redis" />
     <PackageReference Include="Aspire.Hosting.DevTunnels" />
     <PackageReference Include="Aspire.Hosting.Docker" />
     <PackageReference Include="Aspire.Hosting.GitHub.Models" />
