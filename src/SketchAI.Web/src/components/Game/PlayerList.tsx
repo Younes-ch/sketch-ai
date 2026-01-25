@@ -36,7 +36,7 @@ export default function PlayerList({
 
   const [selectedPlayer, setSelectedPlayer] = useState<string | null>(null);
   const [visiblePopups, setVisiblePopups] = useState<Map<string, number>>(
-    new Map()
+    new Map(),
   );
   const prevScoresRef = useRef<Map<string, number>>(new Map());
   const popupTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -94,10 +94,10 @@ export default function PlayerList({
       const clickedPlayer = players.find((p) => p.username === playerUsername);
       if (clickedPlayer?.isHost) return;
       setSelectedPlayer(
-        selectedPlayer === playerUsername ? null : playerUsername
+        selectedPlayer === playerUsername ? null : playerUsername,
       );
     },
-    [currentUsername, players, selectedPlayer]
+    [currentUsername, players, selectedPlayer],
   );
 
   const handleKick = useCallback(
@@ -110,7 +110,7 @@ export default function PlayerList({
         addToast("Failed to kick player", "error");
       }
     },
-    [kickPlayer, addToast]
+    [kickPlayer, addToast],
   );
 
   const handleVoteKick = useCallback(
@@ -127,7 +127,7 @@ export default function PlayerList({
         addToast("Failed to start votekick", "error");
       }
     },
-    [activeVoteKick, startVoteKick, addToast]
+    [activeVoteKick, startVoteKick, addToast],
   );
 
   const canShowActions = (playerUsername: string) => {
@@ -142,19 +142,19 @@ export default function PlayerList({
   return (
     <div
       className={cn(
-        "bg-card rounded-2xl p-4 border-4 border-card-border flex flex-col h-full",
-        isDesktop ? "shadow-none" : "shadow-lg"
+        "bg-card rounded-2xl p-4 border-4 border-card-border flex flex-col h-full overflow-hidden",
+        isDesktop ? "shadow-none" : "shadow-lg",
       )}
     >
       <h3
         className={cn(
-          "text-white font-bold mb-3 flex items-center gap-2 shrink-0",
-          isDesktop ? "text-sm" : "text-lg"
+          "text-white font-bold mb-3 flex items-center gap-2 shrink-0 z-10 bg-card",
+          isDesktop ? "text-sm" : "text-lg",
         )}
       >
         <span>👥</span> PLAYERS
       </h3>
-      <div className="space-y-2 flex-1 overflow-y-auto pt-12 -mt-12 px-1">
+      <div className="space-y-2 flex-1 overflow-y-auto px-1 custom-scrollbar min-h-0">
         <AnimatePresence mode="popLayout">
           {sortedPlayers.map((player, index) => {
             const rank = index + 1;
@@ -198,10 +198,10 @@ export default function PlayerList({
                   isCurrentDrawer
                     ? "bg-success"
                     : hasGuessedCorrectly
-                    ? "bg-success/60"
-                    : "bg-card-border",
+                      ? "bg-success/60"
+                      : "bg-card-border",
                   showActions &&
-                    "cursor-pointer hover:ring-2 hover:ring-accent/50 transition-all"
+                    "cursor-pointer hover:ring-2 hover:ring-accent/50 transition-all",
                 )}
               >
                 {/* Player Actions Menu */}
@@ -326,7 +326,7 @@ export default function PlayerList({
           <p
             className={cn(
               "text-white/40 text-center",
-              isDesktop ? "text-xs mt-4 py-4" : "text-sm mt-6 py-8"
+              isDesktop ? "text-xs mt-4 py-4" : "text-sm mt-6 py-8",
             )}
           >
             Waiting for more players to join...
