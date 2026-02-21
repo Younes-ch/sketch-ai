@@ -69,6 +69,10 @@ builder.Services.AddCors(options =>
             if (uri.Host.EndsWith(".azurecontainerapps.io"))
                 return true;
 
+            // Production: Fly.io
+            if (uri.Host.EndsWith(".fly.dev"))
+                return true;
+
             return false;
         })
         .AllowAnyHeader()

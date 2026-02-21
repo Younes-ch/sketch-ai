@@ -1,0 +1,17 @@
+# ─────────────────────────────────────────────
+#  SketchAI – Redis
+# ─────────────────────────────────────────────
+app = 'sketchai-redis'
+primary_region = 'cdg'
+
+[build]
+  dockerfile = 'deploy/fly/Dockerfile.redis'
+
+# Persistent volume for RDB + AOF data
+[mounts]
+  source       = 'redis_data'
+  destination  = '/data'
+
+[[vm]]
+  size   = 'shared-cpu-1x'
+  memory = '256mb'

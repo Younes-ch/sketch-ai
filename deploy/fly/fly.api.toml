@@ -1,0 +1,40 @@
+# ─────────────────────────────────────────────
+#  SketchAI – .NET API
+# ─────────────────────────────────────────────
+app = 'sketchai-api'
+primary_region = 'cdg'
+
+[build]
+  dockerfile = 'deploy/fly/Dockerfile.api'
+
+[env]
+  ASPNETCORE_ENVIRONMENT        = 'Production'
+  ASPNETCORE_URLS               = 'http://+:8080'
+  # Memory-optimised GC for 256 MB VM
+  DOTNET_gcServer               = '0'
+  DOTNET_GCConserveMemory       = '9'
+  DOTNET_GCHeapHardLimit        = '0xA000000'   # 160 MB hard cap
+
+[http_service]
+  internal_port       = 8080
+  force_https         = true
+  auto_stop_machines  = 'stop'
+  auto_start_machines = true
+  min_machines_running = 0
+
+  [http_service.concurrency]
+    type       = 'connections'
+    hard_limit = 250
+    soft_limit = 200
+
+  # Fly proxy health check against /alive
+  [[http_service.checks]]
+    interval   = '30s'
+    timeout    = '5s'
+    grace_period = '15s'
+    method     = 'GET'
+    path       = '/alive'
+
+[[vm]]
+  size   = 'shared-cpu-1x'
+  memory = '256mb'

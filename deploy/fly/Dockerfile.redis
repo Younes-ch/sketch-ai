@@ -1,0 +1,26 @@
+FROM redis:8.2.4-alpine
+
+# Redis config optimised for Fly.io 256 MB VM
+RUN mkdir -p /usr/local/etc/redis && \
+    printf '\
+bind 0.0.0.0 ::\n\
+port 6379\n\
+# Leave ~56 MB for OS + Redis overhead\n\
+maxmemory 200mb\n\
+maxmemory-policy allkeys-lru\n\
+# RDB snapshots\n\
+save 60 1000\n\
+save 300 100\n\
+dir /data\n\
+# AOF persistence\n\
+appendonly yes\n\
+appendfsync everysec\n' > /usr/local/etc/redis/redis.conf
+
+RUN mkdir -p /data
+
+EXPOSE 6379
+
+# Run redis-server directly as root to avoid permission issues
+# with Fly.io volume mounts. This is an internal-only service.
+ENTRYPOINT []
+CMD ["redis-server", "/usr/local/etc/redis/redis.conf"]

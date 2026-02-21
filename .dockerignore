@@ -1,0 +1,13 @@
+**/.git
+**/.vs
+**/.vscode
+**/bin
+**/obj
+**/node_modules
+**/dist
+**/.env
+**/*.user
+**/fly.*.toml
+**/Dockerfile.*
+**/*.md
+LICENSE.txt
