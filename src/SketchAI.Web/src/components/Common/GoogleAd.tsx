@@ -8,6 +8,12 @@ interface GoogleAdProps {
   layoutKey?: string;
 }
 
+declare global {
+  interface Window {
+    adsbygoogle: unknown[];
+  }
+}
+
 export default function GoogleAd({
   format = "auto",
   layoutKey,
@@ -18,9 +24,7 @@ export default function GoogleAd({
   useEffect(() => {
     if (pushed.current) return;
     try {
-      ((window as any).adsbygoogle = (window as any).adsbygoogle || []).push(
-        {},
-      );
+      (window.adsbygoogle = window.adsbygoogle || []).push({});
       pushed.current = true;
     } catch {
       // AdSense not loaded (ad-blocker, local dev, etc.)
