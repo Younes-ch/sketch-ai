@@ -8,10 +8,6 @@ interface CaptchaWidgetProps {
   onError?: () => void;
 }
 
-/**
- * Cloudflare Turnstile CAPTCHA widget.
- * Only renders if a site key is configured.
- */
 export function CaptchaWidget({
   onSuccess,
   onExpire,
@@ -55,8 +51,6 @@ export function CaptchaWidget({
     onError?.();
   }, [onError]);
 
-  // If no site key configured, CAPTCHA is disabled - auto-succeed
-  // Note: Backend will also bypass verification if secret key isn't configured
   useEffect(() => {
     if (!siteKey) {
       if (
@@ -86,7 +80,7 @@ export function CaptchaWidget({
         onError={handleError}
         options={{
           theme: "dark",
-          size: "normal",
+          size: "flexible",
         }}
       />
     </div>
