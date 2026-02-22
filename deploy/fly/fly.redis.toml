@@ -5,7 +5,7 @@ app = 'sketchai-redis'
 primary_region = 'cdg'
 
 [build]
-  dockerfile = 'deploy/fly/Dockerfile.redis'
+  dockerfile = 'Dockerfile.redis'
 
 # Persistent volume for RDB + AOF data
 [mounts]

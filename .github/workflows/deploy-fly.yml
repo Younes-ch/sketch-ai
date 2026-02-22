@@ -57,7 +57,7 @@ jobs:
       - uses: superfly/flyctl-actions/setup-flyctl@master
 
       - name: Deploy Redis
-        run: flyctl deploy --config deploy/fly/fly.redis.toml --remote-only --yes
+        run: flyctl deploy . --config deploy/fly/fly.redis.toml --remote-only --yes
 
   # ── Deploy API ──
   deploy-api:
@@ -71,7 +71,7 @@ jobs:
       - uses: superfly/flyctl-actions/setup-flyctl@master
 
       - name: Deploy API
-        run: flyctl deploy --config deploy/fly/fly.api.toml --ha=false --remote-only --yes
+        run: flyctl deploy . --config deploy/fly/fly.api.toml --ha=false --remote-only --yes
 
   # ── Deploy Web ──
   deploy-web:
@@ -85,4 +85,4 @@ jobs:
       - uses: superfly/flyctl-actions/setup-flyctl@master
 
       - name: Deploy Web
-        run: flyctl deploy --config deploy/fly/fly.web.toml --ha=false --remote-only --yes
+        run: flyctl deploy . --config deploy/fly/fly.web.toml --ha=false --remote-only --yes
