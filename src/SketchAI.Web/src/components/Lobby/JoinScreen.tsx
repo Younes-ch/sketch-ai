@@ -332,6 +332,21 @@ export default function JoinScreen({
       >
         <GoogleAd slot="8692479121" />
       </motion.div>
+
+      {/* Buy Me a Coffee Button */}
+      <a
+        href="https://www.buymeacoffee.com/younes.ch"
+        target="_blank"
+        rel="noopener noreferrer"
+        className="fixed bottom-4 left-4 md:bottom-6 md:left-6 z-50 flex items-center justify-center w-12 h-12 md:w-14 md:h-14 bg-[#FFDD00] rounded-full shadow-lg hover:scale-110 transition-transform duration-200 border-2 border-transparent hover:border-black/10"
+        title="Buy me a coffee"
+      >
+        <img
+          src="https://cdn.buymeacoffee.com/widget/assets/coffee%20cup.svg"
+          alt="Buy Me A Coffee"
+          className="w-7 h-7 md:w-8 md:h-8"
+        />
+      </a>
     </div>
   );
 }
