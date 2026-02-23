@@ -148,7 +148,7 @@ export default function Podium({ players }: PodiumProps) {
                 </motion.div>
                 <p
                   className={cn(
-                    "font-bold truncate max-w-[100px]",
+                    "font-bold truncate max-w-25",
                     position === 1
                       ? "text-lg text-yellow-400"
                       : "text-sm text-white"
@@ -195,7 +195,7 @@ export default function Podium({ players }: PodiumProps) {
   };
 
   return (
-    <div className="flex items-end justify-center gap-2 sm:gap-4 py-4 min-h-[200px]">
+    <div className="flex items-end justify-center gap-2 sm:gap-4 py-4 min-h-50">
       {/* 2nd place (left) */}
       {renderPodiumPosition(second, 2)}
       {/* 1st place (center) */}
