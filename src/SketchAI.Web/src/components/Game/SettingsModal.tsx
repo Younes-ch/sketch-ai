@@ -21,6 +21,15 @@ interface SettingsModalProps {
   showCopied: boolean;
 }
 
+const TOOLBAR_POSITION_OPTIONS: {
+  value: ToolbarPosition;
+  label: string;
+  desc: string;
+}[] = [
+  { value: "left", label: "⬅️ Left", desc: "Side panel" },
+  { value: "bottom", label: "⬇️ Bottom", desc: "Below canvas" },
+];
+
 export default function SettingsModal({
   isOpen,
   onClose,
@@ -35,15 +44,6 @@ export default function SettingsModal({
   const setMuted = useAudioStore((s) => s.setMuted);
   const toolbarPosition = usePreferencesStore((s) => s.toolbarPosition);
   const setToolbarPosition = usePreferencesStore((s) => s.setToolbarPosition);
-
-  const TOOLBAR_POSITION_OPTIONS: {
-  value: ToolbarPosition;
-  label: string;
-  desc: string;
-  }[] = [
-    { value: "left", label: "⬅️ Left", desc: "Side panel" },
-    { value: "bottom", label: "⬇️ Bottom", desc: "Below canvas" },
-  ];
 
   const handleVolumeChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const newVolume = parseFloat(e.target.value);
