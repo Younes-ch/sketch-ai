@@ -1,4 +1,4 @@
-import { memo } from "react";
+import { memo, type ReactNode } from "react";
 import { cn } from "@/lib/utils";
 import {
   COLOR_PALETTE,
@@ -13,7 +13,7 @@ interface ToolButtonProps {
   label: string;
   shortcut: string;
   activeColor?: string;
-  children: React.ReactNode;
+  children: ReactNode;
 }
 
 function ToolButton({

@@ -1,4 +1,4 @@
-import { memo } from "react";
+import { memo, type ReactNode } from "react";
 import { cn } from "@/lib/utils";
 import {
   COLOR_PALETTE,
@@ -13,7 +13,7 @@ interface ToolButtonProps {
   label: string;
   shortcut: string;
   activeColor?: string;
-  children: React.ReactNode;
+  children: ReactNode;
 }
 
 function ToolButton({
@@ -31,7 +31,7 @@ function ToolButton({
         "w-10 h-10 rounded-lg flex items-center justify-center text-lg transition-all duration-150 cursor-pointer",
         active
           ? `${activeColor} scale-105 shadow-md`
-          : "bg-card-border/50 hover:bg-card-border"
+          : "bg-card-border/50 hover:bg-card-border",
       )}
       aria-label={`${label} (${shortcut})`}
       title={`${label} (${shortcut})`}
@@ -71,7 +71,7 @@ function ActionButton({
         "w-10 h-10 text-white rounded-lg font-bold text-lg cursor-pointer transition-all duration-150 flex items-center justify-center border-2",
         disabled
           ? "bg-card-border border-card-border opacity-50 cursor-not-allowed"
-          : `${variantStyles[variant]} hover:-translate-y-0.5`
+          : `${variantStyles[variant]} hover:-translate-y-0.5`,
       )}
       aria-label={shortcut ? `${label} (${shortcut})` : label}
       title={shortcut ? `${label} (${shortcut})` : label}
@@ -103,7 +103,7 @@ function ColorPicker({
               "w-5 h-5 rounded transition-all duration-100 hover:scale-110 cursor-pointer",
               currentColor === color && currentTool !== "eraser"
                 ? "ring-2 ring-accent ring-offset-1 ring-offset-background scale-110"
-                : "hover:ring-1 hover:ring-white/50"
+                : "hover:ring-1 hover:ring-white/50",
             )}
             style={{
               backgroundColor: color,
@@ -198,7 +198,7 @@ function DesktopToolbarComponent({
                 "w-10 h-8 rounded-lg flex items-center justify-center transition-all duration-150 cursor-pointer",
                 isActive
                   ? "bg-card-border scale-105 ring-2 ring-accent ring-offset-1 ring-offset-background"
-                  : "bg-card-border/30 hover:bg-card-border/60"
+                  : "bg-card-border/30 hover:bg-card-border/60",
               )}
               aria-label={`Brush size ${size}`}
               title={`Size ${size}`}
