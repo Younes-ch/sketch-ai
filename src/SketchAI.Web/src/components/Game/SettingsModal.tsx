@@ -7,6 +7,10 @@ import {
   ShortcutBadge,
 } from "@/components/ui";
 import { useAudioStore } from "@/stores/audioStore";
+import {
+  usePreferencesStore,
+  type ToolbarPosition,
+} from "@/stores/preferencesStore";
 
 interface SettingsModalProps {
   isOpen: boolean;
@@ -29,6 +33,8 @@ export default function SettingsModal({
   const volume = useAudioStore((s) => s.volume);
   const setVolume = useAudioStore((s) => s.setVolume);
   const setMuted = useAudioStore((s) => s.setMuted);
+  const toolbarPosition = usePreferencesStore((s) => s.toolbarPosition);
+  const setToolbarPosition = usePreferencesStore((s) => s.setToolbarPosition);
 
   const handleVolumeChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const newVolume = parseFloat(e.target.value);
@@ -143,6 +149,44 @@ export default function SettingsModal({
                     <span className="text-white/60 text-sm w-10 text-right">
                       {isMuted ? "0" : Math.round(volume * 100)}%
                     </span>
+                  </div>
+                </div>
+
+                {/* Toolbar Position - Desktop only */}
+                <div className="hidden lg:block bg-background rounded-xl p-3 border-2 border-card-border">
+                  <p className="text-white/60 text-xs mb-3">
+                    Toolbar Position (Desktop)
+                  </p>
+                  <div className="flex gap-2">
+                    {(
+                      [
+                        { value: "left", label: "⬅️ Left", desc: "Side panel" },
+                        {
+                          value: "bottom",
+                          label: "⬇️ Bottom",
+                          desc: "Below canvas",
+                        },
+                      ] as {
+                        value: ToolbarPosition;
+                        label: string;
+                        desc: string;
+                      }[]
+                    ).map((option) => (
+                      <button
+                        key={option.value}
+                        onClick={() => setToolbarPosition(option.value)}
+                        className={`flex-1 py-2 px-3 rounded-lg text-sm font-medium transition-all duration-150 cursor-pointer border-2 ${
+                          toolbarPosition === option.value
+                            ? "bg-accent/20 border-accent text-accent"
+                            : "bg-card-border/30 border-transparent text-white/60 hover:bg-card-border/50"
+                        }`}
+                      >
+                        <div>{option.label}</div>
+                        <div className="text-[10px] opacity-70">
+                          {option.desc}
+                        </div>
+                      </button>
+                    ))}
                   </div>
                 </div>
 

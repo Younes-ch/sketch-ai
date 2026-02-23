@@ -14,6 +14,7 @@ import {
 } from "@/lib/canvasUtils";
 import { DRAWING_COLORS } from "@/constants/colors";
 import { DesktopToolbar } from "./DesktopToolbar";
+import BottomToolbar from "./BottomToolbar";
 import MobileToolbar from "./MobileToolbar";
 import type { ToolType } from "./types";
 import {
@@ -21,6 +22,7 @@ import {
   useSignalRCanvas,
   useCanvasKeyboard,
 } from "./hooks";
+import { usePreferencesStore } from "@/stores/preferencesStore";
 
 interface DrawingCanvasProps {
   disabled?: boolean;
@@ -46,7 +48,7 @@ function DrawingCanvasComponent({
   const commandHistoryRef = useRef<DrawingCommand[]>([]);
 
   const [currentColor, setCurrentColor] = useState<string>(
-    DRAWING_COLORS.DEFAULT
+    DRAWING_COLORS.DEFAULT,
   );
   const [currentWidth, setCurrentWidth] = useState(8);
   const [currentTool, setCurrentTool] = useState<ToolType>("brush");
@@ -128,7 +130,7 @@ function DrawingCanvasComponent({
         y: (clientY - rect.top) * scaleY,
       });
     },
-    []
+    [],
   );
 
   const sendBatchedCommand = useCallback(
@@ -140,7 +142,7 @@ function DrawingCanvasComponent({
       const simplifiedPoints = simplify(
         points,
         SIMPLIFY_TOLERANCE,
-        SIMPLIFY_HIGH_QUALITY
+        SIMPLIFY_HIGH_QUALITY,
       ) as Point[];
 
       if (simplifiedPoints.length < 2) return;
@@ -159,7 +161,7 @@ function DrawingCanvasComponent({
         logger.error("Failed to send drawing command", error);
       });
     },
-    [currentWidth, sendDrawingCommand]
+    [currentWidth, sendDrawingCommand],
   );
 
   const flushBatch = useCallback(() => {
@@ -202,7 +204,7 @@ function DrawingCanvasComponent({
         });
       }
     },
-    [currentWidth, drawCommand, sendDrawingCommand]
+    [currentWidth, drawCommand, sendDrawingCommand],
   );
 
   const startDrawing = useCallback(
@@ -214,7 +216,7 @@ function DrawingCanvasComponent({
       currentColorRef.current = getEffectiveColor();
       strokeIdRef.current = crypto.randomUUID();
     },
-    [getEffectiveColor]
+    [getEffectiveColor],
   );
 
   const continueDrawing = useCallback(
@@ -239,7 +241,7 @@ function DrawingCanvasComponent({
         batchTimerRef.current = setTimeout(flushBatch, BATCH_INTERVAL_MS);
       }
     },
-    [currentWidth, drawCommand, flushBatch, getEffectiveColor]
+    [currentWidth, drawCommand, flushBatch, getEffectiveColor],
   );
 
   const stopDrawing = useCallback(() => {
@@ -295,7 +297,7 @@ function DrawingCanvasComponent({
 
       setLocalStrokeCount((prev) => prev + 1);
     },
-    [currentColor, sendFillCommand]
+    [currentColor, sendFillCommand],
   );
 
   const handlePointerDown = useCallback(
@@ -316,7 +318,7 @@ function DrawingCanvasComponent({
 
       startDrawing(point);
     },
-    [disabled, getCanvasPoint, startDrawing, currentTool, handleFillClick]
+    [disabled, getCanvasPoint, startDrawing, currentTool, handleFillClick],
   );
 
   const handlePointerMove = useCallback(
@@ -331,7 +333,7 @@ function DrawingCanvasComponent({
       const point = getCanvasPoint(coords.clientX, coords.clientY);
       if (point) continueDrawing(point);
     },
-    [disabled, getCanvasPoint, continueDrawing]
+    [disabled, getCanvasPoint, continueDrawing],
   );
 
   // Brush size scroll handler
@@ -401,6 +403,8 @@ function DrawingCanvasComponent({
 
   const getCursor = () => (disabled ? "not-allowed" : "crosshair");
 
+  const toolbarPosition = usePreferencesStore((s) => s.toolbarPosition);
+
   const toolbarProps = {
     currentColor,
     currentTool,
@@ -415,8 +419,15 @@ function DrawingCanvasComponent({
   };
 
   return (
-    <div className="relative flex items-center justify-center w-full h-full gap-2">
-      {!disabled && (
+    <div
+      className={cn(
+        "relative flex w-full h-full gap-2",
+        toolbarPosition === "bottom"
+          ? "flex-col items-center justify-center"
+          : "flex-row items-center justify-center",
+      )}
+    >
+      {!disabled && toolbarPosition === "left" && (
         <div className="hidden lg:flex flex-col justify-center h-full z-10 shrink-0 min-w-fit">
           <DesktopToolbar {...toolbarProps} />
         </div>
@@ -424,7 +435,7 @@ function DrawingCanvasComponent({
 
       <div
         ref={containerRef}
-        className="flex-1 h-full min-w-0 flex items-center justify-center relative touch-none"
+        className="flex-1 min-w-0 min-h-0 flex items-center justify-center relative touch-none"
       >
         <canvas
           ref={canvasRef}
@@ -440,7 +451,7 @@ function DrawingCanvasComponent({
           onTouchCancel={stopDrawing}
           className={cn(
             "bg-white rounded-md shadow-inner border-2 border-card-border",
-            disabled && "opacity-90"
+            disabled && "opacity-90",
           )}
           style={{
             width: displaySize.width,
@@ -449,6 +460,12 @@ function DrawingCanvasComponent({
           }}
         />
       </div>
+
+      {!disabled && toolbarPosition === "bottom" && (
+        <div className="hidden lg:flex w-full z-10 shrink-0 justify-center">
+          <BottomToolbar {...toolbarProps} />
+        </div>
+      )}
 
       {!disabled && (
         <div className="lg:hidden">
