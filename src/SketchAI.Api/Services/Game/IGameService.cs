@@ -37,8 +37,9 @@ public interface IGameService
 
     /// <summary> 
     /// Advances to next drawer or ends game. 
+    /// Returns true if the turn was actually advanced, false if skipped (e.g., already advanced by another path).
     /// </summary> 
-    Task NextTurnAsync(string roomCode);
+    Task<bool> NextTurnAsync(string roomCode);
 
     /// <summary> 
     /// Gets the next drawer in rotation. 

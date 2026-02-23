@@ -951,7 +951,13 @@ public class DrawingHub : Hub
     {
         _aiCancellationManager.CancelSession(roomCode);
 
-        await _gameService.NextTurnAsync(roomCode);
+        var advanced = await _gameService.NextTurnAsync(roomCode);
+
+        if (!advanced)
+        {
+            _logger.LogDebug("AdvanceToNextTurn skipped for room {RoomCode}: already advanced by another path", roomCode);
+            return;
+        }
 
         var room = await _roomService.GetRoomAsync(roomCode)
                    ?? throw new HubException("Room not found");
@@ -1082,6 +1088,8 @@ public class DrawingHub : Hub
         {
             _logger.LogInformation("Drawer {Username} left during {Phase} phase, advancing to next turn in room {RoomCode}",
                 username, room.Phase, roomCode);
+
+            await _gameService.EndRoundAsync(roomCode);
 
             await Clients.Group(roomCode).SendAsync("DrawerLeft", username);
 

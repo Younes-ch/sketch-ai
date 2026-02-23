@@ -66,6 +66,7 @@ public class GameService : IGameService
         room.LettersRevealed = 0;
         room.PlayersWhoGuessed.Clear();
         room.RoundStartedAt = null;
+        room.DrawOrder = room.Players.OrderBy(p => p.JoinedAt).Select(p => p.ConnectionId).ToList();
 
         foreach (var player in room.Players)
         {
@@ -304,6 +305,14 @@ public class GameService : IGameService
             return;
         }
 
+        // Guard against double-ending (e.g., timer + manual end)
+        if (room.Phase != GamePhase.Drawing && room.Phase != GamePhase.WordSelection)
+        {
+            _logger.LogDebug("EndRound skipped: Room {RoomCode} is in {Phase} phase, not Drawing/WordSelection",
+                roomCode, room.Phase);
+            return;
+        }
+
         room.Phase = GamePhase.RoundEnd;
         room.PlayersWhoGuessed.Clear();
 
@@ -315,7 +324,7 @@ public class GameService : IGameService
             room.RoundNumber, roomCode, reason, room.CurrentWord);
     }
 
-    public async Task NextTurnAsync(string roomCode)
+    public async Task<bool> NextTurnAsync(string roomCode)
     {
         await using var lockHandle = await _lockProvider.TryAcquireLockAsync(
             RedisKeys.RoomLock(roomCode),
@@ -324,7 +333,7 @@ public class GameService : IGameService
         if (lockHandle is null)
         {
             _logger.LogWarning("NextTurn failed: Could not acquire lock for room {RoomCode}", roomCode);
-            return;
+            return false;
         }
 
         var room = await _roomService.GetRoomAsync(roomCode);
@@ -332,17 +341,25 @@ public class GameService : IGameService
         if (room is null)
         {
             _logger.LogWarning("NextTurn failed: Room {RoomCode} not found", roomCode);
-            return;
+            return false;
+        }
+
+        // Guard against double-advance (e.g., timer + hub both scheduling NextTurn)
+        if (room.Phase != GamePhase.RoundEnd)
+        {
+            _logger.LogDebug("NextTurn skipped: Room {RoomCode} is in {Phase} phase, expected RoundEnd",
+                roomCode, room.Phase);
+            return false;
         }
 
         if (room.Players.Count < 2)
         {
             _logger.LogInformation("Not enough players in room {RoomCode}, resetting to lobby", roomCode);
             await ResetToLobbyAsync(roomCode);
-            return;
+            return true;
         }
 
-        var nextDrawer = await GetNextDrawerAsync(roomCode);
+        var nextDrawer = GetNextDrawer(room);
 
         if (nextDrawer is null)
         {
@@ -358,10 +375,12 @@ public class GameService : IGameService
 
                 _logger.LogInformation("Game ended in room {RoomCode} after {TotalRounds} rounds",
                     roomCode, room.Settings.TotalRounds);
-                return;
+                return true;
             }
 
-            nextDrawer = room.Players.OrderBy(p => p.JoinedAt).First();
+            // New round: rebuild draw order from current players
+            room.DrawOrder = room.Players.OrderBy(p => p.JoinedAt).Select(p => p.ConnectionId).ToList();
+            nextDrawer = room.Players.First(p => p.ConnectionId == room.DrawOrder[0]);
             _logger.LogInformation("Starting round {RoundNumber} in room {RoomCode}",
                 room.RoundNumber, roomCode);
         }
@@ -378,6 +397,29 @@ public class GameService : IGameService
 
         _logger.LogInformation("Next turn in room {RoomCode}. New drawer: {DrawerUsername}",
             roomCode, nextDrawer.Username);
+
+        return true;
+    }
+
+    /// <summary>
+    /// Gets the next drawer using the fixed DrawOrder list.
+    /// Skips players who have left the room. Returns null if all remaining players have drawn this round.
+    /// </summary>
+    private static Player? GetNextDrawer(Room room)
+    {
+        var currentIndex = room.DrawOrder.IndexOf(room.CurrentDrawerConnectionId ?? "");
+
+        // Find next player in DrawOrder who is still in the room
+        for (var i = currentIndex + 1; i < room.DrawOrder.Count; i++)
+        {
+            var player = room.Players.FirstOrDefault(p => p.ConnectionId == room.DrawOrder[i]);
+            if (player is not null)
+            {
+                return player;
+            }
+        }
+
+        return null; // All remaining players in this round's order have drawn or left
     }
 
     public async Task<Player?> GetNextDrawerAsync(string roomCode)
@@ -389,18 +431,7 @@ public class GameService : IGameService
             return null;
         }
 
-        var orderedPlayers = room.Players.OrderBy(p => p.JoinedAt).ToList();
-
-        var currentDrawerIndex = orderedPlayers.FindIndex(p => p.ConnectionId == room.CurrentDrawerConnectionId);
-
-        if (currentDrawerIndex == -1)
-        {
-            return orderedPlayers.FirstOrDefault();
-        }
-
-        var nextIndex = currentDrawerIndex + 1;
-
-        return nextIndex >= orderedPlayers.Count ? null : orderedPlayers[nextIndex];
+        return GetNextDrawer(room);
     }
 
     public async Task ResetToLobbyAsync(string roomCode)
@@ -429,6 +460,7 @@ public class GameService : IGameService
         room.CurrentDrawerConnectionId = null;
         room.WordChoices?.Clear();
         room.PlayersWhoGuessed.Clear();
+        room.DrawOrder.Clear();
         room.RoundNumber = 0;
         room.RoundStartedAt = null;
         room.LettersRevealed = 0;

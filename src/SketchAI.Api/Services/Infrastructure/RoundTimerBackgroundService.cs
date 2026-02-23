@@ -125,7 +125,13 @@ public class RoundTimerBackgroundService : BackgroundService
     {
         try
         {
-            await gameService.NextTurnAsync(roomCode);
+            var advanced = await gameService.NextTurnAsync(roomCode);
+
+            if (!advanced)
+            {
+                _logger.LogDebug("AdvanceToNextTurn skipped for room {RoomCode}: already advanced by another path", roomCode);
+                return;
+            }
 
             var room = await roomService.GetRoomAsync(roomCode);
             if (room is null)
@@ -163,11 +169,19 @@ public class RoundTimerBackgroundService : BackgroundService
                     await _hubContext.Clients.Group(roomCode).SendAsync("CanvasCleared");
 
                     var gameState = room.ToDto();
-                    await _hubContext.Clients.Group(roomCode).SendAsync("NextTurnStarted", gameState);
 
                     if (room.CurrentDrawerConnectionId is not null)
                     {
-                        await _hubContext.Clients.Client(room.CurrentDrawerConnectionId).SendAsync("WordChoices", room.WordChoices);
+                        // Send game state to all players except the drawer
+                        await _hubContext.Clients.GroupExcept(roomCode, room.CurrentDrawerConnectionId).SendAsync("NextTurnStarted", gameState);
+
+                        // Send game state with word choices to the drawer (avoids race condition)
+                        gameState.WordChoices = room.WordChoices;
+                        await _hubContext.Clients.Client(room.CurrentDrawerConnectionId).SendAsync("NextTurnStarted", gameState);
+                    }
+                    else
+                    {
+                        await _hubContext.Clients.Group(roomCode).SendAsync("NextTurnStarted", gameState);
                     }
                     break;
             }

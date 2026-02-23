@@ -18,6 +18,7 @@ public class Room
     public HashSet<string> PlayersWhoGuessed { get; set; } = [];
     public VoteKick? ActiveVoteKick { get; set; }
     public bool IsAiDrawing { get; set; } = false;
+    public List<string> DrawOrder { get; set; } = [];
     public DateTime? RoundStartedAt { get; set; }
     public DateTime CreatedAt { get; set; }
     public DateTime LastActivityAt { get; set; }
