@@ -302,7 +302,7 @@ export default function PlayerList({
                   )}
                 </AnimatePresence>
 
-                <div className="relative overflow-visible z-30 shrink-0 ml-2 flex flex-col items-end justify-center min-w-[40px]">
+                <div className="relative overflow-visible z-30 shrink-0 ml-2 flex flex-col items-end justify-center min-w-10">
                   <motion.span
                     key={player.score}
                     initial={
