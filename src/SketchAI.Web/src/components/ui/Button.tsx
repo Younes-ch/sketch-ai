@@ -1,4 +1,4 @@
-import { forwardRef } from "react";
+import { forwardRef, type ReactNode } from "react";
 import type { VariantProps } from "class-variance-authority";
 import { cn } from "@/lib/utils";
 import { buttonVariants } from "./buttonVariants";
@@ -7,8 +7,8 @@ export interface ButtonProps
   extends React.ButtonHTMLAttributes<HTMLButtonElement>,
     VariantProps<typeof buttonVariants> {
   isLoading?: boolean;
-  leftIcon?: React.ReactNode;
-  rightIcon?: React.ReactNode;
+  leftIcon?: ReactNode;
+  rightIcon?: ReactNode;
 }
 
 const Button = forwardRef<HTMLButtonElement, ButtonProps>(
