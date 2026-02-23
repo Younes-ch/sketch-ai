@@ -36,6 +36,15 @@ export default function SettingsModal({
   const toolbarPosition = usePreferencesStore((s) => s.toolbarPosition);
   const setToolbarPosition = usePreferencesStore((s) => s.setToolbarPosition);
 
+  const TOOLBAR_POSITION_OPTIONS: {
+  value: ToolbarPosition;
+  label: string;
+  desc: string;
+  }[] = [
+    { value: "left", label: "⬅️ Left", desc: "Side panel" },
+    { value: "bottom", label: "⬇️ Bottom", desc: "Below canvas" },
+  ];
+
   const handleVolumeChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const newVolume = parseFloat(e.target.value);
     setVolume(newVolume);
@@ -158,20 +167,7 @@ export default function SettingsModal({
                     Toolbar Position (Desktop)
                   </p>
                   <div className="flex gap-2">
-                    {(
-                      [
-                        { value: "left", label: "⬅️ Left", desc: "Side panel" },
-                        {
-                          value: "bottom",
-                          label: "⬇️ Bottom",
-                          desc: "Below canvas",
-                        },
-                      ] as {
-                        value: ToolbarPosition;
-                        label: string;
-                        desc: string;
-                      }[]
-                    ).map((option) => (
+                    {TOOLBAR_POSITION_OPTIONS.map((option) => (
                       <button
                         key={option.value}
                         onClick={() => setToolbarPosition(option.value)}
