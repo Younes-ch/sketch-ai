@@ -174,7 +174,23 @@ public class WordService : IWordService
 
     public bool CheckGuess(string word, string guess)
     {
-        return string.Equals(word, guess, StringComparison.OrdinalIgnoreCase);
+        // Normalize both: strip non-alphanumeric (except spaces) for comparison
+        // This allows guessing "ChoGath" or "Cho Gath" for "Cho'Gath"
+        var normalizedWord = NormalizeForComparison(word);
+        var normalizedGuess = NormalizeForComparison(guess);
+
+        return string.Equals(normalizedWord, normalizedGuess, StringComparison.OrdinalIgnoreCase);
+    }
+
+    /// <summary>
+    /// Strips non-alphanumeric characters (except spaces) and collapses multiple spaces
+    /// for more forgiving guess comparison.
+    /// </summary>
+    private static string NormalizeForComparison(string text)
+    {
+        var filtered = new string(text.Where(c => char.IsLetterOrDigit(c) || c == ' ').ToArray());
+        // Collapse multiple spaces
+        return string.Join(' ', filtered.Split(' ', StringSplitOptions.RemoveEmptyEntries)).Trim();
     }
 
     public bool IsCloseGuess(string word, string guess)
