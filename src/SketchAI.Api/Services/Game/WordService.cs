@@ -197,8 +197,8 @@ public class WordService : IWordService
     {
         if (string.IsNullOrWhiteSpace(guess)) return false;
 
-        var normalizedWord = word.ToLowerInvariant().Trim();
-        var normalizedGuess = guess.ToLowerInvariant().Trim();
+        var normalizedWord = NormalizeForComparison(word).ToLowerInvariant();
+        var normalizedGuess = NormalizeForComparison(guess).ToLowerInvariant();
 
         if (normalizedWord == normalizedGuess) return false;
 
