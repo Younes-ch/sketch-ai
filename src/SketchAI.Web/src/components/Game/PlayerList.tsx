@@ -238,41 +238,43 @@ export default function PlayerList({
                 </AnimatePresence>
 
                 {/* Rank */}
-                <span className="font-mono font-bold text-white/50 w-4 text-center text-sm">
+                <span className="font-mono font-bold text-white/50 w-4 text-center text-sm shrink-0">
                   #{rank}
                 </span>
 
                 {/* Avatar/Name */}
-                <div className="flex-1 min-w-0">
+                <div className="flex-1 min-w-0 pr-2">
                   <div className="flex items-center gap-1">
                     <p className="font-bold text-white truncate text-sm">
                       {player.username}
                     </p>
                     {player.isHost && (
                       <span
-                        className="text-[10px] bg-accent text-background px-1.5 py-0.5 rounded-md font-bold"
+                        className="text-[10px] bg-accent text-background px-1.5 py-0.5 rounded-md font-bold shrink-0"
                         title="Room Host"
                       >
                         HOST
                       </span>
                     )}
                     {player.username === currentUsername && (
-                      <span className="text-[10px] bg-white/20 text-white px-1.5 py-0.5 rounded-md font-bold">
+                      <span className="text-[10px] bg-white/20 text-white px-1.5 py-0.5 rounded-md font-bold shrink-0">
                         YOU
                       </span>
                     )}
                   </div>
-                  <div className="flex items-center gap-2">
-                    <p className="text-white/70 text-xs">
-                      {player.score} points
+                  <div className="flex items-center gap-1.5 mt-0.5">
+                    <p className="text-white/70 text-xs whitespace-nowrap shrink-0">
+                      {player.score} pts
                     </p>
                     {isCurrentDrawer && (
-                      <span className="text-[10px] animate-pulse">
+                      <span className="text-[10px] animate-pulse whitespace-nowrap shrink-0">
                         ✏️ Drawing
                       </span>
                     )}
                     {hasGuessedCorrectly && (
-                      <span className="text-[10px]">✓ Guessed</span>
+                      <span className="text-[10px] whitespace-nowrap shrink-0">
+                        ✓ Guessed
+                      </span>
                     )}
                   </div>
                 </div>
@@ -300,7 +302,7 @@ export default function PlayerList({
                   )}
                 </AnimatePresence>
 
-                <div className="relative overflow-visible z-30">
+                <div className="relative overflow-visible z-30 shrink-0 ml-2 text-right">
                   <motion.span
                     key={player.score}
                     initial={
