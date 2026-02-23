@@ -213,9 +213,9 @@ function BottomToolbarComponent({
                   height: dotSize,
                   backgroundColor: displayColor,
                   border:
-                    displayColor === "#FFFFFF"
-                      ? "1px solid #555"
-                      : "1px solid rgba(0,0,0,0.3)",
+                    displayColor === DRAWING_COLORS.WHITE
+                      ? BORDER_COLORS.WHITE_SWATCH
+                      : BORDER_COLORS.DEFAULT_SWATCH,
                 }}
               />
             </button>
