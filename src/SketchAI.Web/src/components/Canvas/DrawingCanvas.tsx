@@ -63,6 +63,7 @@ function DrawingCanvasComponent({
   const sendFillCommand = useCanvasStore((s) => s.sendFillCommand);
   const undoLastDrawCommand = useCanvasStore((s) => s.undoLastDrawCommand);
   const signalRClearCanvas = useCanvasStore((s) => s.clearCanvas);
+  const toolbarPosition = usePreferencesStore((s) => s.toolbarPosition);
 
   const brushSizes = useMemo(() => [...BRUSH_SIZES], []);
 
@@ -402,8 +403,6 @@ function DrawingCanvasComponent({
   });
 
   const getCursor = () => (disabled ? "not-allowed" : "crosshair");
-
-  const toolbarPosition = usePreferencesStore((s) => s.toolbarPosition);
 
   const toolbarProps = {
     currentColor,

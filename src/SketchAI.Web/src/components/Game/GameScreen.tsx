@@ -220,7 +220,7 @@ export default function GameScreen() {
         </div>
 
         {/* Row 5: Players & Chat (Fixed Height, Equal Columns) */}
-        <div className="h-[180px] shrink-0 grid grid-cols-2 overflow-hidden border-t-2 border-card-border">
+        <div className="h-45 shrink-0 grid grid-cols-2 overflow-hidden border-t-2 border-card-border">
           <MobilePlayerList
             players={players}
             currentUsername={username ?? ""}

@@ -148,13 +148,13 @@ export default function PlayerList({
     >
       <h3
         className={cn(
-          "text-white font-bold mb-3 flex items-center gap-2 shrink-0 z-10 bg-card",
+          "text-white font-bold flex items-center gap-2 shrink-0 z-10 bg-card relative",
           isDesktop ? "text-sm" : "text-lg",
         )}
       >
         <span>👥</span> PLAYERS
       </h3>
-      <div className="space-y-2 flex-1 overflow-y-auto px-1 custom-scrollbar min-h-0">
+      <div className="space-y-2 flex-1 overflow-y-auto px-1 pt-3 pb-2 custom-scrollbar min-h-0">
         <AnimatePresence mode="popLayout">
           {sortedPlayers.map((player, index) => {
             const rank = index + 1;
@@ -243,40 +243,40 @@ export default function PlayerList({
                 </span>
 
                 {/* Avatar/Name */}
-                <div className="flex-1 min-w-0 pr-2">
-                  <div className="flex items-center gap-1">
-                    <p className="font-bold text-white truncate text-sm">
-                      {player.username}
-                    </p>
-                    {player.isHost && (
-                      <span
-                        className="text-[10px] bg-accent text-background px-1.5 py-0.5 rounded-md font-bold shrink-0"
-                        title="Room Host"
-                      >
-                        HOST
-                      </span>
-                    )}
-                    {player.username === currentUsername && (
-                      <span className="text-[10px] bg-white/20 text-white px-1.5 py-0.5 rounded-md font-bold shrink-0">
-                        YOU
-                      </span>
-                    )}
-                  </div>
-                  <div className="flex items-center gap-1.5 mt-0.5">
-                    <p className="text-white/70 text-xs whitespace-nowrap shrink-0">
-                      {player.score} pts
-                    </p>
-                    {isCurrentDrawer && (
-                      <span className="text-[10px] animate-pulse whitespace-nowrap shrink-0">
-                        ✏️ Drawing
-                      </span>
-                    )}
-                    {hasGuessedCorrectly && (
-                      <span className="text-[10px] whitespace-nowrap shrink-0">
-                        ✓ Guessed
-                      </span>
-                    )}
-                  </div>
+                <div className="flex-1 min-w-0 pr-2 flex flex-col justify-center">
+                  <p className="font-bold text-white truncate text-sm leading-tight">
+                    {player.username}
+                  </p>
+                  {(player.isHost ||
+                    player.username === currentUsername ||
+                    isCurrentDrawer ||
+                    hasGuessedCorrectly) && (
+                    <div className="flex flex-wrap items-center gap-1.5 mt-1">
+                      {player.isHost && (
+                        <span
+                          className="text-[9px] bg-accent text-background px-1.5 py-0.5 rounded font-black tracking-wide shrink-0"
+                          title="Room Host"
+                        >
+                          HOST
+                        </span>
+                      )}
+                      {player.username === currentUsername && (
+                        <span className="text-[9px] bg-white/20 text-white px-1.5 py-0.5 rounded font-black tracking-wide shrink-0">
+                          YOU
+                        </span>
+                      )}
+                      {isCurrentDrawer && (
+                        <span className="text-[10px] animate-pulse whitespace-nowrap shrink-0 text-white/90 bg-black/20 px-1.5 py-0.5 rounded-md font-medium">
+                          ✏️ Drawing
+                        </span>
+                      )}
+                      {hasGuessedCorrectly && (
+                        <span className="text-[10px] whitespace-nowrap shrink-0 text-white/90 bg-black/20 px-1.5 py-0.5 rounded-md font-medium">
+                          ✓ Guessed
+                        </span>
+                      )}
+                    </div>
+                  )}
                 </div>
 
                 {/* Chat bubble */}
@@ -293,7 +293,7 @@ export default function PlayerList({
                       }}
                       className="absolute -top-8 left-1/2 -translate-x-1/2 z-10 max-w-[90%]"
                     >
-                      <div className="bg-accent text-background text-xs font-medium px-2 py-1 rounded-lg shadow-lg whitespace-nowrap overflow-hidden text-ellipsis max-w-[150px]">
+                      <div className="bg-accent text-background text-xs font-medium px-2 py-1 rounded-lg shadow-lg whitespace-nowrap overflow-hidden text-ellipsis max-w-37.5">
                         {playerBubble.message}
                       </div>
                       {/* Bubble pointer */}
@@ -302,7 +302,7 @@ export default function PlayerList({
                   )}
                 </AnimatePresence>
 
-                <div className="relative overflow-visible z-30 shrink-0 ml-2 text-right">
+                <div className="relative overflow-visible z-30 shrink-0 ml-2 flex flex-col items-end justify-center min-w-[40px]">
                   <motion.span
                     key={player.score}
                     initial={
@@ -310,13 +310,20 @@ export default function PlayerList({
                     }
                     animate={{ scale: 1, color: "#ffffff" }}
                     transition={{ duration: 0.3 }}
-                    className="text-white font-bold text-lg"
+                    className="text-white font-black text-lg leading-none"
                   >
                     {player.score}
                   </motion.span>
+                  <span className="text-[10px] text-white/50 font-bold uppercase tracking-wider mt-1">
+                    PTS
+                  </span>
                   {/* Score popup animation */}
-                  <div className="absolute top-0 left-1/2 -translate-x-1/2 w-0 h-0 overflow-visible z-100">
-                    <ScorePopup show={popupPoints > 0} points={popupPoints} />
+                  <div className="absolute top-1/2 right-full mr-4 -translate-y-1/2 w-0 h-0 overflow-visible z-100">
+                    <ScorePopup
+                      show={popupPoints > 0}
+                      points={popupPoints}
+                      position={{ x: 0, y: 25 }}
+                    />
                   </div>
                 </div>
               </motion.div>
