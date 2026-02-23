@@ -171,6 +171,7 @@ export default function SettingsModal({
                       <button
                         key={option.value}
                         onClick={() => setToolbarPosition(option.value)}
+                        aria-pressed={toolbarPosition === option.value}
                         className={`flex-1 py-2 px-3 rounded-lg text-sm font-medium transition-all duration-150 cursor-pointer border-2 ${
                           toolbarPosition === option.value
                             ? "bg-accent/20 border-accent text-accent"
