@@ -283,21 +283,37 @@ export default function PlayerList({
                 <AnimatePresence>
                   {playerBubble && (
                     <motion.div
-                      initial={{ opacity: 0, scale: 0.8, y: 10 }}
+                      initial={{
+                        opacity: 0,
+                        scale: 0.8,
+                        y: index === 0 ? -10 : 10,
+                      }}
                       animate={{ opacity: 1, scale: 1, y: 0 }}
-                      exit={{ opacity: 0, scale: 0.8, y: -10 }}
+                      exit={{
+                        opacity: 0,
+                        scale: 0.8,
+                        y: index === 0 ? -10 : 10,
+                      }}
                       transition={{
                         type: "spring",
                         stiffness: 500,
                         damping: 30,
                       }}
-                      className="absolute -top-8 left-1/2 -translate-x-1/2 z-10 max-w-[90%]"
+                      className={cn(
+                        "absolute left-1/2 -translate-x-1/2 z-10 max-w-[90%]",
+                        index === 0 ? "-bottom-8" : "-top-8",
+                      )}
                     >
                       <div className="bg-accent text-background text-xs font-medium px-2 py-1 rounded-lg shadow-lg whitespace-nowrap overflow-hidden text-ellipsis max-w-37.5">
                         {playerBubble.message}
                       </div>
                       {/* Bubble pointer */}
-                      <div className="absolute left-1/2 -translate-x-1/2 -bottom-1 w-2 h-2 bg-accent rotate-45" />
+                      <div
+                        className={cn(
+                          "absolute left-1/2 -translate-x-1/2 w-2 h-2 bg-accent rotate-45",
+                          index === 0 ? "-top-1" : "-bottom-1",
+                        )}
+                      />
                     </motion.div>
                   )}
                 </AnimatePresence>
