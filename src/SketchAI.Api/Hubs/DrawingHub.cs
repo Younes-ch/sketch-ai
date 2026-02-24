@@ -687,7 +687,21 @@ public class DrawingHub : Hub
                         Timestamp = DateTime.UtcNow,
                     });
                 }
+            }
+            else if (room.Phase == GamePhase.Drawing)
+            {
+                // Guessed players can still chat, but only the drawer and other guessers can see it
+                var recipients = room.PlayersWhoGuessed.ToList();
+                if (room.CurrentDrawerConnectionId is not null && !recipients.Contains(room.CurrentDrawerConnectionId))
+                    recipients.Add(room.CurrentDrawerConnectionId);
 
+                await Clients.Clients(recipients).SendAsync("ChatMessage", new
+                {
+                    player.Username,
+                    Message = message,
+                    Timestamp = DateTime.UtcNow,
+                    IsGuessedPlayerMessage = true
+                });
             }
         }
     }

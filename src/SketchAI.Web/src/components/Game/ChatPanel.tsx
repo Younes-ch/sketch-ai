@@ -32,8 +32,7 @@ export default function ChatPanel({ variant = "desktop" }: ChatPanelProps) {
   const isDrawer = currentDrawer?.username === username;
   const isDrawingPhase = phase === "drawing";
   const hasAlreadyGuessed = username ? playersWhoGuessed.has(username) : false;
-  const isInputDisabled =
-    isSending || (isDrawingPhase && (isDrawer || hasAlreadyGuessed));
+  const isInputDisabled = isSending || (isDrawingPhase && isDrawer);
 
   const wordLength = wordHint ? wordHint.replace(/\s/g, "").length : 0;
   const currentInputLength = inputValue.trim().replace(/\s/g, "").length;
@@ -45,7 +44,7 @@ export default function ChatPanel({ variant = "desktop" }: ChatPanelProps) {
       return "You're drawing!";
     }
     if (isDrawingPhase && hasAlreadyGuessed) {
-      return "You guessed it! 🎉";
+      return "Chat with other guessers...";
     }
     if (phase === "lobby") {
       return "Type a message...";
@@ -123,13 +122,13 @@ export default function ChatPanel({ variant = "desktop" }: ChatPanelProps) {
     <div
       className={cn(
         "bg-card rounded-2xl p-4 border-4 border-card-border flex flex-col h-full",
-        isDesktop ? "shadow-none" : "shadow-lg"
+        isDesktop ? "shadow-none" : "shadow-lg",
       )}
     >
       <h3
         className={cn(
           "text-white font-bold mb-3 flex items-center gap-2 shrink-0",
-          isDesktop ? "text-sm" : "text-lg"
+          isDesktop ? "text-sm" : "text-lg",
         )}
       >
         <span>💬</span> CHAT
@@ -145,7 +144,7 @@ export default function ChatPanel({ variant = "desktop" }: ChatPanelProps) {
           <p
             className={cn(
               "text-white/40 text-center",
-              isDesktop ? "text-xs" : "text-sm py-8"
+              isDesktop ? "text-xs" : "text-sm py-8",
             )}
           >
             Chat messages will appear here...
@@ -167,6 +166,8 @@ export default function ChatPanel({ variant = "desktop" }: ChatPanelProps) {
                     "bg-success/20 -mx-3 px-3 py-1.5 rounded",
                   msg.type === "close-guess" &&
                     "bg-orange-500/20 -mx-3 px-3 py-1.5 rounded",
+                  msg.type === "guessed-chat" &&
+                    "bg-emerald-500/10 -mx-3 px-3 py-1 rounded",
                   // System message specialized backgrounds
                   msg.type === "join" &&
                     "bg-blue-500/10 -mx-3 px-3 py-1.5 rounded",
@@ -179,7 +180,7 @@ export default function ChatPanel({ variant = "desktop" }: ChatPanelProps) {
                   msg.type === "round-end" &&
                     "bg-indigo-500/10 -mx-3 px-3 py-1.5 rounded mb-4 border-b border-indigo-500/30",
                   msg.type === "turn-start" &&
-                    "bg-cyan-500/10 -mx-3 px-3 py-1.5 rounded my-1"
+                    "bg-cyan-500/10 -mx-3 px-3 py-1.5 rounded my-1",
                 )}
               >
                 {/* Generic System Message */}
@@ -249,6 +250,16 @@ export default function ChatPanel({ variant = "desktop" }: ChatPanelProps) {
                       {formatTime(msg.timestamp)}
                     </span>
                   </p>
+                ) : msg.type === "guessed-chat" ? (
+                  <p className="text-emerald-300">
+                    <span className="font-bold text-emerald-400">
+                      {msg.username}:
+                    </span>{" "}
+                    {msg.message}
+                    <span className="text-emerald-400/40 text-xs ml-2">
+                      {formatTime(msg.timestamp)}
+                    </span>
+                  </p>
                 ) : null}
               </div>
             ))}
@@ -280,8 +291,8 @@ export default function ChatPanel({ variant = "desktop" }: ChatPanelProps) {
               currentInputLength === wordLength
                 ? "text-success"
                 : currentInputLength > wordLength
-                ? "text-red-400"
-                : "text-white/50"
+                  ? "text-red-400"
+                  : "text-white/50",
             )}
           >
             {currentInputLength}
@@ -305,7 +316,7 @@ export default function ChatPanel({ variant = "desktop" }: ChatPanelProps) {
           disabled={isInputDisabled}
           className={cn(
             "flex-1 min-w-0 bg-background border-2 border-card-border rounded-xl text-white focus:outline-none focus:border-accent placeholder:text-white/30 disabled:opacity-50 disabled:cursor-not-allowed",
-            isDesktop ? "px-3 py-2 text-sm" : "px-4 py-3"
+            isDesktop ? "px-3 py-2 text-sm" : "px-4 py-3",
           )}
         />
         <Button

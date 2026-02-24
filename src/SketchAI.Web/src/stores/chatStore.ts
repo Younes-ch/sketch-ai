@@ -58,19 +58,26 @@ export function setupChatEventHandlers() {
     message: string;
     timestamp: string;
     isCloseGuess?: boolean;
+    isGuessedPlayerMessage?: boolean;
   }) => {
     const store = useChatStore.getState();
+
+    const type = msg.isCloseGuess
+      ? "close-guess"
+      : msg.isGuessedPlayerMessage
+      ? "guessed-chat"
+      : "chat";
     
     store.addMessage({
       id: crypto.randomUUID(),
       username: msg.username,
       message: msg.message,
       timestamp: new Date(msg.timestamp),
-      type: msg.isCloseGuess ? "close-guess" : "chat",
+      type,
     });
 
-    // Show bubble for normal chat messages (not close guesses)
-    if (!msg.isCloseGuess) {
+    // Show bubble only for normal chat messages
+    if (!msg.isCloseGuess && !msg.isGuessedPlayerMessage) {
       store.setPlayerBubble(msg.username, msg.message);
       // Auto-clear bubble after 3 seconds
       setTimeout(() => {

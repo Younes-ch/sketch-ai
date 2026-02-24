@@ -24,8 +24,7 @@ export default function MobileChatInput() {
   const isDrawer = currentDrawer?.username === username;
   const isDrawingPhase = phase === "drawing";
   const hasAlreadyGuessed = username ? playersWhoGuessed.has(username) : false;
-  const isInputDisabled =
-    isSending || (isDrawingPhase && (isDrawer || hasAlreadyGuessed));
+  const isInputDisabled = isSending || (isDrawingPhase && isDrawer);
 
   // Calculate word length from hint (count non-space characters)
   const wordLength = wordHint ? wordHint.replace(/\s/g, "").length : 0;
@@ -47,7 +46,7 @@ export default function MobileChatInput() {
       return "You're drawing!";
     }
     if (isDrawingPhase && hasAlreadyGuessed) {
-      return "You guessed it! 🎉";
+      return "Chat with other guessers...";
     }
     if (phase === "lobby") {
       return "Type a message...";
@@ -92,8 +91,8 @@ export default function MobileChatInput() {
               currentInputLength === wordLength
                 ? "text-success"
                 : currentInputLength > wordLength
-                ? "text-red-400"
-                : "text-white/50"
+                  ? "text-red-400"
+                  : "text-white/50",
             )}
           >
             {currentInputLength}
