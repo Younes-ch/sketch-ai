@@ -73,6 +73,10 @@ builder.Services.AddCors(options =>
             if (uri.Host.EndsWith(".fly.dev"))
                 return true;
 
+            if (uri.Host.Equals("sketch-ai.dev", StringComparison.OrdinalIgnoreCase) ||
+                uri.Host.Equals("www.sketch-ai.dev", StringComparison.OrdinalIgnoreCase))
+                return true;
+
             return false;
         })
         .AllowAnyHeader()
