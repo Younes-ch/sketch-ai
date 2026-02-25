@@ -707,6 +707,48 @@ public class DrawingHub : Hub
     }
 
     /// <summary>
+    /// Sends a reaction (like/dislike) about the current drawing.
+    /// Only non-drawers can react during the drawing phase.
+    /// The reaction is broadcast to all players in the room for display only.
+    /// </summary>
+    public async Task SendReaction(string reactionType)
+    {
+        if (string.IsNullOrWhiteSpace(reactionType))
+            return;
+
+        if (reactionType is not ("like" or "dislike"))
+            return;
+
+        var roomCode = await _roomService.GetRoomCodeByConnectionIdAsync(Context.ConnectionId)
+                       ?? throw new HubException("You are not in a room");
+
+        var room = await _roomService.GetRoomAsync(roomCode)
+                   ?? throw new HubException("Room not found");
+
+        if (room.Phase != GamePhase.Drawing)
+            return;
+
+        var sender = room.Players.FirstOrDefault(p => p.ConnectionId == Context.ConnectionId)
+                     ?? throw new HubException("Player not found");
+
+        if (room.CurrentDrawerConnectionId == Context.ConnectionId)
+            return;
+
+        if (room.PlayersWhoReacted.Contains(Context.ConnectionId))
+            return;
+
+        room.PlayersWhoReacted.Add(Context.ConnectionId);
+        await _roomService.SaveRoomAsync(room);
+
+        await Clients.Group(roomCode).SendAsync("ReceiveReaction", new
+        {
+            SenderUsername = sender.Username,
+            ReactionType = reactionType,
+            Timestamp = DateTime.UtcNow,
+        });
+    }
+
+    /// <summary>
     /// Undoes the last drawing operation atomically.
     /// If the last command was AI-generated, removes ALL AI commands.
     /// Otherwise, removes all consecutive commands with the same strokeId.

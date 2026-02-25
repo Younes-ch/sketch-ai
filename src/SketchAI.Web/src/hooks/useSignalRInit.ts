@@ -4,6 +4,7 @@ import { setupRoomEventHandlers } from "@/stores/roomStore";
 import { setupGameEventHandlers } from "@/stores/gameStore";
 import { setupChatEventHandlers } from "@/stores/chatStore";
 import { setupCanvasEventHandlers } from "@/stores/canvasStore";
+import { setupReactionEventHandlers } from "@/stores/reactionStore";
 import { useGameStore } from "@/stores/gameStore";
 
 /**
@@ -28,8 +29,9 @@ export function useSignalRInit() {
     const cleanupGame = setupGameEventHandlers();
     const cleanupChat = setupChatEventHandlers();
     const cleanupCanvas = setupCanvasEventHandlers();
+    const cleanupReactions = setupReactionEventHandlers();
 
-    cleanupRef.current = [cleanupRoom, cleanupGame, cleanupChat, cleanupCanvas];
+    cleanupRef.current = [cleanupRoom, cleanupGame, cleanupChat, cleanupCanvas, cleanupReactions];
 
     return () => {
       cleanupRef.current.forEach((cleanup) => cleanup());
