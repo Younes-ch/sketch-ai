@@ -10,6 +10,7 @@ export { default as MobileTabNav } from "./MobileTabNav";
 export { type MobileTab } from "./MobileTabNav";
 export { default as PlayerList } from "./PlayerList";
 export { default as Podium } from "./Podium";
+export { ReactionControls } from "./ReactionControls";
 export { default as SettingsModal } from "./SettingsModal";
 export { TranslationModal } from "./TranslationModal";
 export { default as VoteKickModal } from "./VoteKickModal";

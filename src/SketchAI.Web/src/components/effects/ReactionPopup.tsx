@@ -1,6 +1,5 @@
 import { motion, AnimatePresence } from "framer-motion";
-
-export type ReactionType = "like" | "dislike";
+import type { ReactionType } from "@/models/reactions";
 
 interface ReactionBannerProps {
   reactions: Array<{

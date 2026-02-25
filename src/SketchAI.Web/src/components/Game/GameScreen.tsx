@@ -13,6 +13,7 @@ import {
   GamePhaseIndicator,
   WordSelection,
   VoteKickModal,
+  ReactionControls,
 } from "@/components/Game";
 import {
   LobbyOverlay,
@@ -143,25 +144,12 @@ export default function GameScreen() {
 
                 {/* Reaction buttons */}
                 {showReactionButtons && (
-                  <div className="absolute top-2 left-2 z-20 flex gap-1">
-                    <button
-                      onClick={() => sendReaction("like")}
-                      className="bg-green-600/70 hover:bg-green-600/90 active:scale-90 text-white rounded-full px-2 py-1 flex items-center gap-1 text-sm font-semibold transition-all shadow-md cursor-pointer backdrop-blur-sm"
-                    >
-                      👍
-                    </button>
-                    <button
-                      onClick={() => sendReaction("dislike")}
-                      className="bg-red-600/70 hover:bg-red-600/90 active:scale-90 text-white rounded-full px-2 py-1 flex items-center gap-1 text-sm font-semibold transition-all shadow-md cursor-pointer backdrop-blur-sm"
-                    >
-                      👎
-                    </button>
-                  </div>
+                  <ReactionControls onReact={sendReaction} size="md" />
                 )}
 
                 {/* Reaction banner feed */}
                 {reactions.length > 0 && (
-                  <div className="absolute top-10 left-2 z-20">
+                  <div className="absolute top-10 left-2 z-20 pointer-events-none">
                     <ReactionBanner reactions={reactions} />
                   </div>
                 )}
@@ -251,25 +239,12 @@ export default function GameScreen() {
 
             {/* Reaction buttons */}
             {showReactionButtons && (
-              <div className="absolute top-2 left-2 z-20 flex gap-1">
-                <button
-                  onClick={() => sendReaction("like")}
-                  className="bg-green-600/70 hover:bg-green-600/90 active:scale-90 text-white rounded-full px-1.5 py-0.5 flex items-center gap-0.5 text-xs font-semibold transition-all shadow-md cursor-pointer backdrop-blur-sm"
-                >
-                  👍
-                </button>
-                <button
-                  onClick={() => sendReaction("dislike")}
-                  className="bg-red-600/70 hover:bg-red-600/90 active:scale-90 text-white rounded-full px-1.5 py-0.5 flex items-center gap-0.5 text-xs font-semibold transition-all shadow-md cursor-pointer backdrop-blur-sm"
-                >
-                  👎
-                </button>
-              </div>
+              <ReactionControls onReact={sendReaction} size="md" />
             )}
 
             {/* Reaction banner feed */}
             {reactions.length > 0 && (
-              <div className="absolute top-8 left-2 z-20">
+              <div className="absolute top-8 left-2 z-20 pointer-events-none">
                 <ReactionBanner reactions={reactions} />
               </div>
             )}

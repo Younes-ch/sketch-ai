@@ -740,6 +740,9 @@ public class DrawingHub : Hub
         room.PlayersWhoReacted.Add(Context.ConnectionId);
         await _roomService.SaveRoomAsync(room);
 
+        _logger.LogDebug("Player {Username} sent reaction {ReactionType} in room {RoomCode}",
+            sender.Username, reactionType, roomCode);
+
         await Clients.Group(roomCode).SendAsync("ReceiveReaction", new
         {
             SenderUsername = sender.Username,

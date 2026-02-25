@@ -1,6 +1,6 @@
-import { create } from "zustand";
-import type { ReactionType } from "@/components/effects/ReactionPopup";
 import { logger } from "@/lib/logger";
+import type { ReactionType } from "@/models/reactions";
+import { create } from "zustand";
 import { useConnectionStore } from "./connectionStore";
 
 interface ReactionEntry {
@@ -42,6 +42,12 @@ export const useReactionStore = create<ReactionStore>((set, get) => ({
       timestamp: Date.now(),
     };
 
+    const timeout = setTimeout(() => {
+     get().removeReaction(id);
+     reactionTimeouts.delete(id);
+    }, REACTION_DISPLAY_MS);
+    reactionTimeouts.set(id, timeout);
+
     set((state) => {
       // Keep only the latest reactions
       const updated = [...state.reactions, entry];
@@ -57,14 +63,6 @@ export const useReactionStore = create<ReactionStore>((set, get) => ({
       }
       return { reactions: updated };
     });
-
-    // Auto-remove after display duration
-    const timeout = setTimeout(() => {
-      get().removeReaction(id);
-      reactionTimeouts.delete(id);
-    }, REACTION_DISPLAY_MS);
-
-    reactionTimeouts.set(id, timeout);
   },
 
   removeReaction: (id) => {
