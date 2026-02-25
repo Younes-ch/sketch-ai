@@ -724,30 +724,16 @@ public class DrawingHub : Hub
         var roomCode = await _roomService.GetRoomCodeByConnectionIdAsync(Context.ConnectionId)
                        ?? throw new HubException("You are not in a room");
 
-        var room = await _roomService.GetRoomAsync(roomCode)
-                   ?? throw new HubException("Room not found");
-
-        if (room.Phase != GamePhase.Drawing)
+        var (success, senderUsername) = await _roomService.TryAddReactionAsync(roomCode, Context.ConnectionId);
+        if (!success)
             return;
-
-        var sender = room.Players.FirstOrDefault(p => p.ConnectionId == Context.ConnectionId)
-                     ?? throw new HubException("Player not found");
-
-        if (room.CurrentDrawerConnectionId == Context.ConnectionId)
-            return;
-
-        if (room.PlayersWhoReacted.Contains(Context.ConnectionId))
-            return;
-
-        room.PlayersWhoReacted.Add(Context.ConnectionId);
-        await _roomService.SaveRoomAsync(room);
 
         _logger.LogDebug("Player {Username} sent reaction {ReactionType} in room {RoomCode}",
-            sender.Username, reactionType, roomCode);
+            senderUsername, reactionType, roomCode);
 
         await Clients.Group(roomCode).SendAsync("ReceiveReaction", new
         {
-            SenderUsername = sender.Username,
+            SenderUsername = senderUsername,
             ReactionType = reactionType,
             Timestamp = DateTime.UtcNow,
         });

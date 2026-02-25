@@ -463,6 +463,40 @@ public class RoomService : IRoomService
             room.Id, room.Phase, room.Players.Count);
     }
 
+    public async Task<(bool Success, string? SenderUsername)> TryAddReactionAsync(string roomCode, string connectionId)
+    {
+        await using var lockHandle = await _lockProvider.TryAcquireLockAsync(
+            RedisKeys.RoomLock(roomCode),
+            RedisKeys.RoomLockExpiry);
+
+        if (lockHandle is null)
+        {
+            _logger.LogWarning("Failed to acquire lock for room {RoomCode} while adding reaction", roomCode);
+            return (false, null);
+        }
+
+        var room = await GetRoomAsync(roomCode);
+        if (room is null)
+            return (false, null);
+
+        if (room.Phase != GamePhase.Drawing)
+            return (false, null);
+
+        if (room.CurrentDrawerConnectionId == connectionId)
+            return (false, null);
+
+        var sender = room.Players.FirstOrDefault(p => p.ConnectionId == connectionId);
+        if (sender is null)
+            return (false, null);
+
+        if (!room.PlayersWhoReacted.Add(connectionId))
+            return (false, null);
+
+        await SaveRoomAsync(room);
+
+        return (true, sender.Username);
+    }
+
     public async Task<List<Room>> GetActiveDrawingRoomsAsync()
     {
         var drawingPhaseRoomCodes = await RedisHelper.SafeExecuteAsync(

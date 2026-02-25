@@ -14,6 +14,7 @@ export function ReactionControls({
   return (
     <div className="absolute top-2 left-2 z-20 flex gap-1">
       <button
+        type="button"
         aria-label="Like"
         onClick={() => onReact("like")}
         className={`bg-green-600/70 hover:bg-green-600/90 active:scale-90 text-white rounded-full flex items-center font-semibold transition-all shadow-md cursor-pointer backdrop-blur-sm ${btnCls}`}
@@ -21,6 +22,7 @@ export function ReactionControls({
         👍
       </button>
       <button
+        type="button"
         aria-label="Dislike"
         onClick={() => onReact("dislike")}
         className={`bg-red-600/70 hover:bg-red-600/90 active:scale-90 text-white rounded-full flex items-center font-semibold transition-all shadow-md cursor-pointer backdrop-blur-sm ${btnCls}`}

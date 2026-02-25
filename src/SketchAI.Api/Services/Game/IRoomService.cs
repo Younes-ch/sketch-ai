@@ -146,6 +146,15 @@ public interface IRoomService
     Task SaveRoomAsync(Room room);
 
     /// <summary>
+    /// Atomically adds a reaction for a player in the specified room.
+    /// Acquires a lock, validates room phase, drawer, and duplicate checks, then saves.
+    /// </summary>
+    /// <param name="roomCode">The room code.</param>
+    /// <param name="connectionId">The connection ID of the reacting player.</param>
+    /// <returns>A tuple with Success indicating whether the reaction was added, and SenderUsername if successful.</returns>
+    Task<(bool Success, string? SenderUsername)> TryAddReactionAsync(string roomCode, string connectionId);
+
+    /// <summary>
     /// Kicks a player from the room. Only the host can kick players.
     /// </summary>
     /// <param name="roomCode">The room code.</param>
