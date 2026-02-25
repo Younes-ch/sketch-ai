@@ -1154,6 +1154,22 @@ public class DrawingHub : Hub
                 await Task.Delay(2000);
                 await AdvanceToNextTurn(roomCode);
             });
+
+            return;
+        }
+
+        // If a non-drawer left during drawing phase, check if all remaining non-drawers have now guessed
+        if (!wasDrawer && room.Phase == GamePhase.Drawing && room.CurrentDrawerConnectionId is not null)
+        {
+            var nonDrawerCount = room.Players.Count - 1; // exclude the drawer
+            if (nonDrawerCount > 0 && room.PlayersWhoGuessed.Count >= nonDrawerCount)
+            {
+                _logger.LogInformation(
+                    "All remaining non-drawers have guessed after {Username} left room {RoomCode}, ending round",
+                    username, roomCode);
+
+                await EndRoundAndNotify(roomCode);
+            }
         }
     }
 
