@@ -30,7 +30,7 @@ export default function MobilePlayerList({
   const [selectedPlayer, setSelectedPlayer] = useState<string | null>(null);
   // Track score popups that should be visible (persists for animation duration)
   const [visiblePopups, setVisiblePopups] = useState<Map<string, number>>(
-    new Map()
+    new Map(),
   );
   // Track previous scores for animation
   const prevScoresRef = useRef<Map<string, number>>(new Map());
@@ -97,7 +97,7 @@ export default function MobilePlayerList({
     const clickedPlayer = players.find((p) => p.username === playerUsername);
     if (clickedPlayer?.isHost) return;
     setSelectedPlayer(
-      selectedPlayer === playerUsername ? null : playerUsername
+      selectedPlayer === playerUsername ? null : playerUsername,
     );
   };
 
@@ -166,10 +166,10 @@ export default function MobilePlayerList({
                   isCurrentDrawer
                     ? "bg-success"
                     : hasGuessedCorrectly
-                    ? "bg-success/60"
-                    : "bg-card-border",
+                      ? "bg-success/60"
+                      : "bg-card-border",
                   showActions &&
-                    "cursor-pointer hover:ring-2 hover:ring-accent/50 transition-all"
+                    "cursor-pointer hover:ring-2 hover:ring-accent/50 transition-all",
                 )}
               >
                 {/* Player Actions Menu */}
@@ -221,7 +221,7 @@ export default function MobilePlayerList({
                       }}
                       className="absolute -top-6 left-1/2 -translate-x-1/2 z-10 max-w-[90%]"
                     >
-                      <div className="bg-accent text-background text-[10px] font-medium px-1.5 py-0.5 rounded-lg shadow-lg whitespace-nowrap overflow-hidden text-ellipsis max-w-[100px]">
+                      <div className="bg-accent text-background text-[10px] font-medium px-1.5 py-0.5 rounded-lg shadow-lg whitespace-nowrap overflow-hidden text-ellipsis max-w-25">
                         {playerBubble.message}
                       </div>
                       <div className="absolute left-1/2 -translate-x-1/2 -bottom-0.5 w-1.5 h-1.5 bg-accent rotate-45" />
