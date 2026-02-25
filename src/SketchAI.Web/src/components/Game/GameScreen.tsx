@@ -1,5 +1,6 @@
 import { AnimatePresence } from "framer-motion";
 import { DrawingCanvas } from "@/components/Canvas";
+import { ReactionBanner } from "@/components/effects";
 import {
   GameHeader,
   PlayerList,
@@ -12,6 +13,7 @@ import {
   GamePhaseIndicator,
   WordSelection,
   VoteKickModal,
+  ReactionControls,
 } from "@/components/Game";
 import {
   LobbyOverlay,
@@ -21,6 +23,7 @@ import {
 } from "./Overlays";
 import { useRoomStore } from "@/stores/roomStore";
 import { useGameStore } from "@/stores/gameStore";
+import { useReactionStore } from "@/stores/reactionStore";
 import { useGameActions } from "@/hooks/useGameActions";
 
 export default function GameScreen() {
@@ -45,10 +48,15 @@ export default function GameScreen() {
     handleSettingsChange,
   } = useGameActions();
 
+  const reactions = useReactionStore((s) => s.reactions);
+  const hasReacted = useReactionStore((s) => s.hasReacted);
+  const sendReaction = useReactionStore((s) => s.sendReaction);
+
   const isDrawer = currentDrawer?.username === username;
   const canDraw = phase === "drawing" && isDrawer;
   const showWordSelection =
     phase === "wordSelection" && isDrawer && wordChoices;
+  const showReactionButtons = phase === "drawing" && !isDrawer && !hasReacted;
 
   return (
     <div className="h-screen bg-background p-2 sm:p-3 flex flex-col overflow-hidden">
@@ -130,9 +138,19 @@ export default function GameScreen() {
               </AnimatePresence>
 
               <WordHint />
-              <div className="flex-1 min-h-0 flex items-center justify-center bg-white/5 rounded-lg overflow-hidden m-1">
+              <div className="flex-1 min-h-0 flex items-center justify-center bg-white/5 rounded-lg overflow-hidden m-1 relative">
                 {/* Canvas Container */}
                 <DrawingCanvas disabled={!canDraw} layout="desktop" />
+
+                {/* Reaction buttons */}
+                {showReactionButtons && (
+                  <ReactionControls onReact={sendReaction} size="md" />
+                )}
+
+                {/* Reaction banner feed */}
+                <div className="absolute top-10 left-2 z-20 pointer-events-none">
+                  <ReactionBanner reactions={reactions} />
+                </div>
               </div>
             </div>
           </div>
@@ -214,8 +232,18 @@ export default function GameScreen() {
           </AnimatePresence>
 
           {/* Canvas */}
-          <div className="w-full h-full flex items-center justify-center border-t-2 border-card-border">
+          <div className="w-full h-full flex items-center justify-center border-t-2 border-card-border relative">
             <DrawingCanvas disabled={!canDraw} layout="mobile" />
+
+            {/* Reaction buttons */}
+            {showReactionButtons && (
+              <ReactionControls onReact={sendReaction} size="md" />
+            )}
+
+            {/* Reaction banner feed */}
+            <div className="absolute top-8 left-2 z-20 pointer-events-none">
+              <ReactionBanner reactions={reactions} />
+            </div>
           </div>
         </div>
 

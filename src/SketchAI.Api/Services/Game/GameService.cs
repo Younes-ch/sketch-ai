@@ -65,6 +65,7 @@ public class GameService : IGameService
         room.CurrentWordHint = null;
         room.LettersRevealed = 0;
         room.PlayersWhoGuessed.Clear();
+        room.PlayersWhoReacted.Clear();
         room.RoundStartedAt = null;
         room.DrawOrder = room.Players.OrderBy(p => p.JoinedAt).Select(p => p.ConnectionId).ToList();
 
@@ -315,6 +316,7 @@ public class GameService : IGameService
 
         room.Phase = GamePhase.RoundEnd;
         room.PlayersWhoGuessed.Clear();
+        room.PlayersWhoReacted.Clear();
 
         await _roomService.SaveRoomAsync(room);
         await _roomService.RemoveFromDrawingPhaseAsync(roomCode);
@@ -391,6 +393,7 @@ public class GameService : IGameService
         room.CurrentWord = null;
         room.WordChoices = _wordService.GetRandomWordsForRoom(room.Settings);
         room.PlayersWhoGuessed.Clear();
+        room.PlayersWhoReacted.Clear();
         room.RoundStartedAt = null;
 
         await _roomService.SaveRoomAsync(room);
@@ -460,6 +463,7 @@ public class GameService : IGameService
         room.CurrentDrawerConnectionId = null;
         room.WordChoices?.Clear();
         room.PlayersWhoGuessed.Clear();
+        room.PlayersWhoReacted.Clear();
         room.DrawOrder.Clear();
         room.RoundNumber = 0;
         room.RoundStartedAt = null;

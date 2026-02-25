@@ -652,8 +652,10 @@ public class DrawingHub : Hub
             await Clients.Group(roomCode).SendAsync("ScoresUpdated", players);
 
             // Check if all players have guessed (round should end)
+            var currentConnectionIds = updatedRoom.Players.Select(p => p.ConnectionId).ToHashSet();
+            var activeGuessedCount = updatedRoom.PlayersWhoGuessed.Count(id => currentConnectionIds.Contains(id));
             var nonDrawerCount = updatedRoom.Players.Count - 1;
-            if (updatedRoom.PlayersWhoGuessed.Count >= nonDrawerCount)
+            if (activeGuessedCount >= nonDrawerCount)
             {
                 await EndRoundAndNotify(roomCode);
             }
@@ -704,6 +706,37 @@ public class DrawingHub : Hub
                 });
             }
         }
+    }
+
+    /// <summary>
+    /// Sends a reaction (like/dislike) about the current drawing.
+    /// Only non-drawers can react during the drawing phase.
+    /// The reaction is broadcast to all players in the room for display only.
+    /// </summary>
+    public async Task SendReaction(string reactionType)
+    {
+        if (string.IsNullOrWhiteSpace(reactionType))
+            return;
+
+        if (reactionType is not ("like" or "dislike"))
+            return;
+
+        var roomCode = await _roomService.GetRoomCodeByConnectionIdAsync(Context.ConnectionId)
+                       ?? throw new HubException("You are not in a room");
+
+        var (success, senderUsername) = await _roomService.TryAddReactionAsync(roomCode, Context.ConnectionId);
+        if (!success)
+            return;
+
+        _logger.LogDebug("Player {Username} sent reaction {ReactionType} in room {RoomCode}",
+            senderUsername, reactionType, roomCode);
+
+        await Clients.Group(roomCode).SendAsync("ReceiveReaction", new
+        {
+            SenderUsername = senderUsername,
+            ReactionType = reactionType,
+            Timestamp = DateTime.UtcNow,
+        });
     }
 
     /// <summary>
@@ -1112,6 +1145,24 @@ public class DrawingHub : Hub
                 await Task.Delay(2000);
                 await AdvanceToNextTurn(roomCode);
             });
+
+            return;
+        }
+
+        // If a non-drawer left during drawing phase, check if all remaining non-drawers have now guessed
+        if (!wasDrawer && room.Phase == GamePhase.Drawing && room.CurrentDrawerConnectionId is not null)
+        {
+            var currentConnectionIds = room.Players.Select(p => p.ConnectionId).ToHashSet();
+            var activeGuessedCount = room.PlayersWhoGuessed.Count(id => currentConnectionIds.Contains(id));
+            var nonDrawerCount = room.Players.Count - 1; // exclude the drawer
+            if (nonDrawerCount > 0 && activeGuessedCount >= nonDrawerCount)
+            {
+                _logger.LogInformation(
+                    "All remaining non-drawers have guessed after {Username} left room {RoomCode}, ending round",
+                    username, roomCode);
+
+                await EndRoundAndNotify(roomCode);
+            }
         }
     }
 

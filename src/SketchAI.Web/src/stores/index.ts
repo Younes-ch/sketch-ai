@@ -6,3 +6,4 @@ export { useCanvasStore } from "./canvasStore";
 export { useAudioStore, type SoundName } from "./audioStore";
 export { useToastStore, type Toast } from "./toastStore";
 export { usePreferencesStore, type ToolbarPosition } from "./preferencesStore";
+export { useReactionStore } from "./reactionStore";

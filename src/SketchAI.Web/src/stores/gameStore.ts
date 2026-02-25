@@ -7,6 +7,7 @@ import { useConnectionStore } from "./connectionStore";
 import { useRoomStore } from "./roomStore";
 import { useChatStore } from "./chatStore";
 import { useToastStore } from "./toastStore";
+import { useReactionStore } from "./reactionStore";
 
 interface GameStore extends GameState {
   playersWhoGuessed: Set<string>;
@@ -262,6 +263,9 @@ export function setupGameEventHandlers() {
     // Reset players who guessed for the new round
     useGameStore.getState().setPlayersWhoGuessed(new Set());
 
+    // Reset reactions for the new turn
+    useReactionStore.getState().clearReactions();
+
     // Set round started time for timer calculation
     const roundStartedAt = gameStateDto.roundStartedAt
       ? new Date(gameStateDto.roundStartedAt)
@@ -341,6 +345,9 @@ export function setupGameEventHandlers() {
     logger.info(`Next turn started, drawer: ${gameStateDto.currentDrawerUsername}`);
     useRoomStore.getState().setPlayers(gameStateDto.players);
     useGameStore.getState().setPlayersWhoGuessed(new Set());
+
+    // Reset reactions for the new turn
+    useReactionStore.getState().clearReactions();
 
     // Check if new round or just next turn in same round
     const currentRound = useGameStore.getState().roundNumber;

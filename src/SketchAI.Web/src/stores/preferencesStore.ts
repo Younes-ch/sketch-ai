@@ -16,7 +16,7 @@ type PreferencesStore = PreferencesState & PreferencesActions;
 export const usePreferencesStore = create<PreferencesStore>()(
   persist(
     (set) => ({
-      toolbarPosition: "left",
+      toolbarPosition: "bottom",
 
       setToolbarPosition: (position) => set({ toolbarPosition: position }),
     }),

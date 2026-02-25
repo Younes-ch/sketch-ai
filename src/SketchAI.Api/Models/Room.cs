@@ -16,6 +16,7 @@ public class Room
     public int RoundNumber { get; set; } = 1;
     public List<string>? WordChoices { get; set; }
     public HashSet<string> PlayersWhoGuessed { get; set; } = [];
+    public HashSet<string> PlayersWhoReacted { get; set; } = [];
     public VoteKick? ActiveVoteKick { get; set; }
     public bool IsAiDrawing { get; set; } = false;
     public List<string> DrawOrder { get; set; } = [];
