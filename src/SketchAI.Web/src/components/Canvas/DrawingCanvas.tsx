@@ -434,7 +434,7 @@ function DrawingCanvasComponent({
 
       <div
         ref={containerRef}
-        className="flex-1 min-w-0 min-h-0 flex items-center justify-center relative touch-none"
+        className="flex-1 w-full min-w-0 min-h-0 flex items-center justify-center relative touch-none"
       >
         <canvas
           ref={canvasRef}
@@ -449,7 +449,7 @@ function DrawingCanvasComponent({
           onTouchEnd={stopDrawing}
           onTouchCancel={stopDrawing}
           className={cn(
-            "bg-white rounded-md shadow-inner border-2 border-card-border",
+            "bg-white rounded-md shadow-inner border-2 border-card-border box-border",
             disabled && "opacity-90",
           )}
           style={{
