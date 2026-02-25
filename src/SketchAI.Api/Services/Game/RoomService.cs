@@ -359,6 +359,8 @@ public class RoomService : IRoomService
         }
 
         room.Players.Remove(player);
+        room.PlayersWhoGuessed.Remove(connectionId);
+        room.PlayersWhoReacted.Remove(connectionId);
         _logger.LogInformation("Player {Username} removed from room {RoomCode}. Remaining: {PlayerCount}",
             player.Username, roomCode, room.Players.Count);
 

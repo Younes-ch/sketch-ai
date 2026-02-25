@@ -1,5 +1,7 @@
+import type { ReactionType } from "@/models/reactions";
+
 interface ReactionControlsProps {
-  onReact: (type: "like" | "dislike") => void;
+  onReact: (type: ReactionType) => void;
   size?: "sm" | "md";
 }
 

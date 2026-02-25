@@ -44,7 +44,6 @@ export const useReactionStore = create<ReactionStore>((set, get) => ({
 
     const timeout = setTimeout(() => {
      get().removeReaction(id);
-     reactionTimeouts.delete(id);
     }, REACTION_DISPLAY_MS);
     reactionTimeouts.set(id, timeout);
 
@@ -66,6 +65,11 @@ export const useReactionStore = create<ReactionStore>((set, get) => ({
   },
 
   removeReaction: (id) => {
+    const timeout = reactionTimeouts.get(id);
+    if (timeout) {
+      clearTimeout(timeout);
+      reactionTimeouts.delete(id);
+    }
     set((state) => ({
       reactions: state.reactions.filter((r) => r.id !== id),
     }));

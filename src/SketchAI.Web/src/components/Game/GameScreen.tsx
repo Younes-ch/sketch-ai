@@ -148,11 +148,9 @@ export default function GameScreen() {
                 )}
 
                 {/* Reaction banner feed */}
-                {reactions.length > 0 && (
-                  <div className="absolute top-10 left-2 z-20 pointer-events-none">
-                    <ReactionBanner reactions={reactions} />
-                  </div>
-                )}
+                <div className="absolute top-10 left-2 z-20 pointer-events-none">
+                  <ReactionBanner reactions={reactions} />
+                </div>
               </div>
             </div>
           </div>
@@ -243,11 +241,9 @@ export default function GameScreen() {
             )}
 
             {/* Reaction banner feed */}
-            {reactions.length > 0 && (
-              <div className="absolute top-8 left-2 z-20 pointer-events-none">
-                <ReactionBanner reactions={reactions} />
-              </div>
-            )}
+            <div className="absolute top-8 left-2 z-20 pointer-events-none">
+              <ReactionBanner reactions={reactions} />
+            </div>
           </div>
         </div>
 

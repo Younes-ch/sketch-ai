@@ -652,8 +652,10 @@ public class DrawingHub : Hub
             await Clients.Group(roomCode).SendAsync("ScoresUpdated", players);
 
             // Check if all players have guessed (round should end)
+            var currentConnectionIds = updatedRoom.Players.Select(p => p.ConnectionId).ToHashSet();
+            var activeGuessedCount = updatedRoom.PlayersWhoGuessed.Count(id => currentConnectionIds.Contains(id));
             var nonDrawerCount = updatedRoom.Players.Count - 1;
-            if (updatedRoom.PlayersWhoGuessed.Count >= nonDrawerCount)
+            if (activeGuessedCount >= nonDrawerCount)
             {
                 await EndRoundAndNotify(roomCode);
             }
@@ -1164,8 +1166,10 @@ public class DrawingHub : Hub
         // If a non-drawer left during drawing phase, check if all remaining non-drawers have now guessed
         if (!wasDrawer && room.Phase == GamePhase.Drawing && room.CurrentDrawerConnectionId is not null)
         {
+            var currentConnectionIds = room.Players.Select(p => p.ConnectionId).ToHashSet();
+            var activeGuessedCount = room.PlayersWhoGuessed.Count(id => currentConnectionIds.Contains(id));
             var nonDrawerCount = room.Players.Count - 1; // exclude the drawer
-            if (nonDrawerCount > 0 && room.PlayersWhoGuessed.Count >= nonDrawerCount)
+            if (nonDrawerCount > 0 && activeGuessedCount >= nonDrawerCount)
             {
                 _logger.LogInformation(
                     "All remaining non-drawers have guessed after {Username} left room {RoomCode}, ending round",
