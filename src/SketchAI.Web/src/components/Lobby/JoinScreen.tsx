@@ -13,7 +13,6 @@ import { useRoomStore } from "@/stores/roomStore";
 import { useState, useCallback } from "react";
 import { Input } from "@/components/ui";
 import { motion, AnimatePresence } from "framer-motion";
-import GoogleAd from "@/components/Common/GoogleAd";
 
 interface JoinScreenProps {
   onJoinGame: (
@@ -197,18 +196,8 @@ export default function JoinScreen({
             </p>
           </div>
 
-          {/* Card row: left ad | card | right ad */}
+          {/* Card row: card */}
           <div className="flex justify-center items-stretch gap-5">
-            {/* Left Ad - visible on xl screens */}
-            <motion.aside
-              aria-label="Advertisement"
-              initial={{ opacity: 0, x: -20 }}
-              animate={{ opacity: 1, x: 0 }}
-              transition={{ duration: 0.5, delay: 0.3 }}
-              className="hidden xl:flex shrink-0 w-50"
-            >
-              <GoogleAd slot="5711092566" />
-            </motion.aside>
 
             {/* Card */}
             <div className="w-full max-w-lg">
@@ -302,17 +291,6 @@ export default function JoinScreen({
                 </AnimatePresence>
               </div>
             </div>
-
-            {/* Right Ad - visible on xl screens */}
-            <motion.aside
-              aria-label="Advertisement"
-              initial={{ opacity: 0, x: 20 }}
-              animate={{ opacity: 1, x: 0 }}
-              transition={{ duration: 0.5, delay: 0.3 }}
-              className="hidden xl:flex shrink-0 w-50"
-            >
-              <GoogleAd slot="9693881248" />
-            </motion.aside>
           </div>
 
           {/* How to Play */}
@@ -321,17 +299,6 @@ export default function JoinScreen({
           </div>
         </motion.div>
       </div>
-
-      {/* Mobile/Tablet Ad - shown below main content on smaller screens */}
-      <motion.div
-        aria-label="Advertisement"
-        initial={{ opacity: 0, y: 10 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.5, delay: 0.3 }}
-        className="xl:hidden mt-6 relative z-10 w-full max-w-lg min-h-25"
-      >
-        <GoogleAd slot="8692479121" />
-      </motion.div>
 
       {/* Buy Me a Coffee Button */}
       <a
