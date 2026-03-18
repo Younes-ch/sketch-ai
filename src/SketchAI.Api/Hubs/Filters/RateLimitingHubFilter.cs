@@ -132,7 +132,7 @@ public class RateLimitingHubFilter : IHubFilter
 
             "roomCreation" => new FixedWindowRateLimiter(new FixedWindowRateLimiterOptions()
             {
-                PermitLimit = 2,
+                PermitLimit = 5,
                 Window = TimeSpan.FromMinutes(1),
                 QueueLimit = 0
             }),
