@@ -10,6 +10,8 @@
     <PackageReference Include="Aspire.OpenAI" />
     <PackageReference Include="Aspire.StackExchange.Redis" />
     <PackageReference Include="GeminiDotnet.Extensions.AI" />
+    <PackageReference Include="Microsoft.Extensions.AI" />
+    <PackageReference Include="Microsoft.Extensions.AI.Abstractions" />
     <PackageReference Include="Microsoft.AspNetCore.OpenApi" />
     <PackageReference Include="Microsoft.AspNetCore.SignalR.StackExchangeRedis" />
     <PackageReference Include="Scalar.AspNetCore" />
