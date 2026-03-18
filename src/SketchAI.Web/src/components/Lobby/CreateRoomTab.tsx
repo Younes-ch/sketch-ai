@@ -1,9 +1,9 @@
 import { cn } from "@/lib/utils";
-import { useState, useMemo, useCallback } from "react";
+import { useState, useMemo, useCallback, useRef, useEffect } from "react";
 import { defaultRoomSettings, WORD_PRESETS, type RoomSettings } from "@/models";
 import RoomSettingsPanel from "./RoomSettingsPanel";
 import { Button, Input } from "@/components/ui";
-import { CaptchaWidget } from "@/components/Common/CaptchaWidget";
+import { CaptchaWidget, type CaptchaWidgetHandle } from "@/components/Common/CaptchaWidget";
 import { useCaptcha } from "@/hooks/useCaptcha";
 
 interface CreateRoomTabProps {
@@ -65,6 +65,13 @@ export default function CreateRoomTab({
     undefined,
   );
   const { isEnabled: isCaptchaEnabled } = useCaptcha();
+  const captchaRef = useRef<CaptchaWidgetHandle>(null);
+
+  useEffect(() => {
+    if (error) {
+      captchaRef.current?.reset();
+    }
+  }, [error]);
 
   const handleSettingsChange = (updates: Partial<RoomSettings>) => {
     setSettings((prev) => ({ ...prev, ...updates }));
@@ -202,6 +209,7 @@ export default function CreateRoomTab({
 
       {/* CAPTCHA Widget */}
       <CaptchaWidget
+        ref={captchaRef}
         onSuccess={handleCaptchaSuccess}
         onExpire={handleCaptchaExpire}
       />
