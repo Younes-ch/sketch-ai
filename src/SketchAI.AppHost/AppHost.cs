@@ -3,8 +3,7 @@ using Aspire.Hosting.Azure;
 var builder = DistributedApplication.CreateBuilder(args);
 
 // ===== Parameters (Secrets) =====
-var p_githubModelsApiKey = builder.AddParameter("gh-models-api-key", secret: true);
-var p_googleGeminiApiKey = builder.AddParameter("google-gemini-api-key", secret: true);
+var p_groqApiKey = builder.AddParameter("groq-api-key", secret: true);
 var p_serperApiKey = builder.AddParameter("serper-api-key", secret: true);
 var p_turnstileSiteKey = builder.AddParameter("turnstile-site-key", secret: false);
 var p_turnstileSecretKey = builder.AddParameter("turnstile-secret-key", secret: true);
@@ -38,19 +37,16 @@ var redis = builder.AddAzureRedis("redis")
         }
     });
 
-// GitHub Models (AI)
-var gpt4OMini = builder
-    .AddGitHubModel("gpt-4o-mini", Aspire.Hosting.GitHub.GitHubModel.OpenAI.OpenAIGpt4oMini)
-    .WithApiKey(p_githubModelsApiKey);
+// Groq (AI) - OpenAI-compatible endpoint
+var groq = builder.AddConnectionString("groq",
+    ReferenceExpression.Create($"Endpoint=https://api.groq.com/openai/v1;Key={p_groqApiKey}"));
 
 // ===== API Service =====
 var apiService = builder
     .AddProject<Projects.SketchAI_Api>("sketchai-api")
     .WithExternalHttpEndpoints()
     .WithReference(redis).WaitFor(redis)
-    .WithReference(gpt4OMini)
-    .WithChildRelationship(gpt4OMini)
-    .WithEnvironment("GOOGLE_GEMINI_KEY", p_googleGeminiApiKey)
+    .WithReference(groq)
     .WithEnvironment("SERPER_API_KEY", p_serperApiKey)
     .WithEnvironment("TURNSTILE_SITE_KEY", p_turnstileSiteKey)
     .WithEnvironment("TURNSTILE_SECRET_KEY", p_turnstileSecretKey);

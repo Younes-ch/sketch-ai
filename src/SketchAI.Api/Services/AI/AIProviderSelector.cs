@@ -70,11 +70,11 @@ public class AIProviderSelector : IAIProviderSelector
         return (null, null);
     }
 
-    public void MarkProviderRateLimited(string providerServiceKey)
+    public void MarkProviderRateLimited(string providerServiceKey, TimeSpan? cooldown = null)
     {
         var now = _timeProvider.GetUtcNow().UtcDateTime;
-        var cooldownMinutes = _aiProviderOptions.CurrentValue.FallbackCooldownMinutes;
-        var expiry = now.AddMinutes(cooldownMinutes);
+        cooldown ??= TimeSpan.FromMinutes(_aiProviderOptions.CurrentValue.FallbackCooldownMinutes);
+        var expiry = now.Add(cooldown.Value);
 
         _rateLimitedProviders.AddOrUpdate(
             providerServiceKey,
@@ -82,8 +82,8 @@ public class AIProviderSelector : IAIProviderSelector
             (_, existingExpiry) => (existingExpiry > now && existingExpiry > expiry) ? existingExpiry : expiry);
 
         _logger.LogWarning(
-            "Provider {ProviderServiceKey} marked as rate limited until {Expiry} ({CooldownMinutes} minutes)",
-            providerServiceKey, expiry, cooldownMinutes);
+            "Provider {ProviderServiceKey} marked as rate limited until {Expiry} ({Cooldown})",
+            providerServiceKey, expiry, cooldown);
     }
 
     public IReadOnlyDictionary<string, ProviderStatus> GetProviderStatuses()

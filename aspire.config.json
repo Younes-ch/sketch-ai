@@ -1,0 +1,5 @@
+{
+  "appHost": {
+    "path": "src/SketchAI.AppHost/SketchAI.AppHost.csproj"
+  }
+}
