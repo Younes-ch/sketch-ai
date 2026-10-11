@@ -1,8 +1,11 @@
-import { useMemo } from "react";
+import { lazy, Suspense, useMemo } from "react";
 import { JoinScreen } from "@/components/Lobby";
-import { GameScreen } from "@/components/Game";
 import { useRoomStore } from "@/stores/roomStore";
 import { defaultRoomSettings, type RoomSettings } from "@/models";
+
+// Loaded on demand so the landing page doesn't download/parse the game code
+const loadGameScreen = () => import("@/components/Game/GameScreen");
+const GameScreen = lazy(loadGameScreen);
 
 // Get invite room code from URL once (outside component to avoid re-running)
 function getInitialRoomCode(): string | null {
@@ -32,6 +35,7 @@ export default function AppRouter() {
     settings: RoomSettings = defaultRoomSettings,
     captchaToken?: string,
   ) => {
+    void loadGameScreen(); // download alongside the server call, not after it
     if (isCreating) {
       await createRoom(name, roomName, room, isPublic, settings, captchaToken);
     } else {
@@ -48,5 +52,9 @@ export default function AppRouter() {
     );
   }
 
-  return <GameScreen />;
+  return (
+    <Suspense fallback={null}>
+      <GameScreen />
+    </Suspense>
+  );
 }

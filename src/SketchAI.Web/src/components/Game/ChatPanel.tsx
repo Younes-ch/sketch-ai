@@ -195,7 +195,7 @@ export default function ChatPanel({ variant = "desktop" }: ChatPanelProps) {
                   </p>
                 )}
                 {msg.type === "leave" && (
-                  <p className="text-red-400 text-xs font-semibold flex items-center gap-2">
+                  <p className="text-danger-light text-xs font-semibold flex items-center gap-2">
                     <span>🚪</span> {msg.message}
                   </p>
                 )}
@@ -226,7 +226,7 @@ export default function ChatPanel({ variant = "desktop" }: ChatPanelProps) {
 
                 {/* Guess Messages */}
                 {msg.type === "correct-guess" ? (
-                  <p className="text-success font-medium flex items-center gap-1">
+                  <p className="text-success-light font-medium flex items-center gap-1">
                     <span>✓</span>
                     {msg.message}
                   </p>
@@ -289,9 +289,9 @@ export default function ChatPanel({ variant = "desktop" }: ChatPanelProps) {
             className={cn(
               "text-xs font-mono",
               currentInputLength === wordLength
-                ? "text-success"
+                ? "text-success-light"
                 : currentInputLength > wordLength
-                  ? "text-red-400"
+                  ? "text-danger-light"
                   : "text-white/50",
             )}
           >

@@ -22,7 +22,7 @@ export function ScorePopup({ show, points, position }: ScorePopupProps) {
             ease: "easeOut",
           }}
           className={`absolute pointer-events-none font-black text-xl whitespace-nowrap z-100 ${
-            isPositive ? "text-success" : "text-danger"
+            isPositive ? "text-success-light" : "text-danger-light"
           }`}
           style={{
             left: position?.x ?? 0,

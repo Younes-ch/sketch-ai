@@ -89,9 +89,9 @@ export default function MobileChatInput() {
             className={cn(
               "text-xs font-mono",
               currentInputLength === wordLength
-                ? "text-success"
+                ? "text-success-light"
                 : currentInputLength > wordLength
-                  ? "text-red-400"
+                  ? "text-danger-light"
                   : "text-white/50",
             )}
           >

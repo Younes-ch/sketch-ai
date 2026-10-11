@@ -38,7 +38,7 @@ export function LanguageDropdown({
           <DropdownArrowIcon
             size={16}
             className={cn(
-              "text-primary transition-transform duration-200",
+              "text-primary-light transition-transform duration-200",
               open && "rotate-180"
             )}
           />
@@ -71,7 +71,7 @@ export function LanguageDropdown({
               >
                 <span>{lang}</span>
                 {value === lang && (
-                  <span className="ml-auto text-primary">✓</span>
+                  <span className="ml-auto text-primary-light">✓</span>
                 )}
               </button>
             ))}

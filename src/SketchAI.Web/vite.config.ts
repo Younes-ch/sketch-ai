@@ -26,7 +26,8 @@ export default defineConfig(({ mode }) => {
                     manualChunks(id: string) {
                         // Vendor chunks - split large dependencies
                         if (id.includes('node_modules')) {
-                            if (id.includes('react-dom') || id.includes('react/')) {
+                            // Exact package dirs: a bare 'react-dom' match would also catch @floating-ui/react-dom (game-only)
+                            if (/node_modules[\\/](react|react-dom|scheduler)[\\/]/.test(id)) {
                                 return 'vendor-react';
                             }
                             if (id.includes('@microsoft/signalr')) {
@@ -35,9 +36,8 @@ export default defineConfig(({ mode }) => {
                             if (id.includes('framer-motion')) {
                                 return 'vendor-motion';
                             }
-                            if (id.includes('@radix-ui')) {
-                                return 'vendor-radix';
-                            }
+                            // ponytail: no radix group - it's game-only and rides with the lazy GameScreen chunk.
+                            // A named group also pulled react-dom into it, forcing radix onto the landing page.
                             if (id.includes('zustand') || id.includes('clsx') || 
                                 id.includes('tailwind-merge') || id.includes('class-variance-authority')) {
                                 return 'vendor-utils';
