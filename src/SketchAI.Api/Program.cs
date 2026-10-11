@@ -2,11 +2,20 @@ var builder = WebApplication.CreateBuilder(args);
 
 builder.AddServiceDefaults();
 builder.AddRedisClient(connectionName: "redis");
-builder.AddOpenAIClient("gpt-4o-mini")
-       .AddKeyedChatClient("gpt-4o-mini")
-       .UseFunctionInvocation();
 
-builder.Services.AddGoogleModels(builder.Configuration);
+// AI: one OpenAI-compatible client (Groq), one keyed chat client per configured model
+// No SDK retries: a 429 should fail over to the next model right away, not block the drawing for seconds.
+var aiClient = builder.AddOpenAIClient("groq", configureOptions: o => o.RetryPolicy = new System.ClientModel.Primitives.ClientRetryPolicy(maxRetries: 0));
+aiClient.AddKeyedChatClient(AIWordExplanationService.ServiceKey, AIWordExplanationService.Model)
+        .ConfigureOptions(o => o.Reasoning = new ReasoningOptions { Effort = ReasoningEffort.Low });
+foreach (var provider in builder.Configuration.GetSection("AiProviders").Get<AiProviderSettings>()?.Providers ?? [])
+{
+    var chatClient = aiClient.AddKeyedChatClient(provider.ServiceKey, provider.Model);
+    if (provider.ReasoningEffort is { } effort)
+    {
+        chatClient.ConfigureOptions(o => o.Reasoning = new ReasoningOptions { Effort = effort });
+    }
+}
 
 // Controllers & OpenAPI
 builder.Services.AddControllers();

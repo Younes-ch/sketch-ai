@@ -3,7 +3,7 @@
 public interface IAIDrawingService
 {
     /// <summary>
-    /// Generates drawing commands for the given word using AI function calling.
+    /// Generates drawing commands for the given word by streaming one command per line from the model.
     /// Commands are yielded as they are generated for real-time streaming.
     /// </summary>
     /// <param name="word">The word to draw</param>

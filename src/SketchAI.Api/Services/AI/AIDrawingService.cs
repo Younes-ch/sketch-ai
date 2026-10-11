@@ -1,21 +1,64 @@
-﻿namespace SketchAI.Api.Services.AI;
+﻿using System.ClientModel;
+using System.Globalization;
 
+namespace SketchAI.Api.Services.AI;
+
+/// <summary>
+/// Streams a drawing from a single model response. The model writes one compact command per line
+/// (see <see cref="SystemPrompt"/>) and each line is yielded as soon as it is complete, so strokes
+/// appear while the model is still generating. No tool calling: one request per drawing keeps
+/// token usage (and free-tier rate limits) low.
+/// </summary>
 public class AIDrawingService : IAIDrawingService
 {
+    private const string ProvidersExhaustedMessage = "AI drawing is temporarily unavailable. Please try again later.";
+    private const int MaxCommands = 30; // Hard stop so a chatty model can't keep "improving" the drawing.
+
+    // The canvas is 16:9 (1920x1080), so the model draws on a 160x90 grid to keep proportions (round circles stay round).
+    private const double GridWidth = 160;
+    private const double GridHeight = 90;
+
+    private const string SystemPrompt =
+        """
+        You draw pictures for a Pictionary-style guessing game by writing drawing commands.
+        Output ONLY command lines, one per line. No other text, no markdown, no code fences.
+
+        Canvas is 160 wide and 90 tall: (0,0) is top-left, (160,90) is bottom-right.
+
+        Commands:
+        S <color> <width> <x,y> <x,y> ...   stroke through the points (2-16 points)
+        C <color> <width> <x,y> <r>         circle centered at x,y with radius r
+        F <color> <x,y>                     flood-fill the closed area containing the point
+
+        Example for "apple":
+        C #000000 12 80,50 30
+        F #e53935 80,50
+        S #5d4037 10 80,20 83,8
+        S #000000 8 83,14 98,6 104,12 92,18 83,14
+        F #43a047 95,12
+
+        Rules:
+        - Draw the simplest, most iconic version of the word that anyone would guess instantly. A quick doodle, not art.
+        - Exaggerate the 1-2 features that make it unmistakable (e.g. the handle of a mug, the wheels of a car, the ears and whiskers of a cat).
+        - 3 to 12 commands in total: the main shape first, then the key details, then stop.
+        - Make it big and centered: it should span most of the canvas height (about y=10 to y=80).
+        - F works like a paint bucket: it colors everything connected to its point until it hits a line.
+          Only fill inside a closed shape (a circle, or a stroke whose last point equals the first),
+          and draw the lines that separate regions before filling them.
+        - Outlines width 10-14, details width 6-8. Use only the colors the subject needs.
+        - Never write letters, numbers or words.
+        """;
+
     private readonly IAIProviderSelector _providerSelector;
-    private readonly IOptionsMonitor<AiProviderSettings> _aiProviderOptions;
     private readonly IOptionsMonitor<GameSettings> _gameSettings;
     private readonly ILogger<AIDrawingService> _logger;
-    private const string ProvidersExhaustedMessage = "AI drawing is temporarily unavailable. Please try again later.";
 
     public AIDrawingService(
         IAIProviderSelector providerSelector,
-        IOptionsMonitor<AiProviderSettings> aiProviderOptions,
         IOptionsMonitor<GameSettings> gameSettings,
         ILogger<AIDrawingService> logger)
     {
         _providerSelector = providerSelector;
-        _aiProviderOptions = aiProviderOptions;
         _gameSettings = gameSettings;
         _logger = logger;
     }
@@ -32,373 +75,219 @@ public class AIDrawingService : IAIDrawingService
             throw new AIDrawingException("Invalid word for AI drawing");
         }
 
-        var triedProviders = new HashSet<string>();
-        var providers = _aiProviderOptions.CurrentValue.Providers;
-        var maxRetries = providers?.Count ?? 0;
+        List<ChatMessage> messages =
+        [
+            new(ChatRole.System, SystemPrompt),
+            new(ChatRole.User, preset is null ? $"Draw: \"{sanitizedWord}\"" : $"Draw: \"{sanitizedWord}\" (category: {preset})")
+        ];
 
-        if (maxRetries == 0)
-        {
-            _logger.LogError("No AI providers configured");
-            throw new AIDrawingException(ProvidersExhaustedMessage);
-        }
+        var options = new ChatOptions { MaxOutputTokens = 2048 }; // Reasoning effort is set per provider (see Program.cs)
 
-        var anyCommandsYielded = false;
         var drawingTimeout = TimeSpan.FromSeconds(_gameSettings.CurrentValue.AiDrawingTimeoutSeconds);
+        var triedProviders = new HashSet<string>();
 
-        while (triedProviders.Count < maxRetries)
+        while (true)
         {
+            var (chatClient, providerServiceKey) = _providerSelector.GetAvailableProvider();
+            if (chatClient is null || providerServiceKey is null || !triedProviders.Add(providerServiceKey))
+            {
+                _logger.LogError("No AI providers available for drawing '{Word}' (tried {Count})", sanitizedWord, triedProviders.Count);
+                throw new AIDrawingException(ProvidersExhaustedMessage);
+            }
+
+            _logger.LogInformation("Starting AI drawing for '{Word}' with provider {ProviderServiceKey}", sanitizedWord, providerServiceKey);
+
             using var timeoutCts = new CancellationTokenSource(drawingTimeout);
             using var linkedCts = CancellationTokenSource.CreateLinkedTokenSource(ct, timeoutCts.Token);
-            var combinedCt = linkedCts.Token;
 
-            var (chatClient, providerServiceKey) = _providerSelector.GetAvailableProvider();
+            var pending = "";
+            var closedShapes = new List<List<PointDto>>();
+            var commandCount = 0;
+            var startedTalking = false;
+            Exception? failure = null;
 
-            if (chatClient is null || providerServiceKey is null)
+            await using var stream = chatClient.GetStreamingResponseAsync(messages, options, linkedCts.Token)
+                .GetAsyncEnumerator(linkedCts.Token);
+
+            while (commandCount < MaxCommands)
             {
-                _logger.LogError("No AI providers available for drawing (tried {Count} providers)", triedProviders.Count);
-                throw new AIDrawingException(ProvidersExhaustedMessage);
-            }
-
-            if (!triedProviders.Add(providerServiceKey))
-            {
-                _logger.LogWarning(
-                    "Provider {ProviderServiceKey} returned again - selector cycling through same provider (all others exhausted or rate-limited)",
-                    providerServiceKey);
-                throw new AIDrawingException(ProvidersExhaustedMessage);
-            }
-
-            _logger.LogInformation("Starting AI drawing with provider: {ProviderServiceKey} (attempt {Attempt})",
-                providerServiceKey, triedProviders.Count);
-
-            var commandQueue = new ConcurrentQueue<DrawingCommandDto>();
-
-            var strokeTool = AIFunctionFactory.Create(
-                (
-                    [Description(
-                        "Array of {x, y} coordinates. Values are normalized 0.0-1.0 where (0,0) is top-left and (1,1) is bottom-right")]
-                    PointDto[] points,
-                    [Description("Color in hex format, e.g., #FF0000 for red, #00FF00 for green")]
-                    string color,
-                    [Description("Line width in pixels, 1-50. Use 2-5 for fine details, 6-15 for normal lines, 16-50 for thick outlines")]
-                    int width) => DrawStroke(commandQueue, points, color, width),
-                name: "draw_stroke",
-                description: "Draw a stroke (line) on the canvas with the given points");
-
-            var fillTool = AIFunctionFactory.Create(
-                (
-                    [Description("Starting point {x, y} for flood fill. Values are normalized 0.0-1.0 where (0,0) is top-left and (1,1) is bottom-right")]
-                    PointDto point,
-                    [Description("Color in hex format, e.g., #FF0000 for red, #00FF00 for green")]
-                    string color) => DrawFill(commandQueue, point, color),
-                name: "draw_fill",
-                description: "Fill an area on the canvas starting from a point. Use for coloring large areas.");
-
-            var prompt = BuildPrompt(sanitizedWord, preset);
-            var messages = new List<ChatMessage>
-            {
-                new(ChatRole.System, "You are a drawing function caller. Never output text. Only call draw_stroke and draw_fill functions."),
-                new(ChatRole.User, prompt)
-            };
-
-            var options = new ChatOptions
-            {
-                Tools = [strokeTool, fillTool],
-                ToolMode = ChatToolMode.RequireAny
-            };
-
-            var shouldRetryWithNextProvider = false;
-
-            IAsyncEnumerator<ChatResponseUpdate>? enumerator = null;
-            try
-            {
-                var streamingResponse = chatClient.GetStreamingResponseAsync(messages, options, combinedCt);
-                enumerator = streamingResponse.GetAsyncEnumerator(combinedCt);
-            }
-            catch (OperationCanceledException) when (timeoutCts.IsCancellationRequested)
-            {
-                _logger.LogWarning("AI drawing timed out during stream initialization for provider {ProviderServiceKey}", providerServiceKey);
-                _providerSelector.MarkProviderRateLimited(providerServiceKey);
-                shouldRetryWithNextProvider = true;
-            }
-            catch (Exception ex) when (IsRateLimitException(ex))
-            {
-                _logger.LogWarning(ex,
-                    "Provider {ProviderServiceKey} hit rate limit during stream initialization, marking as unavailable and trying fallback",
-                    providerServiceKey);
-
-                _providerSelector.MarkProviderRateLimited(providerServiceKey);
-                shouldRetryWithNextProvider = true;
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex,
-                    "AI drawing stream initialization failed for word '{Word}' with provider {ProviderServiceKey}",
-                    sanitizedWord, providerServiceKey);
-                throw new AIDrawingException(ProvidersExhaustedMessage, ex);
-            }
-
-            if (shouldRetryWithNextProvider)
-            {
-                _logger.LogInformation("Retrying AI drawing with next available provider...");
-                continue;
-            }
-
-            try
-            {
-                while (true)
+                bool hasNext;
+                try
                 {
-                    if (ct.IsCancellationRequested)
-                    {
-                        _logger.LogInformation("AI drawing cancelled for word '{Word}'", sanitizedWord);
-                        yield break; // User-initiated cancellation is fine
-                    }
+                    hasNext = await stream.MoveNextAsync();
+                }
+                catch (Exception ex)
+                {
+                    failure = ex;
+                    break;
+                }
 
-                    if (timeoutCts.IsCancellationRequested)
-                    {
-                        _logger.LogWarning("AI drawing timed out for word '{Word}' with provider {ProviderServiceKey}",
-                            sanitizedWord, providerServiceKey);
-                        _providerSelector.MarkProviderRateLimited(providerServiceKey);
-                        shouldRetryWithNextProvider = true;
-                        break;
-                    }
+                // Yield every complete line; at end of stream, terminate the remainder so it's flushed too.
+                pending += hasNext ? stream.Current.Text : "\n";
+                int newline;
+                while (commandCount < MaxCommands && (newline = pending.IndexOf('\n')) >= 0)
+                {
+                    var line = pending[..newline];
+                    pending = pending[(newline + 1)..];
 
-                    bool hasNext;
-                    try
+                    if (ParseCommand(line, closedShapes) is { } command)
                     {
-                        hasNext = await enumerator!.MoveNextAsync();
-                    }
-                    catch (OperationCanceledException) when (timeoutCts.IsCancellationRequested)
-                    {
-                        _logger.LogWarning("AI drawing timed out during streaming for provider {ProviderServiceKey}", providerServiceKey);
-                        _providerSelector.MarkProviderRateLimited(providerServiceKey);
-                        shouldRetryWithNextProvider = true;
-                        break;
-                    }
-                    catch (Exception ex) when (IsRateLimitException(ex))
-                    {
-                        _logger.LogWarning(ex,
-                            "Provider {ProviderServiceKey} hit rate limit during AI drawing, marking as unavailable and trying fallback",
-                            providerServiceKey);
-
-                        _providerSelector.MarkProviderRateLimited(providerServiceKey);
-                        shouldRetryWithNextProvider = true;
-                        break; // Break inner loop to try next provider
-                    }
-                    catch (Exception ex)
-                    {
-                        _logger.LogError(ex, "AI drawing failed for word '{Word}' with provider {ProviderServiceKey}",
-                            sanitizedWord, providerServiceKey);
-                        throw new AIDrawingException(ProvidersExhaustedMessage, ex);
-                    }
-
-                    if (!hasNext)
-                    {
-                        break;
-                    }
-
-                    while (commandQueue.TryDequeue(out var command))
-                    {
-                        anyCommandsYielded = true;
-                        timeoutCts.CancelAfter(drawingTimeout); // Reset timeout on each yielded command
+                        commandCount++;
+                        timeoutCts.CancelAfter(drawingTimeout); // Timeout is per-stroke, not for the whole drawing
                         yield return command;
                     }
+                    else if (IsProse(line))
+                    {
+                        // The model is "thinking out loud": stop before its draft commands get drawn or burn the token quota.
+                        startedTalking = true;
+                        break;
+                    }
+                }
+
+                if (!hasNext || startedTalking)
+                {
+                    break;
                 }
             }
-            finally
+
+            if (ct.IsCancellationRequested)
             {
-                if (enumerator is not null)
-                {
-                    await enumerator.DisposeAsync();
-                }
-            }
-
-            if (!shouldRetryWithNextProvider)
-            {
-                // Yield any remaining commands after streaming completes
-                while (commandQueue.TryDequeue(out var command))
-                {
-                    anyCommandsYielded = true;
-                    timeoutCts.CancelAfter(drawingTimeout); // Reset timeout on each yielded command
-                    yield return command;
-                }
-
-                if (!anyCommandsYielded)
-                {
-                    _logger.LogWarning(
-                        "Provider {ProviderServiceKey} completed without yielding any commands - likely silent failure, trying fallback",
-                        providerServiceKey);
-                    _providerSelector.MarkProviderRateLimited(providerServiceKey);
-                    continue; // Try next provider
-                }
-
-                _logger.LogDebug("AI drawing completed for word '{Word}' with provider {ProviderServiceKey}",
-                    sanitizedWord, providerServiceKey);
+                _logger.LogInformation("AI drawing cancelled for word '{Word}'", sanitizedWord);
                 yield break;
             }
 
-            _logger.LogInformation("Retrying AI drawing with next available provider...");
-        }
-
-        _logger.LogError("All AI providers exhausted after {MaxRetries} attempts for word '{Word}'",
-            maxRetries, sanitizedWord);
-        throw new AIDrawingException(ProvidersExhaustedMessage);
-    }
-
-    private static string BuildPrompt(string word, string? preset = null) =>
-        $$"""
-         You are a drawing AI. Your ONLY task is to call drawing functions. Do NOT write any text responses.
-
-         CANVAS: Normalized coordinates 0.0-1.0. (0,0)=top-left, (1,1)=bottom-right.
-
-         WORD TO DRAW: "{{word}}"
-         {{(preset is not null ? $"CATEGORY: {preset}" : "")}}
-
-         DRAWING TOOLS:
-         - draw_stroke(points, color, width): Draw lines/shapes. Points is an array of {x, y} coordinates.
-         - draw_fill(point, color): Flood-fill an enclosed area starting from a single point.
-
-         INSTRUCTIONS:
-         1. Draw a simple, recognizable representation of "{{word}}" {{(preset is not null ? $"from the category '{preset}'" : "")}}.
-         2. Use draw_stroke for lines, shapes, and outlines (pass array of points)
-         3. Use draw_fill for flood-filling enclosed areas with color (single start point)
-         4. Use multiple colors - be creative but keep it simple
-         5. Draw outlines first with draw_stroke, then use draw_fill to color enclosed areas
-         6. Keep strokes smooth with 3-10 points per stroke
-         7. Stay within bounds (0.0 to 1.0 for both x and y)
-
-         SUGGESTED APPROACH:
-         - Start with main outline strokes (black or dark color, width 5-10)
-         - Add detail strokes (thinner, width 2-4)
-         - Use Fill to color large enclosed areas (e.g., inside a circle or shape)
-
-         CRITICAL RULES:
-         - Do NOT output any text before, during, or after drawing
-         - Do NOT explain what you are drawing
-         - Do NOT summarize your actions
-         - ONLY call the drawing functions, nothing else
-         - Start immediately with draw_stroke calls
-
-         BEGIN DRAWING NOW:
-         """;
-
-    private static DrawingCommandDto DrawStroke(
-        ConcurrentQueue<DrawingCommandDto> queue,
-        PointDto[] points,
-        string color,
-        int width)
-    {
-
-        if (points is null || points.Length == 0)
-        {
-            return new DrawingCommandDto
+            if (failure is null && commandCount > 0)
             {
-                Type = "stroke",
-                Points = [],
-                Color = "#000000",
-                Width = Math.Clamp(width, 1, 50),
-                StrokeId = Guid.NewGuid().ToString(),
-                IsAiGenerated = true
-            };
-        }
-
-        var clampedPoints =
-            points.Select(p => new PointDto { X = Math.Clamp(p.X, 0.0, 1.0), Y = Math.Clamp(p.Y, 0.0, 1.0) });
-
-        var validColor = ValidationHelper.IsValidHexColor(color) ? color : "#000000";
-
-        var command = new DrawingCommandDto
-        {
-            Type = "stroke",
-            Points = [.. clampedPoints],
-            Color = validColor,
-            Width = Math.Clamp(width, 1, 50),
-            StrokeId = Guid.NewGuid().ToString(),
-            IsAiGenerated = true
-        };
-
-        queue.Enqueue(command);
-
-        return command;
-    }
-
-    private static DrawingCommandDto DrawFill(
-        ConcurrentQueue<DrawingCommandDto> queue,
-        PointDto point,
-        string color)
-    {
-
-        if (point is null)
-        {
-            return new DrawingCommandDto
-            {
-                Type = "fill",
-                Points = [new PointDto { X = 0.5, Y = 0.5 }],
-                Color = "#000000",
-                Width = 0,
-                StrokeId = Guid.NewGuid().ToString(),
-                IsAiGenerated = true
-            };
-        }
-
-        var validColor = ValidationHelper.IsValidHexColor(color) ? color : "#000000";
-
-        var clampedPoint = new PointDto { X = Math.Clamp(point.X, 0.0, 1.0), Y = Math.Clamp(point.Y, 0.0, 1.0) };
-
-        var command = new DrawingCommandDto
-        {
-            Type = "fill",
-            Points = [clampedPoint],
-            Color = validColor,
-            Width = 0,
-            StrokeId = Guid.NewGuid().ToString(),
-            IsAiGenerated = true
-        };
-
-        queue.Enqueue(command);
-
-        return command;
-    }
-
-    private bool IsRateLimitException(Exception ex)
-    {
-        if (ex is HttpRequestException { StatusCode: HttpStatusCode.TooManyRequests })
-        {
-            _logger.LogWarning("Rate limit detected via HttpRequestException (429)");
-            return true;
-        }
-
-        var message = ex.Message;
-        if (!string.IsNullOrEmpty(message))
-        {
-            if (message.Contains("429", StringComparison.OrdinalIgnoreCase) ||
-                message.Contains("rate limit", StringComparison.OrdinalIgnoreCase) ||
-                message.Contains("rate_limit", StringComparison.OrdinalIgnoreCase) ||
-                message.Contains("quota", StringComparison.OrdinalIgnoreCase) ||
-                message.Contains("too many requests", StringComparison.OrdinalIgnoreCase) ||
-                message.Contains("TooManyRequests", StringComparison.OrdinalIgnoreCase))
-            {
-                _logger.LogWarning("Rate limit detected via exception message: {Message}", message);
-                return true;
+                _logger.LogInformation("AI drawing for '{Word}' finished with {Count} commands via {ProviderServiceKey}",
+                    sanitizedWord, commandCount, providerServiceKey);
+                yield break;
             }
-        }
 
-        if (ex.InnerException is not null)
-        {
-            return IsRateLimitException(ex.InnerException);
-        }
-
-        // Check aggregate exceptions (common in async scenarios)
-        if (ex is AggregateException aggEx)
-        {
-            foreach (var innerEx in aggEx.InnerExceptions)
+            if (failure is not null && !IsRateLimitOrTimeout(failure) && commandCount == 0)
             {
-                if (IsRateLimitException(innerEx))
+                _logger.LogError(failure, "AI drawing failed for word '{Word}' with provider {ProviderServiceKey}", sanitizedWord, providerServiceKey);
+                throw new AIDrawingException(ProvidersExhaustedMessage, failure);
+            }
+
+            _providerSelector.MarkProviderRateLimited(providerServiceKey, GetRetryAfter(failure));
+
+            if (commandCount > 0)
+            {
+                // ponytail: keep the partial drawing instead of starting a second one on top with another provider.
+                _logger.LogWarning(failure, "AI drawing for '{Word}' stopped after {Count} commands via {ProviderServiceKey}",
+                    sanitizedWord, commandCount, providerServiceKey);
+                yield break;
+            }
+
+            _logger.LogWarning(failure, "Provider {ProviderServiceKey} produced no drawing for '{Word}' (wrote text: {StartedTalking}), trying next provider",
+                providerServiceKey, sanitizedWord, startedTalking);
+        }
+    }
+
+    /// <summary>
+    /// Parses "S #rrggbb width x,y x,y ...", "C #rrggbb width x,y r" or "F #rrggbb x,y" (grid coordinates).
+    /// Returns null for anything else, so stray text from the model is ignored.
+    /// Closed shapes are collected in <paramref name="closedShapes"/>: a fill is only accepted inside one of them,
+    /// because a flood fill on an open outline floods the whole canvas.
+    /// </summary>
+    private static DrawingCommandDto? ParseCommand(string line, List<List<PointDto>> closedShapes)
+    {
+        var parts = line.Trim().Split(' ', StringSplitOptions.RemoveEmptyEntries);
+        if (parts.Length < 3 || !ValidationHelper.IsValidHexColor(parts[1]))
+        {
+            return null;
+        }
+
+        switch (parts[0].ToUpperInvariant())
+        {
+            case "S" when parts.Length >= 4 && int.TryParse(parts[2], CultureInfo.InvariantCulture, out var strokeWidth):
+                var points = parts[3..].Select(ParsePoint).OfType<PointDto>().ToList();
+                if (points.Count == 0)
                 {
-                    return true;
+                    return null;
                 }
+
+                // Treat "ends within 3 grid units of its start" as closed, and snap it shut so the fill can't leak.
+                if (points.Count >= 3 && Math.Abs(points[0].X - points[^1].X) * GridWidth <= 3 && Math.Abs(points[0].Y - points[^1].Y) * GridHeight <= 3)
+                {
+                    points[^1] = points[0];
+                    closedShapes.Add(points);
+                }
+
+                return NewCommand("stroke", points, parts[1], Math.Clamp(strokeWidth, ValidationHelper.MinBrushWidth, ValidationHelper.MaxBrushWidth));
+
+            case "C" when parts.Length >= 5
+                          && int.TryParse(parts[2], CultureInfo.InvariantCulture, out var width)
+                          && ParsePoint(parts[3]) is { } center
+                          && double.TryParse(parts[4], NumberStyles.Float, CultureInfo.InvariantCulture, out var radius):
+                // 24 segments, closed; radius scaled per axis so it stays round on the 16:9 canvas.
+                var circle = Enumerable.Range(0, 25).Select(i => new PointDto(
+                    Math.Clamp(center.X + radius / GridWidth * Math.Cos(i * Math.PI / 12), 0.0, 1.0),
+                    Math.Clamp(center.Y + radius / GridHeight * Math.Sin(i * Math.PI / 12), 0.0, 1.0))).ToList();
+                closedShapes.Add(circle);
+                return NewCommand("stroke", circle, parts[1], Math.Clamp(width, ValidationHelper.MinBrushWidth, ValidationHelper.MaxBrushWidth));
+
+            case "F" when ParsePoint(parts[2]) is { } point && closedShapes.Any(shape => Contains(shape, point)):
+                return NewCommand("fill", [point], parts[1], 0);
+
+            default:
+                return null;
+        }
+    }
+
+    private static PointDto? ParsePoint(string token)
+    {
+        var xy = token.Split(',');
+        return xy.Length == 2
+               && double.TryParse(xy[0], NumberStyles.Float, CultureInfo.InvariantCulture, out var x)
+               && double.TryParse(xy[1], NumberStyles.Float, CultureInfo.InvariantCulture, out var y)
+            ? new PointDto(Math.Clamp(x / GridWidth, 0.0, 1.0), Math.Clamp(y / GridHeight, 0.0, 1.0))
+            : null;
+    }
+
+    /// <summary>
+    /// A non-empty line that is neither a (possibly malformed) command nor a code fence: the model is writing text.
+    /// </summary>
+    private static bool IsProse(string line)
+    {
+        var trimmed = line.Trim();
+        return trimmed.Length > 0 && !trimmed.StartsWith("```") && !Regex.IsMatch(trimmed, @"^[SCFscf]\s");
+    }
+
+    /// <summary>Ray-casting point-in-polygon test.</summary>
+    private static bool Contains(List<PointDto> polygon, PointDto p)
+    {
+        var inside = false;
+        for (int i = 0, j = polygon.Count - 1; i < polygon.Count; j = i++)
+        {
+            var (a, b) = (polygon[i], polygon[j]);
+            if ((a.Y > p.Y) != (b.Y > p.Y) && p.X < (b.X - a.X) * (p.Y - a.Y) / (b.Y - a.Y) + a.X)
+            {
+                inside = !inside;
             }
         }
 
-        return false;
+        return inside;
     }
+
+    private static DrawingCommandDto NewCommand(string type, List<PointDto> points, string color, int width) => new()
+    {
+        Type = type,
+        Points = points,
+        Color = color,
+        Width = width,
+        StrokeId = Guid.NewGuid().ToString(),
+        IsAiGenerated = true
+    };
+
+    private static bool IsRateLimitOrTimeout(Exception ex) =>
+        ex is OperationCanceledException or ClientResultException { Status: 429 };
+
+    /// <summary>Groq (and OpenAI) send retry-after in seconds on 429s; honor it instead of a fixed cooldown.</summary>
+    private static TimeSpan? GetRetryAfter(Exception? ex) =>
+        ex is ClientResultException cre
+        && cre.GetRawResponse()?.Headers.TryGetValue("retry-after", out var value) == true
+        && double.TryParse(value, NumberStyles.Float, CultureInfo.InvariantCulture, out var seconds)
+            ? TimeSpan.FromSeconds(seconds)
+            : null;
 }
