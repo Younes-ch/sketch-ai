@@ -62,7 +62,7 @@ export function TranslationModal({
         {error && (
           <div className="text-center py-4">
             <div className="text-4xl mb-3">⚠️</div>
-            <p className="text-danger font-medium mb-2">Translation Failed</p>
+            <p className="text-danger-light font-medium mb-2">Translation Failed</p>
             <p className="text-white/60 text-sm mb-4">{error}</p>
             <Button variant="secondary" size="md" onClick={onClose}>
               Close
@@ -101,7 +101,7 @@ export function TranslationModal({
               </div>
 
               <div className="bg-primary/20 rounded-lg p-4 border border-primary/30">
-                <p className="text-primary text-xs uppercase tracking-wide mb-1">
+                <p className="text-primary-light text-xs uppercase tracking-wide mb-1">
                   Translation ({explanation.targetLanguage})
                 </p>
                 <p className="text-white font-bold text-2xl">

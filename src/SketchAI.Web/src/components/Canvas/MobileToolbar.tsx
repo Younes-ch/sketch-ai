@@ -190,7 +190,7 @@ function MobileToolbarComponent({
                     className={cn(
                       "rounded-lg font-bold text-sm",
                       currentTool === "eraser"
-                        ? "bg-warning text-white"
+                        ? "bg-warning text-background"
                         : "bg-transparent text-white/60"
                     )}
                     leftIcon={<span>🧽</span>}

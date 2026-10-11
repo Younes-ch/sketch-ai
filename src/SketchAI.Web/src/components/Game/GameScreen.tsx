@@ -25,8 +25,11 @@ import { useRoomStore } from "@/stores/roomStore";
 import { useGameStore } from "@/stores/gameStore";
 import { useReactionStore } from "@/stores/reactionStore";
 import { useGameActions } from "@/hooks/useGameActions";
+import { useGameAudio } from "@/hooks/useGameAudio";
 
 export default function GameScreen() {
+  useGameAudio();
+
   const roomCode = useRoomStore((s) => s.roomCode);
   const username = useRoomStore((s) => s.username);
   const isHost = useRoomStore((s) => s.isHost);

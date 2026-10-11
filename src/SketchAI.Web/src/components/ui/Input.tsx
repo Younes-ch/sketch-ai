@@ -60,7 +60,7 @@ const Input = forwardRef<HTMLInputElement, InputProps>(
         {error && (
           <p
             id={errorId}
-            className="text-xs text-danger font-medium ml-1 animate-in slide-in-from-top-1 fade-in-0"
+            className="text-xs text-danger-light font-medium ml-1 animate-in slide-in-from-top-1 fade-in-0"
           >
             {error}
           </p>

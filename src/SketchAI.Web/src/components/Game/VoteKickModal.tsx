@@ -43,7 +43,7 @@ function TimerProgress({ startedAt, durationSeconds }: TimerProgressProps) {
         <span className="text-white/70">⏱️ Time remaining</span>
         <span
           className={`font-bold tabular-nums ${
-            isUrgent ? "text-danger animate-pulse" : "text-white"
+            isUrgent ? "text-danger-light animate-pulse" : "text-white"
           }`}
         >
           {remainingSeconds}s
@@ -77,8 +77,8 @@ function VoteProgress({
   return (
     <div className="bg-background rounded-lg p-2 border-2 border-card-border">
       <div className="flex justify-between text-xs mb-1">
-        <span className="text-success font-bold">👍 Keep: {votesToKeep}</span>
-        <span className="text-danger font-bold">👎 Kick: {votesToKick}</span>
+        <span className="text-success-light font-bold">👍 Keep: {votesToKeep}</span>
+        <span className="text-danger-light font-bold">👎 Kick: {votesToKick}</span>
       </div>
       <div className="flex gap-1 h-2 rounded-full overflow-hidden bg-card-border">
         {votesToKeep > 0 && (
@@ -225,7 +225,7 @@ export default function VoteKickModal() {
                     {activeVoteKick.initiatorUsername}
                   </span>{" "}
                   wants to kick{" "}
-                  <span className="font-bold text-danger">
+                  <span className="font-bold text-danger-light">
                     {activeVoteKick.targetUsername}
                   </span>
                 </p>

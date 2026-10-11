@@ -33,7 +33,7 @@ export default function GamePhaseIndicator() {
             currentDrawer?.username || "Someone"
           } is choosing a word...`,
           subtitle: "Get ready to guess!",
-          color: "text-info",
+          color: "text-info-light",
           bgColor: "bg-info/20",
         };
 
@@ -42,7 +42,7 @@ export default function GamePhaseIndicator() {
           icon: "🎨",
           title: `Round ${roundNumber} of ${totalRounds}`,
           subtitle: `${currentDrawer?.username || "Someone"} is drawing`,
-          color: "text-success",
+          color: "text-success-light",
           bgColor: "bg-success/20",
           showTimer: true,
         };

@@ -67,6 +67,10 @@ export default function CreateRoomTab({
   const { isEnabled: isCaptchaEnabled } = useCaptcha();
   const captchaRef = useRef<CaptchaWidgetHandle>(null);
 
+  // Turnstile downloads ~700 KB: load it once a nickname is entered, then keep it mounted
+  const [showCaptcha, setShowCaptcha] = useState(!isDisabled);
+  if (!isDisabled && !showCaptcha) setShowCaptcha(true);
+
   useEffect(() => {
     if (error) {
       captchaRef.current?.reset();
@@ -118,7 +122,7 @@ export default function CreateRoomTab({
           maxLength={30}
           className="w-full"
         />
-        <p className="text-white/40 text-xs">
+        <p className="text-white/60 text-xs">
           {roomName.trim().length}/30 characters (min 3)
         </p>
       </div>
@@ -140,6 +144,9 @@ export default function CreateRoomTab({
         </div>
         <button
           type="button"
+          role="switch"
+          aria-checked={isPublicRoom}
+          aria-label="Public room"
           onClick={onTogglePublic}
           className={cn(
             "relative w-14 h-8 rounded-full transition-colors duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent",
@@ -195,7 +202,7 @@ export default function CreateRoomTab({
       )}
 
       {error && (
-        <div className="bg-danger/20 border-2 border-danger rounded-xl p-3 text-danger text-sm animate-in slide-in-from-top-2 fade-in-0">
+        <div className="bg-danger/20 border-2 border-danger rounded-xl p-3 text-danger-light text-sm animate-in slide-in-from-top-2 fade-in-0">
           {error}
         </div>
       )}
@@ -208,11 +215,13 @@ export default function CreateRoomTab({
       )}
 
       {/* CAPTCHA Widget */}
-      <CaptchaWidget
-        ref={captchaRef}
-        onSuccess={handleCaptchaSuccess}
-        onExpire={handleCaptchaExpire}
-      />
+      {showCaptcha && (
+        <CaptchaWidget
+          ref={captchaRef}
+          onSuccess={handleCaptchaSuccess}
+          onExpire={handleCaptchaExpire}
+        />
+      )}
 
       <Button
         type="submit"

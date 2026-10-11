@@ -354,8 +354,8 @@ export default function RoomSettingsPanel({
                 <span
                   className={cn(
                     customWordsValidation.isValid
-                      ? "text-success"
-                      : "text-danger"
+                      ? "text-success-light"
+                      : "text-danger-light"
                   )}
                 >
                   {customWordsValidation.error ||
@@ -549,9 +549,9 @@ export default function RoomSettingsPanel({
                 <span
                   className={cn(
                     customWordsValidation.isValid
-                      ? "text-success"
+                      ? "text-success-light"
                       : localCustomWords
-                      ? "text-danger"
+                      ? "text-danger-light"
                       : "text-white/40"
                   )}
                 >

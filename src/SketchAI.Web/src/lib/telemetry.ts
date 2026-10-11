@@ -1,4 +1,15 @@
-import { ApplicationInsights, SeverityLevel } from "@microsoft/applicationinsights-web";
+import type { ApplicationInsights } from "@microsoft/applicationinsights-web";
+
+// The SDK's SeverityLevel values, defined locally: any value import from the SDK
+// would put all of it (~1/3 of the landing page's JS) into the main bundle
+export const SeverityLevel = {
+  Verbose: 0,
+  Information: 1,
+  Warning: 2,
+  Error: 3,
+  Critical: 4,
+} as const;
+type SeverityLevel = (typeof SeverityLevel)[keyof typeof SeverityLevel];
 
 // Get Application Insights connection string from runtime config
 const getConnectionString = (): string | undefined => {
@@ -17,9 +28,9 @@ let appInsightsInstance: ApplicationInsights | null = null;
  * Initialize Application Insights for frontend telemetry.
  * Safe to call multiple times - will only initialize once.
  */
-export const initializeTelemetry = (): ApplicationInsights | null => {
+export const initializeTelemetry = async (): Promise<void> => {
   if (appInsightsInstance) {
-    return appInsightsInstance;
+    return;
   }
 
   const connectionString = getConnectionString();
@@ -28,10 +39,11 @@ export const initializeTelemetry = (): ApplicationInsights | null => {
     console.debug(
       "[Telemetry] Application Insights not configured - skipping initialization"
     );
-    return null;
+    return;
   }
 
   try {
+    const { ApplicationInsights } = await import("@microsoft/applicationinsights-web");
     appInsightsInstance = new ApplicationInsights({
       config: {
         connectionString,
@@ -51,29 +63,11 @@ export const initializeTelemetry = (): ApplicationInsights | null => {
     appInsightsInstance.trackPageView();
 
     console.debug("[Telemetry] Application Insights initialized successfully");
-    return appInsightsInstance;
   } catch (error) {
     console.error("[Telemetry] Failed to initialize Application Insights", error);
-    return null;
   }
 };
 
-/**
- * Get the Application Insights instance (may be null if not configured)
- */
-export const getAppInsights = (): ApplicationInsights | null => {
-  return appInsightsInstance;
-};
-
-/**
- * Track a custom event
- */
-export const trackEvent = (
-  name: string,
-  properties?: Record<string, string>
-): void => {
-  appInsightsInstance?.trackEvent({ name, properties });
-};
 /**
  * Track an exception/error
  */
@@ -103,17 +97,3 @@ export const trackTrace = (
     properties,
   });
 };
-
-/**
- * Track a metric
- */
-export const trackMetric = (
-  name: string,
-  average: number,
-  properties?: Record<string, string>
-): void => {
-  appInsightsInstance?.trackMetric({ name, average }, properties);
-};
-
-// Re-export SeverityLevel for consumers
-export { SeverityLevel };

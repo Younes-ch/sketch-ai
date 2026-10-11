@@ -13,17 +13,10 @@ const ToastItem = ({ toast }: { toast: Toast }) => {
   const removeToast = useToastStore((s) => s.removeToast);
 
   const bgColors = {
-    info: "bg-card border-card-border",
-    success: "bg-success/20 border-success text-success",
+    info: "bg-card border-card-border text-white",
+    success: "bg-success/20 border-success text-success-light",
     warning: "bg-warning/20 border-warning text-warning",
-    error: "bg-danger/20 border-danger text-danger",
-  };
-
-  const textColors = {
-    info: "text-white",
-    success: "text-success-foreground",
-    warning: "text-warning-foreground",
-    error: "text-danger-foreground",
+    error: "bg-danger/20 border-danger text-danger-light",
   };
 
   return (
@@ -38,7 +31,7 @@ const ToastItem = ({ toast }: { toast: Toast }) => {
         ${bgColors[toast.type]}
       `}
     >
-      <p className={`flex-1 text-sm font-medium ${textColors[toast.type]}`}>
+      <p className="flex-1 text-sm font-medium">
         {toast.message}
       </p>
       <Button
