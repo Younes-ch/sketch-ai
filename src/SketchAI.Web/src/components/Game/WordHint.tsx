@@ -182,7 +182,7 @@ export default function WordHint() {
       <p
         className={cn(
           "text-xl sm:text-2xl font-bold tracking-widest",
-          isDrawer ? "text-success" : "text-accent"
+          isDrawer ? "text-success-light" : "text-accent"
         )}
       >
         {displayText || "_ _ _ _ _"}

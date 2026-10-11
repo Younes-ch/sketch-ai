@@ -1,4 +1,5 @@
 import {
+  About,
   CreateRoomTab,
   HowToPlay,
   JoinRoomTab,
@@ -142,7 +143,7 @@ export default function JoinScreen({
   const hasUsername = username.trim().length > 0;
 
   return (
-    <div className="min-h-screen flex flex-col items-center justify-center bg-background p-4 relative overflow-hidden">
+    <main className="min-h-screen flex flex-col items-center justify-center bg-background p-4 relative overflow-hidden">
       {/* Floating decorative elements */}
       <div
         className="absolute top-10 left-10 text-6xl animate-bounce"
@@ -171,18 +172,14 @@ export default function JoinScreen({
 
       {/* Layout wrapper */}
       <div className="relative z-10 w-full max-w-5xl">
-        {/* Main Container */}
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.5 }}
-        >
+        {/* Main Container - no entrance fade: it delays the largest paint (LCP) */}
+        <div>
           {/* Logo */}
           <div className="text-center mb-6">
-            <h1 className="text-7xl font-black tracking-tight mb-2 drop-shadow-lg">
+            <div className="text-7xl font-black tracking-tight mb-2 drop-shadow-lg">
               <span className="text-accent">sketch</span>
               <span className="text-white">.ai</span>
-            </h1>
+            </div>
             <div className="flex justify-center gap-1 mb-2">
               {DECORATIVE_COLORS.map((colorClass, i) => (
                 <div
@@ -191,9 +188,9 @@ export default function JoinScreen({
                 />
               ))}
             </div>
-            <p className="text-white/70 text-lg font-medium">
-              Draw, Guess & Have Fun! 🎉
-            </p>
+            <h1 className="text-white/70 text-lg font-medium text-balance">
+              Free multiplayer draw & guess game with AI 🎉
+            </h1>
           </div>
 
           {/* Card row: card */}
@@ -296,8 +293,9 @@ export default function JoinScreen({
           {/* How to Play */}
           <div className="max-w-lg mx-auto mt-6">
             <HowToPlay />
+            <About />
           </div>
-        </motion.div>
+        </div>
       </div>
 
       {/* Buy Me a Coffee Button */}
@@ -314,6 +312,6 @@ export default function JoinScreen({
           className="w-7 h-7 md:w-8 md:h-8"
         />
       </a>
-    </div>
+    </main>
   );
 }

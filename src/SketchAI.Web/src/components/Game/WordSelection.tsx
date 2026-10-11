@@ -261,7 +261,7 @@ export function WordSelection({ words, timeLimit = 15 }: WordSelectionProps) {
                       "px-3 rounded-lg transition-all duration-200",
                       isTranslating || translationPaused
                         ? "bg-card-border text-white/40"
-                        : "bg-primary/20 text-primary hover:bg-primary/30 border border-primary/40"
+                        : "bg-primary/20 text-primary-light hover:bg-primary/30 border border-primary/40"
                     )}
                   >
                     🌐

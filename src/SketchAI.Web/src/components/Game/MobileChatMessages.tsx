@@ -78,7 +78,7 @@ export default function MobileChatMessages() {
                   </p>
                 )}
                 {msg.type === "leave" && (
-                  <p className="text-red-400 text-[10px] font-semibold flex items-center gap-1">
+                  <p className="text-danger-light text-[10px] font-semibold flex items-center gap-1">
                     <span>🚪</span> {msg.message}
                   </p>
                 )}
@@ -109,7 +109,7 @@ export default function MobileChatMessages() {
 
                 {/* Game Logic Messages */}
                 {msg.type === "correct-guess" ? (
-                  <p className="text-success font-medium flex items-center gap-1">
+                  <p className="text-success-light font-medium flex items-center gap-1">
                     <span>✅</span>
                     {msg.message}
                   </p>

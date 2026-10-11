@@ -9,7 +9,7 @@ let lastTickSecond: number | null = null;
 
 /**
  * Hook that plays audio effects based on game events.
- * This should be used once in the app, typically in a top-level component.
+ * Used once, in GameScreen, so sounds load only once the player is in a room.
  */
 export function useGameAudio() {
   const { play, stop } = useAudio();

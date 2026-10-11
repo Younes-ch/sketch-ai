@@ -40,12 +40,12 @@ export default function PublicRoomCard({
             "font-bold",
             room.playerCount >= room.maxPlayers - 1
               ? "text-warning"
-              : "text-success",
+              : "text-success-light",
           )}
         >
           {room.playerCount}/{room.maxPlayers}
         </p>
-        <p className="text-white/40 text-xs">players</p>
+        <p className="text-white/60 text-xs">players</p>
       </div>
     </Button>
   );

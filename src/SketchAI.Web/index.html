@@ -10,37 +10,45 @@
   <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
   <link rel="manifest" href="/manifest.json" />
 
-  <!-- Fonts - Nunito  -->
-  <link rel="preconnect" href="https://fonts.googleapis.com" />
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-  <link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
+  <!-- Fonts - Nunito, self-hosted (@font-face in App.css); latin is needed for first paint -->
+  <link rel="preload" href="/fonts/nunito-latin.woff2" as="font" type="font/woff2" crossorigin />
 
-  <!-- Viewport - disable zoom on mobile for canvas drawing -->
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+  <!-- Viewport - canvas blocks pinch-zoom itself via touch-action: none -->
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
 
   <!-- Theme -->
   <meta name="theme-color" content="#1a1a2e" />
   <meta name="color-scheme" content="dark" />
 
   <!-- SEO -->
-  <title>SketchAI - Draw & Guess Game</title>
+  <title>SketchAI – Free Multiplayer Draw & Guess Game with AI</title>
   <meta name="description"
-    content="A fun multiplayer drawing and guessing game. Draw, guess, and compete with friends in real-time with AI touch!" />
+    content="Free online draw & guess game, Pictionary-style. Create a private room, invite friends with a link and play in your browser. No sign-up. AI can draw too!" />
+  <link rel="canonical" href="https://sketch-ai.dev/" />
+  <script type="application/ld+json">
+    {
+      "@context": "https://schema.org",
+      "@type": "WebSite",
+      "name": "SketchAI",
+      "alternateName": ["Sketch AI", "sketch-ai.dev"],
+      "url": "https://sketch-ai.dev/"
+    }
+  </script>
 
-  <!-- Open Graph / Social -->
+  <!-- Open Graph / Social (absolute URLs required) -->
   <meta property="og:type" content="website" />
-  <meta property="og:title" content="SketchAI - Draw & Guess Game" />
+  <meta property="og:site_name" content="SketchAI" />
+  <meta property="og:url" content="https://sketch-ai.dev/" />
+  <meta property="og:title" content="SketchAI – Free Multiplayer Draw & Guess Game with AI" />
   <meta property="og:description"
-    content="A fun multiplayer drawing and guessing game. Draw, guess, and compete with friends in real-time with AI touch!" />
-  <meta property="og:image" content="/og-image.png" />
+    content="Free online draw & guess game, Pictionary-style. Create a private room, invite friends with a link and play in your browser. No sign-up. AI can draw too!" />
+  <meta property="og:image" content="https://sketch-ai.dev/og-image.png" />
+  <meta property="og:image:width" content="1200" />
+  <meta property="og:image:height" content="630" />
+  <meta property="og:image:alt" content="SketchAI – multiplayer draw & guess game" />
 
-  <!-- Twitter -->
+  <!-- Twitter (title, description and image fall back to og:*) -->
   <meta name="twitter:card" content="summary_large_image" />
-  <meta name="twitter:title" content="SketchAI - Draw & Guess Game" />
-  <meta name="twitter:description"
-    content="A fun multiplayer drawing and guessing game. Draw, guess, and compete with friends in real-time with AI touch!" />
-  <meta name="twitter:image" content="/og-image.png" />
-  
 </head>
 
 <body>

@@ -80,7 +80,7 @@ export default function PublicRoomsTab({
           <div className="text-center py-8">
             <div className="text-4xl mb-2">😴</div>
             <p className="text-white/60">No public games available</p>
-            <p className="text-white/40 text-sm mt-1">
+            <p className="text-white/60 text-sm mt-1">
               Create one and invite friends!
             </p>
           </div>
@@ -129,7 +129,7 @@ export default function PublicRoomsTab({
       )}
 
       {error && (
-        <div className="bg-red-500/20 border-2 border-red-500 rounded-xl p-3 text-red-400 text-sm">
+        <div className="bg-danger/20 border-2 border-danger rounded-xl p-3 text-danger-light text-sm">
           {error}
         </div>
       )}

@@ -15,7 +15,7 @@ export const buttonVariants = cva(
         danger:
           "bg-danger text-white border-4 border-danger-dark hover:bg-danger-hover hover:-translate-y-0.5 focus-visible:ring-danger",
         warning:
-          "bg-warning text-white border-4 border-warning-dark hover:bg-warning-hover hover:-translate-y-0.5 focus-visible:ring-warning",
+          "bg-warning text-background border-4 border-warning-dark hover:bg-warning-hover hover:-translate-y-0.5 focus-visible:ring-warning",
         ghost:
           "bg-transparent text-white/60 hover:bg-white/10 hover:text-white border-0 focus-visible:ring-white/50",
         outline:
