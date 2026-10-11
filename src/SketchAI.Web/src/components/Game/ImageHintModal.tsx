@@ -118,7 +118,7 @@ export function ImageHintModal({
                 {imageHint.word}
               </p>
               {imageHint.preset && (
-                <p className="text-primary/70 text-xs mt-1">
+                <p className="text-primary-light/70 text-xs mt-1">
                   Category: {imageHint.preset.replace(/-/g, " ")}
                 </p>
               )}

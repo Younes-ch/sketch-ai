@@ -1,3 +1,4 @@
+export { default as About } from "./About";
 export { default as CreateRoomTab } from "./CreateRoomTab";
 export { default as HowToPlay } from "./HowToPlay";
 export { default as JoinRoomTab } from "./JoinRoomTab";

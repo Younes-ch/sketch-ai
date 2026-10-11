@@ -32,7 +32,7 @@ export default function JoinRoomTab({
       />
 
       {error && (
-        <div className="bg-danger/20 border-2 border-danger rounded-xl p-3 text-danger text-sm animate-in slide-in-from-top-2 fade-in-0">
+        <div className="bg-danger/20 border-2 border-danger rounded-xl p-3 text-danger-light text-sm animate-in slide-in-from-top-2 fade-in-0">
           {error}
         </div>
       )}

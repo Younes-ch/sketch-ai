@@ -18,6 +18,9 @@ const logCaptchaConfig = (source: string, key: string | undefined): void => {
 
 // Get the site key from runtime config (production) or Vite env (development)
 export const getSiteKey = (): string | undefined => {
+  // Build-time prerender (prerender.mjs) has no window; the widget appears once the client renders
+  if (typeof window === "undefined") return undefined;
+
   // Production: injected via Docker entrypoint into window.__RUNTIME_CONFIG__
   const runtimeKey = window.__RUNTIME_CONFIG__?.TURNSTILE_SITE_KEY;
   
