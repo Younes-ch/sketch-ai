@@ -12,7 +12,8 @@ public interface IAIProviderSelector
     /// Marks a provider as rate-limited. It will be skipped until the cooldown expires.
     /// </summary>
     /// <param name="providerServiceKey">The service key of the rate-limited provider</param>
-    void MarkProviderRateLimited(string providerServiceKey);
+    /// <param name="cooldown">How long to skip the provider (e.g. the 429 retry-after); defaults to FallbackCooldownMinutes</param>
+    void MarkProviderRateLimited(string providerServiceKey, TimeSpan? cooldown = null);
 
     /// <summary>
     /// Gets the current status of all providers (for debugging/monitoring).

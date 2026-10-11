@@ -15,8 +15,8 @@ public static partial class ValidationHelper
     private const int RoomCodeLength = 6;
     private const int MinRoomNameLength = 3;
     private const int MaxRoomNameLength = 30;
-    private const int MinBrushWidth = 1;
-    private const int MaxBrushWidth = 50;
+    public const int MinBrushWidth = 1;
+    public const int MaxBrushWidth = 50;
     private const int MaxCustomWordsLength = 2000;
     private const int MinCustomWordCount = 3;
     private const int MaxCustomWordLength = 50;
