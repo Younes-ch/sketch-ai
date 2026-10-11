@@ -23,10 +23,8 @@ RUN dotnet publish src/SketchAI.Api/SketchAI.Api.csproj \
 FROM mcr.microsoft.com/dotnet/aspnet:10.0-alpine AS runtime
 WORKDIR /app
 COPY --from=build /app/publish .
-COPY deploy/fly/entrypoint-api.sh .
-RUN chmod +x entrypoint-api.sh
 
 ENV ASPNETCORE_URLS=http://+:8080
 EXPOSE 8080
 
-ENTRYPOINT ["./entrypoint-api.sh"]
+ENTRYPOINT ["dotnet", "SketchAI.Api.dll"]

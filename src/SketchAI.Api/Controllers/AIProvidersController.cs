@@ -28,7 +28,7 @@ public class AIProvidersController : ControllerBase
     /// <summary>
     /// Resets the rate limit status for a specific provider.
     /// </summary>
-    /// <param name="serviceKey">The service key of the provider to reset (e.g., "gemini-model", "gpt-41")</param>
+    /// <param name="serviceKey">The service key of the provider to reset (e.g., "gpt-oss-120b")</param>
     [HttpPost("{serviceKey}/reset")]
     public IActionResult ResetProvider(string serviceKey)
     {

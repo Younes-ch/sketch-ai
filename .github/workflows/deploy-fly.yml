@@ -33,7 +33,6 @@ jobs:
               - 'src/SketchAI.Api/**'
               - 'src/SketchAI.ServiceDefaults/**'
               - 'deploy/fly/Dockerfile.api'
-              - 'deploy/fly/entrypoint-api.sh'
               - 'deploy/fly/fly.api.toml'
               - 'Directory.Packages.props'
               - 'global.json'

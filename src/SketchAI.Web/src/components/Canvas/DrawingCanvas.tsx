@@ -101,12 +101,13 @@ function DrawingCanvasComponent({
     return () => mediaQuery.removeListener(handleChange);
   }, []);
 
-  const { drawCommand, clearCanvas, replayHistoryAsync } = useCanvasRenderer({
+  const { drawCommand, animateCommand, clearCanvas, replayHistoryAsync } = useCanvasRenderer({
     canvasRef,
   });
 
   useSignalRCanvas({
     drawCommand,
+    animateCommand,
     clearCanvas,
     replayHistoryAsync,
     onLocalStrokeCountChange: setLocalStrokeCount,

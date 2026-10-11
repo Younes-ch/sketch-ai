@@ -12,7 +12,7 @@ A real-time multiplayer drawing and guessing game powered by AI. Players take tu
 - [Architecture Overview](#architecture-overview)
 - [Technologies](#technologies)
 - [Algorithms and Mechanisms](#algorithms-and-mechanisms)
-  - [AI Tool Calling](#ai-tool-calling)
+  - [AI Drawing Commands](#ai-drawing-commands)
   - [Prompt Engineering](#prompt-engineering)
   - [AI Provider Fallback with Circuit Breaker](#ai-provider-fallback-with-circuit-breaker)
   - [Caching Strategy](#caching-strategy)
@@ -36,7 +36,7 @@ A real-time multiplayer drawing and guessing game powered by AI. Players take tu
 ## Features
 
 - **Real-time Multiplayer**: Create or join rooms with 2-20 players
-- **AI Drawing Assistant**: Let AI draw the word for you using function calling
+- **AI Drawing Assistant**: Let AI draw the word for you, stroke by stroke
 - **Image Hints**: Get visual hints from web image search
 - **Word Translation**: AI-powered word explanations in multiple languages
 - **Customizable Games**: Configure rounds, draw time, difficulty, and word presets
@@ -60,8 +60,8 @@ SketchAI is built using a modern cloud-native architecture with .NET Aspire for 
                                v
                     +--------------------+
                     |   AI Providers     |
-                    | (GitHub Models,    |
-                    |  Google Gemini)    |
+                    |   (Groq, OpenAI-   |
+                    |    compatible)     |
                     +--------------------+
 ```
 
@@ -96,8 +96,8 @@ SketchAI is built using a modern cloud-native architecture with .NET Aspire for 
 
 | Provider | Models | Purpose |
 | ---------- | -------- | --------- |
-| Google Gemini | gemini-3-flash-preview, gemini-2.5-flash, gemini-2.5-flash-lite | AI drawing generation |
-| GitHub Models | gpt-4o-mini | Word explanations and translations |
+| Groq | openai/gpt-oss-120b, qwen/qwen3.8-27b | AI drawing generation |
+| Groq | openai/gpt-oss-20b | Word explanations and translations |
 
 ### Infrastructure
 
@@ -113,38 +113,17 @@ SketchAI is built using a modern cloud-native architecture with .NET Aspire for 
 
 ## Algorithms and Mechanisms
 
-### AI Tool Calling
+### AI Drawing Commands
 
-The AI drawing feature uses function calling to generate drawing commands. Instead of generating images, the AI calls drawing functions that produce strokes and fills:
+The AI draws by writing one compact command per line instead of generating an image, on a 160x90 grid that keeps the 16:9 canvas proportions:
 
-```csharp
-var strokeTool = AIFunctionFactory.Create(
-    (PointDto[] points, string color, int width) => DrawStroke(queue, points, color, width),
-    name: "draw_stroke",
-    description: "Draw a stroke on the canvas with the given points");
-
-var fillTool = AIFunctionFactory.Create(
-    (PointDto point, string color) => DrawFill(queue, point, color),
-    name: "draw_fill",
-    description: "Fill an area on the canvas starting from a point");
+```text
+S <color> <width> <x,y> <x,y> ...   stroke through the points
+C <color> <width> <x,y> <r>         circle
+F <color> <x,y>                     flood fill
 ```
 
-The AI model receives these tools and calls them to construct drawings programmatically, which are then streamed to clients in real-time.
-
-### Prompt Engineering
-
-Carefully crafted prompts guide the AI to produce quality drawings:
-
-- **System prompt**: Restricts the AI to only call drawing functions, never output text
-- **User prompt**: Provides canvas coordinates, drawing instructions, and the word to draw
-- **Tool constraints**: Uses `ChatToolMode.RequireAny` to force function calling
-
-The prompt includes:
-
-- Normalized coordinate system (0.0-1.0) for resolution independence
-- Suggested drawing approach (outlines first, then fills)
-- Color and stroke width guidelines
-- Critical rules to prevent text output
+`AIDrawingService` parses each line as soon as it is complete and streams it to clients, so strokes appear while the model is still generating. One request per drawing (no tool calling) keeps token usage low. Fills are only accepted inside closed shapes, and the stream stops if the model starts writing prose.
 
 ### AI Provider Fallback with Circuit Breaker
 
@@ -153,11 +132,10 @@ Multiple AI providers are configured with priority-based fallback:
 ```json
 {
   "AiProviders": {
-    "FallbackCooldownMinutes": 60,
+    "FallbackCooldownMinutes": 1,
     "Providers": [
-      { "Name": "Google Gemini 3 Flash", "Priority": 1 },
-      { "Name": "Google Gemini 2.5 Flash", "Priority": 2 },
-      { "Name": "Google Gemini 2.5 Flash Lite", "Priority": 3 }
+      { "Name": "Groq GPT-OSS 120B", "Priority": 1, "ServiceKey": "gpt-oss-120b", "Model": "openai/gpt-oss-120b", "ReasoningEffort": "Low" },
+      { "Name": "Groq Qwen 3.8 27B", "Priority": 2, "ServiceKey": "qwen3.8-27b", "Model": "qwen/qwen3.8-27b", "ReasoningEffort": "None" }
     ]
   }
 }
@@ -167,7 +145,7 @@ When a provider hits rate limits or fails:
 
 1. The `AIProviderSelector` marks it as unavailable
 2. Requests automatically route to the next priority provider
-3. Providers recover after the cooldown period
+3. Providers recover after the 429 `retry-after` delay, or the cooldown period otherwise
 
 HTTP clients use Polly for resilience:
 
@@ -398,8 +376,7 @@ sketch-ai/
 
    ```bash
    cd src/SketchAI.AppHost
-   dotnet user-secrets set "Parameters:gh-models-api-key" "<your-github-token>"
-   dotnet user-secrets set "Parameters:google-gemini-api-key" "<your-gemini-key>"
+   dotnet user-secrets set "Parameters:groq-api-key" "<your-groq-key>"
    dotnet user-secrets set "Parameters:serper-api-key" "<your-serper-key>"
    dotnet user-secrets set "Parameters:turnstile-site-key" "<your-turnstile-site-key>"
    dotnet user-secrets set "Parameters:turnstile-secret-key" "<your-turnstile-secret-key>"
@@ -447,7 +424,7 @@ This project is not monetized and relies on free-tier AI services. As a result:
 
 - **AI Drawing** feature may be temporarily unavailable due to rate limits on free API tiers
 - **Image Hints** depend on external search APIs with usage quotas
-- **Word Translation** uses GitHub Models with token limits
+- **Word Translation** uses the Groq free tier with token limits
 
 The application implements automatic fallback between providers and graceful degradation when services are unavailable. Players can always continue playing manually without AI assistance.
 

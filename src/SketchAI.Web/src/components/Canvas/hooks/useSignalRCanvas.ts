@@ -5,6 +5,7 @@ import { logger } from "@/lib/logger";
 
 interface UseSignalRCanvasOptions {
   drawCommand: (command: DrawingCommand, isLocal?: boolean) => void;
+  animateCommand: (command: DrawingCommand) => void;
   clearCanvas: () => void;
   replayHistoryAsync: (history: DrawingCommand[], onComplete?: () => void) => Promise<void>;
   onLocalStrokeCountChange: React.Dispatch<React.SetStateAction<number>>;
@@ -13,6 +14,7 @@ interface UseSignalRCanvasOptions {
 
 export function useSignalRCanvas({
   drawCommand,
+  animateCommand,
   clearCanvas,
   replayHistoryAsync,
   onLocalStrokeCountChange,
@@ -65,9 +67,13 @@ export function useSignalRCanvas({
 
     const seenAiStrokeIds = seenAiStrokeIdsRef.current;
 
+    // AI commands are animated (pen effect); human strokes are already live and drawn as they arrive.
+    const render = (command: DrawingCommand) =>
+      command.isAiGenerated ? animateCommand(command) : drawCommand(command);
+
     const unsubDrawing = onReceiveDrawingCommand((command: DrawingCommand) => {
       commandHistoryRef.current.push(command);
-      drawCommand(command);
+      render(command);
     });
 
     const unsubHistory = onReceiveCanvasHistory(handleReceiveHistory);
@@ -81,7 +87,7 @@ export function useSignalRCanvas({
     const unsubFill = onReceiveFillCommand((command: DrawingCommand) => {
       logger.info("Received fill command");
       commandHistoryRef.current.push(command);
-      drawCommand(command);
+      render(command);
     });
 
     const unsubAIDrawing = onReceiveAIDrawingCommand((command: DrawingCommand) => {
@@ -109,6 +115,7 @@ export function useSignalRCanvas({
     onReceiveFillCommand,
     onReceiveAIDrawingCommand,
     drawCommand,
+    animateCommand,
     clearCanvas,
     handleReceiveHistory,
     onLocalStrokeCountChange,
