@@ -456,3 +456,5 @@ The application implements automatic fallback between providers and graceful deg
 ## License
 
 This project is licensed under the MIT License. See [LICENSE.txt](LICENSE.txt) for details.
+
+[![SketchAI | AlternativeTo](https://alternativeto.net/static/badges/badge-compact-color.svg)](https://alternativeto.net/software/sketchai/about/?utm_source=badge&utm_medium=referral)
